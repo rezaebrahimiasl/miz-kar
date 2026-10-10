@@ -100,11 +100,18 @@ h3 .ab{display:inline-grid;vertical-align:middle;margin-left:6px}
 .kpi .v{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 .chips.wrap{flex-wrap:wrap;overflow:visible}
+details.more{border:1px dashed var(--line);border-radius:12px;padding:8px 10px;margin-bottom:11px}details.more>summary{font-size:13px;color:var(--muted);cursor:pointer;padding:2px 0}details.more[open]>summary{margin-bottom:10px}
 .banner svg{width:18px;height:18px;vertical-align:-4px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8}
 a.btn,a.pill{text-decoration:none;color:inherit;display:inline-flex;align-items:center;justify-content:center}
 .ppw{position:relative}.ppw input{padding-inline-end:40px}.ppx{position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);border:0;background:none;font-size:22px;color:var(--muted);width:32px;height:32px}
 .chips::-webkit-scrollbar{display:none}
 .chip svg{width:14px;height:14px;vertical-align:-2px}
+.dbox{display:flex;gap:6px;align-items:stretch}.dbox input{flex:1;min-width:0;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.dstep{flex:none;width:42px;border:1px solid var(--line);background:var(--surface);border-radius:10px;display:grid;place-items:center;color:var(--ink)}
+.cal{border:1px solid var(--line);border-radius:12px;padding:8px;margin:6px 0;background:var(--surface)}
+.calh{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.calh .dstep{height:34px}
+.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}.calg i{font-style:normal;font-size:11.5px;color:var(--muted)}
+.cd{border:0;background:var(--bg);border-radius:8px;padding:7px 0;font-size:13.5px}.cd.t{outline:1.5px solid var(--accent)}.cd.s{background:var(--accent);color:var(--accent-ink);font-weight:800}
 .pill svg,.link svg{width:13px;height:13px;vertical-align:-2px}
 .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:6px}
 .tile{border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:11px 10px;display:flex;gap:9px;align-items:center;text-align:right;min-height:60px}
@@ -215,8 +222,14 @@ function jNice(iso){if(!iso)return'';const t=today();const dd=diffDays(iso,t);
   if(dd===0)return'امروز';if(dd===1)return'فردا';if(dd===-1)return'دیروز';
   const j=jOf(iso);const s=`${fa(j.jd)} ${MONTHS[j.jm-1]}`;return j.jy===jOf(t).jy?s:s+' '+fa(j.jy)}
 function jLong(iso){const [y,m,d]=iso.split('-').map(Number);const w=new Date(y,m-1,d).getDay();const j=J.toJ(y,m,d);return `${WD[w]} ${fa(j.jd)} ${MONTHS[j.jm-1]} ${fa(j.jy)}`}
-function parseJ(s){s=en(String(s||'').trim()).replace(/[-.\s]/g,'/');if(!s)return'';const p=s.split('/').map(Number);if(p.length!==3||p.some(isNaN))return null;
-  let [a,b,c]=p;if(a<100)a+=1400;if(b<1||b>12||c<1||c>31)return null;const g=J.toG(a,b,c);return `${g.gy}-${pad(g.gm)}-${pad(g.gd)}`}
+function parseJ(s){s=en(String(s||'').trim());if(!s)return'';const t0=today(),tj=jOf(t0);
+  if(/^امروز$/.test(s))return t0;if(/^دیروز$/.test(s))return addDays(t0,-1);if(/^پریروز$/.test(s))return addDays(t0,-2);if(/^فردا$/.test(s))return addDays(t0,1);
+  let a,b,c;const mi=MONTHS.findIndex(m=>s.includes(m));
+  if(mi>=0){const nums=(s.match(/\d+/g)||[]).map(Number);c=nums[0];b=mi+1;a=nums[1]||tj.jy;if(!c)return null}
+  else{const parts=s.split(/[^0-9]+/).filter(Boolean);
+    if(parts.length===1){const d=parts[0];if(d.length===8){a=+d.slice(0,4);b=+d.slice(4,6);c=+d.slice(6)}else if(d.length===6){a=1400+ +d.slice(0,2);b=+d.slice(2,4);c=+d.slice(4)}else if(d.length===4){a=tj.jy;b=+d.slice(0,2);c=+d.slice(2)}else if(d.length===3){a=tj.jy;b=+d.slice(0,1);c=+d.slice(1)}else if(d.length<=2){a=tj.jy;b=tj.jm;c=+d}else return null}
+    else if(parts.length===2){a=tj.jy;b=+parts[0];c=+parts[1]}else if(parts.length===3){[a,b,c]=parts.map(Number);if(a<100)a+=1400}else return null}
+  const max=b<=6?31:b<12?30:(jOf(jIso(a,12,30)).jd===30?30:29);if(b<1||b>12||c<1||c>max)return null;const g=J.toG(a,b,c);return `${g.gy}-${pad(g.gm)}-${pad(g.gd)}`}
 const num=v=>{const x=Number(en(String(v??'')).replace(/٫/g,'.').replace(/[,٬،\s]/g,''));return isNaN(x)?null:x};
 const MIL=c=>(c||'تومان')==='تومان';
 const toBase=(x,c)=>x==null?x:(MIL(c)?Math.round(x*1e6):x);
@@ -251,7 +264,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.9';
+const APP_VER='0.9.1';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -781,13 +794,20 @@ async function ppResolve(f){for(const q of f.querySelectorAll('input[data-pp]'))
   return true}
 const areaSelect=(id,cur)=>`<div class="fld"><label for="${id}">حوزه</label><select id="${id}">${opt('','— —',cur)}${Object.entries(AREAS).map(([k,v])=>opt(k,v,cur)).join('')}</select></div>`;
 function dateHint(iso){if(!iso)return'بدون تاریخ';const n=jNice(iso),l=jLong(iso);return ['امروز','فردا','دیروز'].includes(n)?n+' — '+l:l}
-function dateField(id,label,cur,hint){return `<div class="fld"><label for="${id}">${label}</label><input id="${id}" data-date inputmode="numeric" placeholder="مثلاً ${jShort(today())}" value="${cur?jShort(cur):''}">
-  <div class="hint" id="${id}_dh" style="font-size:12.5px;color:var(--ink);margin:4px 2px">${cur?dateHint(cur):''}</div>
-  <div class="chips wrap">${[['امروز',0],['فردا',1],['۳ روز',3],['هفته بعد',7],['ماه بعد',30]].map(([l,n])=>{const v=addDays(today(),n);return `<button type="button" class="chip" data-act="setDate" data-f="${id}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`}).join('')}<button type="button" class="chip" data-act="setDate" data-f="${id}" data-v="" aria-pressed="false">بدون تاریخ</button></div>${hint?`<div class="hint">${hint}</div>`:''}</div>`}
-function dateSync(id){const s=val(id);const r=s?parseJ(s):'';const h=document.getElementById(id+'_dh');if(h)h.textContent=r===null?'تاریخ نامعتبر — به شکل ۱۴۰۵/۰۷/۲۰':dateHint(r);
+const PASTF=['f_mdate','f_date','f_ldate','f_adate','f_vdt','f_qdate','f_vdate'];
+function dateField(id,label,cur,hint){const past=PASTF.includes(id);const ch=past?[['امروز',0],['دیروز',-1],['پریروز',-2],['هفتهٔ پیش',-7]]:[['امروز',0],['فردا',1],['پس‌فردا',2],['هفتهٔ بعد',7],['ماه بعد',30]];
+  return `<div class="fld"><label for="${id}">${label}</label><div class="dbox"><button type="button" class="dstep" data-act="dStep" data-f="${id}" data-v="-1" aria-label="روز قبل">${svg('chevR')}</button><input id="${id}" data-date inputmode="text" autocomplete="off" placeholder="مثلاً ۱۸ مهر یا ۷/۱۸" value="${cur?jShort(cur):''}"><button type="button" class="dstep" data-act="dStep" data-f="${id}" data-v="1" aria-label="روز بعد">${svg('chevL')}</button><button type="button" class="dstep" data-act="calOpen" data-f="${id}" aria-label="تقویم">${svg('cal')}</button></div>
+  <div class="hint" id="${id}_dh" style="font-size:12.5px;color:var(--ink);margin:4px 2px">${cur?dateHint(cur):''}</div><div id="${id}_cal"></div>
+  <div class="chips wrap">${ch.map(([l,n])=>{const v=addDays(today(),n);return `<button type="button" class="chip" data-act="setDate" data-f="${id}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`}).join('')}${past?'':`<button type="button" class="chip" data-act="setDate" data-f="${id}" data-v="" aria-pressed="false">بدون تاریخ</button>`}</div>${hint?`<div class="hint">${hint}</div>`:''}</div>`}
+function calHtml(id,jy,jm){const sel=parseJ(val(id))||'';const first=jIso(jy,jm,1);const off=(wdOf(first)+1)%7;const dim=jm<=6?31:jm<12?30:(jOf(jIso(jy,12,30)).jd===30?30:29);const t=today();
+  let cells='';for(let i=0;i<off;i++)cells+='<span></span>';for(let d=1;d<=dim;d++){const iso=jIso(jy,jm,d);cells+=`<button type="button" class="cd${iso===t?' t':''}${iso===sel?' s':''}" data-act="calPick" data-f="${id}" data-v="${iso}">${fa(d)}</button>`}
+  const pm=jm===1?[jy-1,12]:[jy,jm-1],nm=jm===12?[jy+1,1]:[jy,jm+1];
+  return `<div class="cal"><div class="calh"><button type="button" class="dstep" data-act="calNav" data-f="${id}" data-y="${pm[0]}" data-m="${pm[1]}">${svg('chevR')}</button><b>${MONTHS[jm-1]} ${fa(jy)}</b><button type="button" class="dstep" data-act="calNav" data-f="${id}" data-y="${nm[0]}" data-m="${nm[1]}">${svg('chevL')}</button></div>
+   <div class="calg">${['ش','ی','د','س','چ','پ','ج'].map(x=>`<i>${x}</i>`).join('')}${cells}</div></div>`}
+function dateSync(id){const s=val(id);const r=s?parseJ(s):'';const h=document.getElementById(id+'_dh');if(h)h.textContent=r===null?'تاریخ را نشناختم؛ مثلاً «۱۸ مهر»، «۷/۱۸» یا با دکمه‌های قبل و بعد':dateHint(r);
   const f=document.getElementById(id);if(f)f.closest('.fld').querySelectorAll('[data-act=setDate]').forEach(c=>c.setAttribute('aria-pressed',String(s!==''&&c.dataset.v===r)))}
 const val=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
-function readDate(id,req){const s=val(id);if(!s){if(req){toast('تاریخ لازم است');return null}return''}const r=parseJ(s);if(r===null){toast('تاریخ را به شکل ۱۴۰۵/۰۷/۲۰ بنویس');return null}return r}
+function readDate(id,req){const s=val(id);if(!s){if(req){toast('تاریخ لازم است');return null}return''}const r=parseJ(s);if(r===null){toast('تاریخ را نشناختم؛ مثلاً «۱۸ مهر» یا «۷/۱۸»، یا از تقویم انتخاب کن');const e=document.getElementById(id);if(e)e.focus();return null}return r}
 
 const LOGT=[['sms','پیامک'],['call','تماس'],['msg','واتساپ/پیام'],['mail','ایمیل'],['meet','دیدار'],['part','بخشی از کار']];
 const logName=k=>(LOGT.find(x=>x[0]===k)||[,'یادداشت'])[1];
@@ -803,8 +823,9 @@ function taskProgress(t){const log=(t.log||[]).slice().reverse();const per=t.per
   ${log.length?`<div class="blk-h"><h2>سابقهٔ این کار</h2><span class="n">${fa(log.length)}</span></div><div class="list">${log.map(x=>logLine(x)).join('')}</div>`:''}
   <details style="margin-top:12px"><summary style="font-size:14px;color:var(--muted);cursor:pointer;padding:6px 0">ویرایش جزئیات کار (عنوان، تاریخ، شخص، …)</summary>`}
 function formTask(t={},pre={}){t={...pre,...t};openSheet(`${t.id?taskProgress(t):'<h3>کار جدید</h3>'}<form data-form="task" data-id="${t.id||''}">
-  <div class="fld"><label for="f_title">چه کاری؟ (قدم مشخص و قابل انجام)</label><input id="f_title" data-autofocus value="${esc(t.title)}" required></div>
+  <div class="fld"><label for="f_title">چه کاری؟</label><input id="f_title" data-autofocus value="${esc(t.title)}" required></div>
   ${dateField('f_due','تاریخ انجام',t.due||today())}
+  <details class="more" ${t.id?'open':''}><summary>جزئیات بیشتر: اولویت، حوزه، شخص، تکرار، دسته، شهر، یادداشت</summary>
   <div class="fld"><label for="f_rep">تکرار</label><select id="f_rep">${Object.entries(REP).map(([k,v])=>opt(k,v,t.repeat||'')).join('')}</select><div class="hint" style="font-size:12px;color:var(--muted)">کار تکراری با «انجام شد» خودش نوبت بعدی را می‌سازد.</div></div>
   <div class="row2"><div class="fld"><label for="f_pri">اولویت</label><select id="f_pri">${Object.entries(PRI).map(([k,v])=>opt(k,v,t.priority||3)).join('')}</select></div>${areaSelect('f_area',t.area)}</div>
   ${personSelect('f_person',t.personId)}
@@ -813,6 +834,7 @@ function formTask(t={},pre={}){t={...pre,...t};openSheet(`${t.id?taskProgress(t)
   <div class="fld"><label for="f_city">شهر (اگر فقط در یک شهر انجام‌شدنی است)</label><input id="f_city" list="cityList" value="${esc(t.city||'')}" placeholder="مثلاً تبریز"><datalist id="cityList">${cities().map(c=>`<option value="${esc(c)}">`).join('')}</datalist><div class="hint" style="font-size:12px;color:var(--muted)">وقتی به آن شهر رفتی، از «کارها ← ${svg('pin')} نام شهر ← الان اینجا هستم» همه را با ترتیب اهمیت می‌بینی.</div></div>
   ${locField(t.loc)}
   <div class="fld"><label for="f_note">یادداشت</label><textarea id="f_note">${esc(t.note)}</textarea></div>
+  </details>
   <div class="acts"><button class="btn pri">ذخیره</button>${t.id?`<button type="button" class="btn ghost danger" data-act="archiveTask" data-id="${t.id}">دیگر لازم نیست</button>`:''}<button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>${t.id?'</details>':''}`)}
 function formDeal(d={},pre={}){d={...pre,...d};const pipe=d.pipe||'sale';openSheet(`<h3>${d.id?'ویرایش فرصت':'فرصت جدید'}</h3><form data-form="deal" data-id="${d.id||''}">
   <div class="fld"><label for="f_title">عنوان</label><input id="f_title" data-autofocus value="${esc(d.title)}" required></div>
@@ -1018,6 +1040,7 @@ function backupSheet(){const lb=lastBackup();openSheet(`<h3>پشتیبان و ب
 
 /* ---------- Visual identity: one colour + one icon per area ---------- */
 const IC={
+  chevR:'<path d="m9 6 6 6-6 6"/>',chevL:'<path d="m15 6-6 6 6 6"/>',cal:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
   sales:'<path d="M8 4h8v3H8z"/><path d="M7 7h10l-.6 11.2A2 2 0 0 1 14.4 20H9.6a2 2 0 0 1-2-1.8z"/><path d="M10 12c0 1.2.9 1.5 1 2.6M14 11v2"/>',
   export:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9S14.6 18.4 12 21M12 3C9.4 5.6 8.2 8.6 8.2 12s1.2 6.4 3.8 9"/>',
   marketers:'<path d="M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/>',
@@ -1078,14 +1101,14 @@ const PROD_CAT={'عسل':'عسل','بره‌موم':'بره‌موم','گرده'
 const UNITS=['کیلو','گرم','عدد','قوطی'];
 const MOVE={sale:{n:'فروش',s:-1},sample:{n:'نمونهٔ رایگان',s:-1},gift:{n:'هدیه',s:-1,give:1},nazr:{n:'نذری',s:-1,give:1},ehsan:{n:'احسان',s:-1,give:1},sadaqa:{n:'صدقه',s:-1,give:1},loss:{n:'ضایعات یا کسری',s:-1},ret:{n:'مرجوعی (برگشت به انبار)',s:1},lend:{n:'امانی یا قرضی دادم (کالا پس می‌گیرم)',s:-1},payback:{n:'پس دادن کالای امانی یا قرضی',s:-1},getback:{n:'پس گرفتن کالای امانی',s:1}};
 function kindBal(){const r={};const bump=(p,l,q)=>{if(!p||!l)return;const k=l.product+'|'+l.unit;r[p]=r[p]||{};const o=r[p][k]=r[p][k]||{q:0,prod:l.product,unit:l.unit,vars:new Set()};o.q+=q;if(l.variety)o.vars.add(l.variety)};
-  S.lots.filter(l=>!l.void&&l.source==='loan').forEach(l=>bump(l.supplierId,l,-(Number(l.qty)||0)));
-  S.moves.filter(m=>!m.void&&['lend','payback','getback'].includes(m.kind)).forEach(m=>{const q=Number(m.qty)||0;bump(m.personId,byId('lots',m.lotId),m.kind==='getback'?-q:q)});
+  S.lots.filter(l=>!l.void&&l.source==='loan').forEach(l=>bump(l.supplierId||(l.supplierName?'n:'+l.supplierName:'n:بی‌نام'),l,-(Number(l.qty)||0)));
+  S.moves.filter(m=>!m.void&&['lend','payback','getback'].includes(m.kind)).forEach(m=>{const q=Number(m.qty)||0;bump(m.personId||(m.toName?'n:'+m.toName:'n:بی‌نام'),byId('lots',m.lotId),m.kind==='getback'?-q:q)});
   Object.values(r).forEach(m=>Object.keys(m).forEach(k=>{if(Math.abs(m[k].q)<1e-9)delete m[k]}));Object.keys(r).forEach(p=>{if(!Object.keys(r[p]).length)delete r[p]});return r}
 function priceNow(prod,unit){const c=[];S.quotes.filter(q=>q.product===prod&&(q.unit||'کیلو')===unit&&q.price).forEach(q=>c.push({d:q.date,p:q.price,c:q.currency}));
   S.moves.filter(m=>!m.void&&m.kind==='sale'&&m.price).forEach(m=>{const l=byId('lots',m.lotId);if(l&&l.product===prod&&l.unit===unit)c.push({d:m.date,p:m.price,c:m.currency})});
   S.lots.filter(l=>!l.void&&l.product===prod&&l.unit===unit&&Number(l.cost)).forEach(l=>c.push({d:l.date,p:l.cost,c:l.currency}));c.sort((a,b)=>(b.d||'').localeCompare(a.d||''));return c[0]||null}
 function kindRows(only){const kb=kindBal();const rows=[];Object.entries(kb).forEach(([p,m])=>{if(only&&p!==only)return;Object.values(m).forEach(o=>rows.push({p,...o}))});
-  return rows.map(o=>{const pr=priceNow(o.prod,o.unit);const v=pr?Math.abs(o.q)*pr.p:0;return `<button class="row" data-act="viewPerson" data-id="${o.p}">${badge('sales','box')}<div class="main"><div class="ttl">${o.q<0?'بدهی من به':'طلب من از'} ${esc(pname(o.p)||'—')}</div><div class="sub"><span>${esc(o.prod)}${o.vars.size?' ('+esc([...o.vars].join('، '))+')':''}</span>${pr?`<span>≈ ${money(v,pr.c)} به آخرین نرخ</span>`:'<span>نرخ روز ثبت نشده</span>'}</div></div><div class="end ${o.q<0?'amt-neg':'amt-pos'}"><b>${fmtQ(Math.abs(o.q),o.unit)}</b><div class="sub">کالایی</div></div></button>`}).join('')}
+  return rows.map(o=>{const pr=priceNow(o.prod,o.unit);const v=pr?Math.abs(o.q)*pr.p:0;const nm=o.p.startsWith('n:')?o.p.slice(2):pname(o.p);return `<button class="row" ${o.p.startsWith('n:')?'data-act="kindHelp"':`data-act="viewPerson" data-id="${o.p}"`}>${badge('sales','box')}<div class="main"><div class="ttl">${o.q<0?'بدهی من به':'طلب من از'} ${esc(nm||'—')}</div><div class="sub"><span>${esc(o.prod)}${o.vars.size?' ('+esc([...o.vars].join('، '))+')':''}</span>${pr?`<span>≈ ${money(v,pr.c)} به آخرین نرخ</span>`:'<span>نرخ روز ثبت نشده</span>'}</div></div><div class="end ${o.q<0?'amt-neg':'amt-pos'}"><b>${fmtQ(Math.abs(o.q),o.unit)}</b><div class="sub">کالایی</div></div></button>`}).join('')}
 const whoOf=m=>pname(m.personId)||m.toName||'—';
 function unitValue(l){if(l.cost)return{v:Number(l.cost),c:l.currency||'تومان'};
   const yr=S.moves.filter(m=>!m.void&&m.kind==='sale'&&m.price&&diffDays(today(),m.date)<=365).filter(m=>{const x=byId('lots',m.lotId);return x&&x.product===l.product&&x.unit===l.unit});
@@ -1098,7 +1121,7 @@ function lotStat(l){const mv=lotMoves(l.id);let out=0,sold=0,rev=0;const people=
   const rem=(Number(l.qty)||0)-out;return{rem,out,sold,rev,people:people.size,avg:sold?rev/sold:0,age:diffDays(today(),l.date)}}
 const fmtQ=(q,u)=>fa(Math.round(q*100)/100)+' '+(u||'');
 function ageTxt(d){if(d<31)return fa(d)+' روز';if(d<365)return fa(Math.round(d/30))+' ماه';return fa(Math.round(d/36.5)/10).replace('.','٫')+' سال'}
-const lotSrc=l=>l.source==='buy'?pname(l.supplierId):l.source==='loan'?'امانی از '+(pname(l.supplierId)||'—'):'تولید خودم';
+const lotSrc=l=>l.source==='buy'?pname(l.supplierId):l.source==='loan'?'امانی از '+(pname(l.supplierId)||l.supplierName||'—'):'تولید خودم';
 function lotRow(l){const st=lotStat(l);const sup=lotSrc(l);
   return `<button class="row" data-act="viewLot" data-id="${l.id}">${badge('sales','box')}<div class="main"><div class="ttl">${esc(lotName(l))} <span class="pill">${fa(esc(l.code||''))}</span></div>
    <div class="sub"><span>${esc(sup||'')}</span><span>${jShort(l.date)}</span>${st.rem<-1e-9?'<span class="pill bad">کسری انبار — اصلاح کن</span>':st.rem>0?`<span class="pill ${st.age>365?'bad':st.age>180?'warn':''}">${st.age<1?'امروز وارد شد':'در انبار از '+ageTxt(st.age)+' پیش'}</span>`:'<span class="pill ok">تمام شد</span>'}</div></div>
@@ -1127,7 +1150,7 @@ function formLot(l={}){const src=l.source||'own';openSheet(`<h3>${l.id?'ویرا
   <div class="row2"><div class="fld"><label for="f_prod">محصول</label><select id="f_prod">${PRODUCTS.map(p=>opt(p,p,l.product||'عسل')).join('')}</select></div>
   <div class="fld"><label for="f_var">نوع / منطقه</label><input id="f_var" value="${esc(l.variety)}" placeholder="مثلاً کنار، گون، چندگیاه"></div></div>
   <div class="fld"><label for="f_src">منبع</label><select id="f_src">${opt('own','تولید خودم (برداشت)',src)}${opt('buy','خرید از دیگری',src)}${opt('loan','امانی یا قرضی از دیگری (همان کالا را پس می‌دهم)',src)}</select></div>
-  <div data-src="buy loan" ${src==='buy'||src==='loan'?'':'hidden'}>${personSelect('f_sup',l.supplierId,'فروشنده / تأمین‌کننده / امانت‌دهنده')}</div>
+  <div data-src="buy loan" ${src==='buy'||src==='loan'?'':'hidden'}>${personSelect('f_sup',l.supplierId,'فروشنده / تأمین‌کننده / امانت‌دهنده')}<div class="fld" data-src="loan" ${src==='loan'?'':'hidden'}><label for="f_lsupn">یا فقط نام (اختیاری، اگر در افراد نیست)</label><input id="f_lsupn" value="${esc(l.supplierName||'')}" placeholder="مثلاً پدر، آقای کریمی"></div></div>
   ${dateField('f_ldate','تاریخ ورود',l.date||today())}
   <div class="row2"><div class="fld"><label for="f_lqty">مقدار</label><input id="f_lqty" inputmode="decimal" value="${l.qty?fa(l.qty):''}" ${l.id?'disabled':''}></div><div class="fld"><label for="f_lunit">واحد</label><select id="f_lunit" ${l.id?'disabled':''}>${UNITS.map(u=>opt(u,u,l.unit||'کیلو')).join('')}</select></div></div>
   <div data-src="buy" ${src==='buy'?'':'hidden'}><div class="row2"><div class="fld"><label for="f_lcost">قیمت خرید هر واحد${ul('f_lcur',l.currency)}</label><input id="f_lcost" inputmode="decimal" value="${l.cost?fa(fromBase(l.cost,l.currency)):''}" ${l.id?'disabled':''}></div><div class="fld"><label for="f_lcur">ارز</label><select id="f_lcur">${CUR.map(c=>opt(c,c,l.currency||'تومان')).join('')}</select></div></div>
@@ -1150,6 +1173,7 @@ function formMove(pre={}){if(!S.lots.some(l=>!l.void)){openSheet(`<h3>اول ک�
   <div class="fld" data-mk="sale"><label for="f_mprice">قیمت هر واحد${ul('f_mcur','تومان')}</label><input id="f_mprice" inputmode="decimal"></div></div>
   <div class="row2" data-mk="sale"><div class="fld"><label for="f_mcur">ارز</label><select id="f_mcur">${CUR.map(c=>opt(c,c,'تومان')).join('')}</select></div>
   <div class="fld"><label for="f_mpay">دریافت پول</label><select id="f_mpay">${opt('cash','نقد گرفتم','cash')}${opt('credit','نسیه (طلب ثبت شود)','')}${opt('barter','تهاتری (در عوض کالا یا خدمتی که از او می‌گیرم)','')}${opt('none','در حساب‌ها ثبت نشود','')}</select></div></div>
+  ${locField()}
   <div class="fld"><label for="f_mnote">توضیح / نیت</label><input id="f_mnote"></div>
   <div id="mWarn"></div>
   <div class="acts"><button class="btn pri">ثبت</button><button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`)}
@@ -1174,7 +1198,7 @@ function viewLot(id){const l=byId('lots',id);if(!l)return;const st=lotStat(l);co
    <div class="acts" style="margin-top:14px">${st.rem>0?`<button class="btn pri" data-act="newMove" data-lot="${id}">فروش یا بخشش از این محموله</button>`:''}${st.rem<-1e-9?`<button class="btn pri" data-act="newLot">ثبت ورود جاافتاده</button>`:''}<button class="btn" data-act="editLot" data-id="${id}">ویرایش</button><button class="btn ghost" data-act="close">بستن</button></div></div>`)}
 function viewMove(id){const m=byId('moves',id);if(!m)return;const l=byId('lots',m.lotId);
   openSheet(`<div class="det"><h3>${esc((MOVE[m.kind]||{}).n)}</h3><dl><dt>محموله</dt><dd><button class="link" data-act="viewLot" data-id="${m.lotId}">${esc(lotName(l))} ${esc(l?l.code:'')}</button></dd>
-   <dt>طرف مقابل</dt><dd>${m.personId?`<button class="link" data-act="viewPerson" data-id="${m.personId}">${esc(pname(m.personId))}</button>`:'—'}</dd>
+   <dt>طرف مقابل</dt><dd>${m.personId?`<button class="link" data-act="viewPerson" data-id="${m.personId}">${esc(pname(m.personId))}</button>`:esc(m.toName||'—')}</dd>${m.loc&&(m.loc.place||m.loc.lat)?`<dt>محل</dt><dd>${esc(m.loc.place||'')}${m.loc.lat?' · '+geoLink(m.loc):''}</dd>`:''}
    <dt>تاریخ</dt><dd>${jShort(m.date)}</dd><dt>مقدار</dt><dd>${fmtQ(Number(m.qty)||0,l?l.unit:'')}</dd>
    ${m.price?`<dt>قیمت</dt><dd>هر واحد ${money(m.price,m.currency)} · جمع ${money(m.price*m.qty,m.currency)}${m.credit?' · نسیه':''}</dd>`:''}${m.note?`<dt>توضیح</dt><dd>${esc(m.note)}</dd>`:''}${m.void?`<dt>باطل‌شده</dt><dd>${esc(m.voidReason||'')}</dd>`:''}</dl>
    <div class="acts">${m.void?'':`<button class="btn" data-act="editMove" data-id="${id}">ویرایش</button><button class="btn ghost danger" data-act="voidMoveAsk" data-id="${id}">باطل کردن</button>`}<button class="btn ghost" data-act="close">بستن</button></div><div id="voidBox"></div>
@@ -1281,6 +1305,7 @@ function formMoveEdit(m){if(!m)return;const l=byId('lots',m.lotId);const locked=
   <div class="fld"><label for="f_mto">یا نام گیرنده</label><input id="f_mto" value="${esc(m.toName)}"></div>
   ${dateField('f_mdate','تاریخ',m.date)}
   ${locked?`<p class="hint" style="font-size:12.5px;color:var(--muted)">مقدار و قیمت این فروش به ردیف مالی وصل است (${fmtQ(Number(m.qty),l?l.unit:'')} × ${money(m.price,m.currency)}). برای تغییرشان، این فروش را باطل و دوباره ثبت کن تا حساب‌ها درست بمانند.</p>`:`<div class="fld"><label for="f_mqty">مقدار</label><input id="f_mqty" inputmode="decimal" value="${fa(m.qty)}"></div>`}
+  ${locField(m.loc)}
   <div class="fld"><label for="f_mnote">توضیح / نیت</label><input id="f_mnote" value="${esc(m.note)}"></div>
   <div class="acts"><button class="btn pri">ذخیره</button><button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`)}
 function formLedgerEdit(l){if(!l)return;openSheet(`<h3>ویرایش ${esc(LSHORT[l.kind])}</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">نوع و مبلغ (${money(l.amount,l.currency)}) ثابت می‌ماند؛ برای تغییرشان باطل کن و دوباره ثبت کن. بقیه را آزادانه اصلاح کن.</p><form data-form="ledgerEdit" data-id="${l.id}">
@@ -1457,6 +1482,10 @@ document.addEventListener('click',async e=>{
     case'roadmap':roadmapSheet();break;
     case'stopGoal':formHabit(byId('habits',b.dataset.h));break;
     case'setDate':{const f=document.getElementById(b.dataset.f);f.value=b.dataset.v?jShort(b.dataset.v):'';dateSync(b.dataset.f);if(!b.dataset.v){const h=document.getElementById(b.dataset.f+'_dh');if(h)h.textContent='بدون تاریخ';b.setAttribute('aria-pressed','true')}break}
+    case'dStep':{const f=document.getElementById(b.dataset.f);const cur=parseJ(f.value)||today();f.value=jShort(addDays(cur,Number(b.dataset.v)));dateSync(b.dataset.f);break}
+    case'calOpen':{const box=document.getElementById(b.dataset.f+'_cal');if(box.innerHTML){box.innerHTML='';break}const j=jOf(parseJ(val(b.dataset.f))||today());box.innerHTML=calHtml(b.dataset.f,j.jy,j.jm);break}
+    case'calNav':document.getElementById(b.dataset.f+'_cal').innerHTML=calHtml(b.dataset.f,Number(b.dataset.y),Number(b.dataset.m));break;
+    case'calPick':{const f=document.getElementById(b.dataset.f);f.value=jShort(b.dataset.v);dateSync(b.dataset.f);document.getElementById(b.dataset.f+'_cal').innerHTML='';break}
     case'ppPick':ppPick(b.dataset.f,Number(b.dataset.i));break;
     case'ppClear':ppClear(b.dataset.f);break;
     case'kindHelp':toast('برای صاف کردن: انبار ← فروش / ارسال ← «پس دادن کالای امانی» یا «پس گرفتن کالای امانی»');break;
@@ -1594,7 +1623,7 @@ document.addEventListener('submit',async e=>{
     const nx=(f.querySelector('[data-g=nx][aria-pressed=true]')||{dataset:{v:'again'}}).dataset.v;let nextDue='';if(nx==='again'){nextDue=readDate('f_ln');if(nextDue===null)return}
     const e={ts:nowTs(),d:today(),type,text,next:nx,nextDue};const d={log:[...(t.log||[]),e],lastLog:e};if(nx==='done'){d.status='done';d.doneAt=nowTs()}else if(nextDue)d.due=nextDue;
     if(await save('tasks',id,d)){closeSheet();toast(nx==='done'?'ثبت شد و کار بسته شد ✓':'ثبت شد · پیگیری بعدی '+jNice(nextDue||t.due))}return}
-  if(k==='task'){const due=readDate('f_due');if(due===null)return;const d={title:val('f_title'),due,repeat:val('f_rep'),city:val('f_city'),tag:val('f_tag'),priority:Number(val('f_pri'))||3,area:val('f_area'),personId:val('f_person'),dealId:val('f_dealT'),note:val('f_note'),loc:readLoc()};
+  if(k==='task'){let due=readDate('f_due');if(due===null)return;if(!id&&due===today()){const g=guessDate(val('f_title'));if(g)due=g}let pr=Number(val('f_pri'))||3;if(!id&&pr===3&&/(^|\s)!+(\s|$)|فوری/.test(val('f_title')))pr=1;const d={title:val('f_title').replace(/(^|\s)!+(?=\s|$)/g,' ').trim(),due,repeat:val('f_rep'),city:val('f_city'),tag:val('f_tag'),priority:pr,area:val('f_area')||(!id?guessArea(val('f_title')):''),personId:val('f_person'),dealId:val('f_dealT'),note:val('f_note'),loc:readLoc()};
     if(!d.title)return toast('عنوان کار لازم است');if(!id)d.status='open';
     if(await save('tasks',id,d)){if(f.dataset.inbox)await save('inbox',f.dataset.inbox,{processed:true});closeSheet();toast('ذخیره شد')}return}
   if(k==='deal'){const nd=readDate('f_nd',true);if(nd===null)return;const pipe=val('f_pipe');
@@ -1622,7 +1651,7 @@ document.addEventListener('submit',async e=>{
     if(await save('vouchers',id,{date,currency:val('f_vcur'),desc:val('f_vdesc'),lines,unbalanced:unb,void:false})){toast(unb?'ذخیره شد (نامتوازن)':'سند ثبت شد ✓');accountingSheet('journal')}return}
   if(k==='inboxEdit'){const t=val('f_it');if(!t)return toast('متن خالی است');if(await save('inbox',id,{text:t})){closeSheet();toast('ذخیره شد')}return}
   if(k==='note'){const d={title:val('f_nt'),version:val('f_nv'),status:val('f_ns'),body:document.getElementById('f_nb').value};if(!d.title)return toast('عنوان لازم است');if(await save('notes',id,d)){closeSheet();toast('ذخیره شد')}return}
-  if(k==='moveEdit'){const m=byId('moves',id);const date=readDate('f_mdate',true);if(date===null)return;const d={personId:val('f_person'),toName:val('f_person')?'':val('f_mto'),date,note:val('f_mnote')};
+  if(k==='moveEdit'){const m=byId('moves',id);const date=readDate('f_mdate',true);if(date===null)return;const d={personId:val('f_person'),toName:val('f_person')?'':val('f_mto'),date,note:val('f_mnote'),loc:readLoc()};
     if(!m.locked){const q=num(val('f_mqty'));if(!q||q<=0)return toast('مقدار را درست وارد کن');d.qty=q}
     if(await save('moves',id,d)){closeSheet();toast('ذخیره شد')}return}
   if(k==='ledgerEdit'){const due=readDate('f_due');if(due===null)return;const d={personId:val('f_person'),about:val('f_about'),category:val('f_cat'),instrument:val('f_instr'),ref:val('f_ref'),due,evidence:val('f_ev')};if(await save('ledger',id,d)){closeSheet();toast('ذخیره شد')}return}
@@ -1631,8 +1660,8 @@ document.addEventListener('submit',async e=>{
   if(k==='ciTime'){const hid=f.dataset.h,dt=f.dataset.d;const a=val('f_bed'),w=val('f_wake');if(!a||!w)return toast('هر دو ساعت را وارد کن');await answerCheckin(hid,dt,JSON.stringify({bed:a,wake:w}));return}
   if(k==='ciNum'){const v=num(val('f_cin'));if(v==null)return toast('عدد را وارد کن');await answerCheckin(f.dataset.h,f.dataset.d,String(v));return}
   if(k==='lot'){const date=readDate('f_ldate',true);if(date===null)return;const src=val('f_src');const prod=val('f_prod');
-    if(src==='loan'&&!val('f_sup'))return toast('امانت‌دهنده را انتخاب کن تا بدهی کالایی به اسم او بماند');
-    const d={product:prod,variety:val('f_var'),source:src,supplierId:src==='buy'||src==='loan'?val('f_sup'):'',date,place:val('f_lplace'),note:val('f_lq'),currency:val('f_lcur')};
+    if(src==='loan'&&!val('f_sup')&&!val('f_lsupn')&&f.dataset.warnK!=='1'){f.dataset.warnK='1';return toast('امانت‌دهنده را ننوشتی؛ برای ثبت بدون نام دوباره «ذخیره» بزن')}
+    const d={product:prod,variety:val('f_var'),source:src,supplierId:src==='buy'||src==='loan'?val('f_sup'):'',supplierName:src==='loan'&&!val('f_sup')?val('f_lsupn'):'',date,place:val('f_lplace'),note:val('f_lq'),currency:val('f_lcur')};
     if(!id){const q=num(val('f_lqty'));if(!q||q<=0)return toast('مقدار را درست وارد کن');d.qty=q;d.unit=val('f_lunit');d.cost=src==='buy'?(toBase(num(val('f_lcost'))||0,val('f_lcur'))):src==='loan'?(toBase(num(val('f_lest'))||0,val('f_lcur'))):0;d.code=nextLotCode(prod,date);d.void=false}
     if(!(await save('lots',id,d)))return;
     if(!id&&src==='buy'&&d.cost>0){const pay=val('f_lpay');const total=d.cost*d.qty;
@@ -1643,9 +1672,9 @@ document.addEventListener('submit',async e=>{
     const q=num(val('f_mqty'));if(!q||q<=0)return toast('مقدار را درست وارد کن');const st=lotStat(l);
     if(kind!=='ret'&&kind!=='getback'&&q>st.rem+1e-9&&f.dataset.force!=='1'){f.dataset.force='1';document.getElementById('mWarn').innerHTML=`<div class="banner" style="margin:0 0 10px">${svg('warn')} موجودی ثبت‌شدهٔ این محموله ${fmtQ(st.rem,l.unit)} است و این ثبت ${fmtQ(q-st.rem,l.unit)} کسری می‌سازد. اگر مطمئنی دوباره «ثبت» را بزن؛ بعد در انبار علامت می‌خورد تا ورود جاافتاده یا مقدار را اصلاح کنی.</div>`;return}
     const date=readDate('f_mdate',true);if(date===null)return;const price=kind==='sale'?toBase(num(val('f_mprice'))||0,val('f_mcur')||'تومان'):0;const pay=kind==='sale'?val('f_mpay'):'none';const cur=val('f_mcur')||'تومان';const pid=val('f_person');
-    if(kind==='sale'&&(pay==='credit'||pay==='barter')&&!pid)return toast('برای فروش نسیه یا تهاتری، خریدار را انتخاب کن');
-    if(['lend','payback','getback'].includes(kind)&&!pid)return toast('برای کالای امانی، طرف را از «شخص» انتخاب کن تا حسابش بماند');
-    const mv={kind,lotId,personId:pid,toName:pid?'':val('f_mto'),date,qty:q,price,currency:cur,credit:pay==='credit',note:val('f_mnote'),void:false};
+    if(kind==='sale'&&pay==='credit'&&!pid&&!val('f_mto'))return toast('برای فروش نسیه، نام خریدار لازم است تا طلبت گم نشود');
+    if(['lend','payback','getback'].includes(kind)&&!pid&&!val('f_mto')&&f.dataset.warnK!=='1'){f.dataset.warnK='1';return toast('طرف این کالای امانی را ننوشتی؛ بهتر است نام یا شخص را بنویسی. برای ثبت بدون نام دوباره «ثبت» بزن')}
+    const mv={kind,lotId,personId:pid,toName:pid?'':val('f_mto'),date,qty:q,price,currency:cur,credit:pay==='credit',note:val('f_mnote'),loc:readLoc(),void:false};
     if(!(await save('moves',null,mv)))return;
     if(kind==='sale'&&price>0&&pay!=='none')await save('ledger',null,{kind:pay==='cash'?'received':'receivable',personId:pid,amount:price*q,currency:cur,about:`فروش ${fmtQ(q,l.unit)} ${lotName(l)} (${l.code})`,category:PROD_CAT[l.product]||'سایر درآمد',instrument:pay==='barter'?'تهاتر (کالا یا خدمت)':'نقد/کارت',date,due:pay==='credit'?addDays(date,30):'',settled:false,void:false});
     if(kind==='sale'&&pid)await closeFlows(t=>t.flow&&t.flow.personId===pid&&t.flow.product===l.product&&(t.flow.kind==='quote_gave'||t.flow.kind==='sample'),'فروش ثبت شد');
