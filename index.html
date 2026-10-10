@@ -145,6 +145,7 @@ h3 .ab{display:inline-grid;vertical-align:middle;margin-left:6px}
     <button class="icon-btn" id="btnMenu" aria-label="بیشتر"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
   </header>
   <div id="conn" class="banner" hidden></div>
+  <div id="updBar" class="banner" hidden style="display:flex;gap:8px;align-items:center;justify-content:space-between"></div>
   <main id="view"></main>
 </div>
 
@@ -225,6 +226,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[]};
 const COLS=Object.keys(S);
+const APP_VER='0.6.2';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 const byId=(c,id)=>S[c].find(x=>x.id===id);
@@ -267,7 +269,7 @@ async function putRaw(col,doc){
   if(mode==='cloud'){const {id,...rest}=doc;await db.collection(col).doc(id).set(rest)}
   else{const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);await idbPut(col,doc)}
 }
-function backupData(){return {app:'miz-kar',version:'0.6',exported:nowTs(),data:Object.fromEntries(COLS.map(c=>[c,S[c]]))}}
+function backupData(){return {app:'miz-kar',version:APP_VER,exported:nowTs(),data:Object.fromEntries(COLS.map(c=>[c,S[c]]))}}
 function lastBackup(){try{return localStorage.getItem('miz.lastBackup')||''}catch(_){return''}}
 async function doBackup(){
   const now=new Date();const stamp=en(jShort(today())).replace(/\//g,'-')+'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');const name='miz-kar-backup-'+stamp+'.json';const shareName='miz-kar-backup-'+stamp+'.txt';
@@ -384,13 +386,16 @@ function vPeople(){
   if(q)arr=arr.filter(x=>[x.name,x.org,x.note,x.phone,(x.roles||[]).join(' ')].join(' ').toLowerCase().includes(q.toLowerCase()));
   arr.sort((a,b)=>a.name.localeCompare(b.name,'fa'));
   const pb=personBal();
-  let h=`<input class="search-in" id="peopleQ" placeholder="جستجو در افراد…" value="${esc(q)}" style="margin-top:14px">`;
+  let h=`<input class="search-in" id="peopleQ" placeholder="جستجو در افراد و مخاطبین گوشی…" value="${esc(q)}" style="margin-top:14px">`;
   h+=chips('peopleR',[['all','همه'],...ROLES.map(x=>[x,x])],r);
   h+=block('افراد',arr.length,listOr(arr,x=>{const b=pb[x.id];const bs=b?Object.entries(b).filter(([,v])=>Math.abs(v)>0.0001):[];
     const od=openDeals().filter(d=>d.personId===x.id).length;
     return `<button class="row" data-act="viewPerson" data-id="${x.id}">${badge(x.area||'affairs','user')}<div class="main"><div class="ttl">${esc(x.name)}</div>
      <div class="sub">${(x.roles||[]).map(r=>`<span class="pill">${esc(r)}</span>`).join('')}${x.org?`<span>${esc(x.org)}</span>`:''}${od?`<span>${fa(od)} فرصت باز</span>`:''}</div></div>
-     ${bs.length?`<div class="end">${bs.map(([c,v])=>`<div class="${v>0?'amt-pos':'amt-neg'}">${v>0?'طلب ':'بدهی '}${money(v,c)}</div>`).join('')}</div>`:''}</button>`},'کسی ثبت نشده.'));
+     ${bs.length?`<div class="end">${bs.map(([c,v])=>`<div class="${v>0?'amt-pos':'amt-neg'}">${v>0?'طلب ':'بدهی '}${money(v,c)}</div>`).join('')}</div>`:''}</button>`},q?'در افراد نیست.':'کسی ثبت نشده.'));
+  if(q.length>=2){const have=new Set(S.people.flatMap(p=>String(p.phone||'').split(/[^\d۰-۹]+/).map(normDigits).filter(x=>x.length>=7).map(x=>x.slice(-10))));
+    const pc=matchContacts(q,30).filter(c=>!c.p.some(x=>have.has(x.slice(-10)))).slice(0,15);window._pc=pc;
+    if(pc.length)h+=block('در مخاطبین گوشی',pc.length,'<div class="list">'+pc.map((c,i)=>`<button class="row" data-act="ctToPerson" data-i="${i}">${badge('affairs','user')}<div class="main"><div class="ttl">${esc(c.n)}</div><div class="sub"><span dir="ltr">${esc(c.p.slice(0,2).join(' · '))}</span>${c.o?`<span>${esc(c.o)}</span>`:''}</div></div><span class="pill">+ افزودن به افراد</span></button>`).join('')+'</div>')}
   return h;
 }
 function vMoney(){
@@ -416,7 +421,7 @@ function vMoney(){
 const TITLES={stock:'انبار و معاملات',today:'امروز',tasks:'کارها',deals:'فرصت‌ها',people:'افراد',money:'حساب‌ها'};
 function render(){
   document.getElementById('hTitle').textContent=TITLES[tab];
-  document.getElementById('hDate').textContent=jLong(today());
+  document.getElementById('hDate').innerHTML=jLong(today())+` <span style="opacity:.6;font-size:.85em">· نسخهٔ ${fa(APP_VER)}</span>`;
     document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===(tab==='tasks'?'today':tab)?'page':'false'));
   const v=document.getElementById('view');
   const focusId=document.activeElement&&document.activeElement.id, selS=document.activeElement&&document.activeElement.selectionStart;
@@ -560,6 +565,12 @@ function runSearch(q){q=q.trim().toLowerCase();const out=document.getElementById
   const m=(...xs)=>xs.join(' ').toLowerCase().includes(q);
   const P=S.people.filter(x=>m(x.name,x.org,x.note,x.phone,x.email)),D=S.deals.filter(x=>m(x.title,x.nextStep,x.note,pname(x.personId))),T=S.tasks.filter(x=>m(x.title,x.note,pname(x.personId))),L=S.ledger.filter(x=>m(x.about,x.ref,pname(x.personId),fa(x.amount))),N=S.notes.filter(x=>m(x.title,x.body)),A=S.apiary.filter(x=>m((APT[x.type]||{}).n,x.loc,x.from,x.to,x.what,x.note,jShort(x.date))),LO=S.lots.filter(x=>m(lotName(x),x.code,x.note,pname(x.supplierId))),MO=S.moves.filter(x=>m(pname(x.personId),lotName(byId('lots',x.lotId)),x.note,(MOVE[x.kind]||{}).n)),QU=S.quotes.filter(x=>m(pname(x.personId),x.product,x.variety,x.note)),CTm=matchContacts(q,10);window._ctm=CTm;
   out.innerHTML=(P.length?block('افراد',P.length,listOr(P,x=>`<button class="row" data-act="viewPerson" data-id="${x.id}"><div class="main"><div class="ttl">${esc(x.name)}</div></div></button>`,'')):'')+(D.length?block('فرصت‌ها',D.length,listOr(D,dealRow,'')):'')+(T.length?block('کارها',T.length,listOr(T,taskRow,'')):'')+(L.length?block('حساب‌ها',L.length,listOr(L,ledgerRow,'')):'')+(N.length?block('یادداشت و قوانین',N.length,listOr(N,x=>`<button class="row" data-act="viewNote" data-id="${x.id}"><div class="main"><div class="ttl">${esc(x.title)}</div></div></button>`,'')):'')+(A.length?block('زنبورداری',A.length,listOr(A,apiRow,'')):'')+(LO.length?block('محموله‌ها',LO.length,listOr(LO,lotRow,'')):'')+(MO.length?block('فروش و ارسال',MO.length,listOr(MO,moveRow,'')):'')+(QU.length?block('قیمت‌ها',QU.length,listOr(QU,quoteRow,'')):'')+(CTm.length?block('در دفترچهٔ مخاطبین',CTm.length,`<div class="list">${CTm.map((c,i)=>`<div class="row">${badge('affairs','book')}<div class="main"><div class="ttl">${esc(c.n)}</div><div class="sub"><span dir="ltr">${esc(c.p.join(' · '))}</span></div></div><button class="btn" data-act="addFromContact" data-i="${i}">افزودن</button></div>`).join('')}</div>`):'')||'<div class="empty">چیزی پیدا نشد.</div>'}
+async function checkUpdate(manual){if(!/^https?:/.test(location.protocol)||!location.hostname.endsWith('github.io')){if(manual)toast('این نما همیشه آخرین نسخه را دارد');return}
+  try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const v=(await r.json()).v;const bar=document.getElementById('updBar');
+    if(v&&v!==APP_VER){bar.hidden=false;bar.style.display='flex';bar.innerHTML=`<span>نسخهٔ جدید ${fa(v)} آماده است (الان ${fa(APP_VER)})</span><button class="btn pri" data-act="doUpdate">به‌روز کن</button>`}
+    else{bar.hidden=true;bar.style.display='none';if(manual)toast('به‌روز است ✓ نسخهٔ '+fa(APP_VER))}}catch(_){if(manual)toast('اینترنت در دسترس نیست؛ بعداً دوباره امتحان کن')}}
+async function doUpdate(){toast('در حال به‌روزرسانی…');try{const r=await navigator.serviceWorker.getRegistration();if(r)await r.update();const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(_){}location.reload()}
+addEventListener('load',()=>setTimeout(checkUpdate,1500));document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
 function menuSheet(){openSheet(`<h3>بیشتر</h3><div class="acts" style="flex-direction:column;align-items:stretch">
   <button class="btn" data-act="apiary">دفتر زنبورداری</button>
   <button class="btn" data-act="reports">گزارش‌ها</button>
@@ -567,6 +578,7 @@ function menuSheet(){openSheet(`<h3>بیشتر</h3><div class="acts" style="flex
   <button class="btn" data-act="habits">عادت‌ها و چک‌این</button>
   ${mode==='cloud'?'<button class="btn" data-act="ask">سؤال آزاد از دستیار</button>':''}
   <button class="btn" data-act="backupSheet">پشتیبان و بازیابی</button>
+  <button class="btn ghost" data-act="checkUpd">نسخهٔ ${fa(APP_VER)} — بررسی به‌روزرسانی</button>
   <button class="btn" data-act="roadmap">نقشهٔ راه برنامه</button>
   <button class="btn" data-act="notesList">یادداشت‌ها و قوانین</button>
   <button class="btn ghost" data-act="close">بستن</button></div><p class="hint" style="font-size:12px;color:var(--muted);margin-top:12px">میز کار · نسخهٔ ۰٫۶ · محل ذخیره: ${mode==='cloud'?'فضای خصوصی Claude (فقط مالک)':'حافظهٔ همین گوشی'}</p>`)}
@@ -1079,6 +1091,9 @@ document.addEventListener('click',async e=>{
     case'setDate':{const f=document.getElementById(b.dataset.f);f.value=b.dataset.v?jShort(b.dataset.v):'';dateSync(b.dataset.f);if(!b.dataset.v){const h=document.getElementById(b.dataset.f+'_dh');if(h)h.textContent='بدون تاریخ';b.setAttribute('aria-pressed','true')}break}
     case'ppPick':ppPick(b.dataset.f,Number(b.dataset.i));break;
     case'ppClear':ppClear(b.dataset.f);break;
+    case'checkUpd':closeSheet();checkUpdate(true);break;
+    case'doUpdate':doUpdate();break;
+    case'ctToPerson':{const c=(window._pc||[])[Number(b.dataset.i)];if(c)formPerson({name:c.n,phone:(c.p||[]).join(' ، '),email:c.e,org:c.o});break}
     case'toggleChip':b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true');break;
     case'backup':await doBackup();break;
     case'backupSheet':backupSheet();break;
