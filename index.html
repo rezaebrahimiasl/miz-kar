@@ -226,7 +226,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.6.2';
+const APP_VER='0.6.3';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 const byId=(c,id)=>S[c].find(x=>x.id===id);
@@ -383,11 +383,13 @@ function vDeals(){
 function vPeople(){
   let arr=S.people.filter(x=>x.status!=='archived');const q=ui.peopleQ.trim(),r=ui.peopleR;
   if(r!=='all')arr=arr.filter(x=>(x.roles||[]).includes(r));
-  if(q)arr=arr.filter(x=>[x.name,x.org,x.note,x.phone,(x.roles||[]).join(' ')].join(' ').toLowerCase().includes(q.toLowerCase()));
+  if(q){const ql=nrm(q),qd=normDigits(q),ws=q.split(/\s+/).map(nrm).filter(Boolean);arr=arr.filter(x=>{const k=nrm([x.name,x.org,x.note,(x.roles||[]).join(' ')].join(' '));return k.includes(ql)||ws.every(w=>k.includes(w))||(qd.length>=4&&normDigits(x.phone).includes(qd))})}
   arr.sort((a,b)=>a.name.localeCompare(b.name,'fa'));
   const pb=personBal();
   let h=`<input class="search-in" id="peopleQ" placeholder="جستجو در افراد و مخاطبین گوشی…" value="${esc(q)}" style="margin-top:14px">`;
   h+=chips('peopleR',[['all','همه'],...ROLES.map(x=>[x,x])],r);
+  return h+`<div id="peopleRes">${peopleRes(arr,q)}</div>`}
+function peopleRes(arr,q){const pb=personBal();let h='';
   h+=block('افراد',arr.length,listOr(arr,x=>{const b=pb[x.id];const bs=b?Object.entries(b).filter(([,v])=>Math.abs(v)>0.0001):[];
     const od=openDeals().filter(d=>d.personId===x.id).length;
     return `<button class="row" data-act="viewPerson" data-id="${x.id}">${badge(x.area||'affairs','user')}<div class="main"><div class="ttl">${esc(x.name)}</div>
@@ -438,7 +440,7 @@ const personSelect=(id,cur,label='شخص مرتبط')=>{const p=cur?byId('people
 const PP={};
 function ppSearch(fid,q){const box=document.getElementById(fid+'_s');if(!box)return;q=(q||'').trim();const ql=q.toLowerCase(),qd=normDigits(q);const items=[];
   const ppl=S.people.filter(p=>p.status!=='archived');
-  const pm=q?ppl.filter(p=>(p.name||'').toLowerCase().includes(ql)||(p.org||'').toLowerCase().includes(ql)||(qd.length>=4&&normDigits(p.phone).includes(qd))):ppl.slice().sort((a,b)=>(b.updated||0)>(a.updated||0)?1:-1);
+  const pm=q?ppl.filter(p=>nrm(p.name+' '+(p.org||'')).includes(nrm(q))||(qd.length>=4&&normDigits(p.phone).includes(qd))):ppl.slice().sort((a,b)=>(b.updated||0)>(a.updated||0)?1:-1);
   pm.slice(0,q?6:8).forEach(p=>items.push({t:'p',id:p.id,n:p.name,sub:p.org||p.phone||''}));
   if(q.length>=2){const have=new Set(ppl.flatMap(p=>String(p.phone||'').split(/[^\d۰-۹]+/).map(normDigits).filter(x=>x.length>=7).map(x=>x.slice(-10))));
     matchContacts(q,14).filter(c=>!c.p.some(x=>have.has(x.slice(-10)))).slice(0,7).forEach(c=>items.push({t:'c',c,n:c.n,sub:c.p.slice(0,2).join(' · ')+(c.o?' · '+c.o:'')}));
@@ -562,7 +564,7 @@ function quickAdd(){openSheet(`<h3>چه چیزی ثبت کنم؟</h3><div class=
   <button data-act="close" style="grid-column:1/-1;flex-direction:row;justify-content:center;padding:10px"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>بستن</button></div>`)}
 function searchSheet(){openSheet(`<h3>جستجو در همه‌چیز</h3><input class="search-in" id="gq" data-autofocus placeholder="نام، کار، فرصت، مبلغ…"><div id="gres"></div>`);document.getElementById('gq').focus()}
 function runSearch(q){q=q.trim().toLowerCase();const out=document.getElementById('gres');if(!out)return;if(!q){out.innerHTML='';return}
-  const m=(...xs)=>xs.join(' ').toLowerCase().includes(q);
+  const qn=nrm(q),qw=q.split(/\s+/).map(nrm).filter(Boolean);const m=(...xs)=>{const k=nrm(xs.join(' '));return k.includes(qn)||qw.every(w=>k.includes(w))};
   const P=S.people.filter(x=>m(x.name,x.org,x.note,x.phone,x.email)),D=S.deals.filter(x=>m(x.title,x.nextStep,x.note,pname(x.personId))),T=S.tasks.filter(x=>m(x.title,x.note,pname(x.personId))),L=S.ledger.filter(x=>m(x.about,x.ref,pname(x.personId),fa(x.amount))),N=S.notes.filter(x=>m(x.title,x.body)),A=S.apiary.filter(x=>m((APT[x.type]||{}).n,x.loc,x.from,x.to,x.what,x.note,jShort(x.date))),LO=S.lots.filter(x=>m(lotName(x),x.code,x.note,pname(x.supplierId))),MO=S.moves.filter(x=>m(pname(x.personId),lotName(byId('lots',x.lotId)),x.note,(MOVE[x.kind]||{}).n)),QU=S.quotes.filter(x=>m(pname(x.personId),x.product,x.variety,x.note)),CTm=matchContacts(q,10);window._ctm=CTm;
   out.innerHTML=(P.length?block('افراد',P.length,listOr(P,x=>`<button class="row" data-act="viewPerson" data-id="${x.id}"><div class="main"><div class="ttl">${esc(x.name)}</div></div></button>`,'')):'')+(D.length?block('فرصت‌ها',D.length,listOr(D,dealRow,'')):'')+(T.length?block('کارها',T.length,listOr(T,taskRow,'')):'')+(L.length?block('حساب‌ها',L.length,listOr(L,ledgerRow,'')):'')+(N.length?block('یادداشت و قوانین',N.length,listOr(N,x=>`<button class="row" data-act="viewNote" data-id="${x.id}"><div class="main"><div class="ttl">${esc(x.title)}</div></div></button>`,'')):'')+(A.length?block('زنبورداری',A.length,listOr(A,apiRow,'')):'')+(LO.length?block('محموله‌ها',LO.length,listOr(LO,lotRow,'')):'')+(MO.length?block('فروش و ارسال',MO.length,listOr(MO,moveRow,'')):'')+(QU.length?block('قیمت‌ها',QU.length,listOr(QU,quoteRow,'')):'')+(CTm.length?block('در دفترچهٔ مخاطبین',CTm.length,`<div class="list">${CTm.map((c,i)=>`<div class="row">${badge('affairs','book')}<div class="main"><div class="ttl">${esc(c.n)}</div><div class="sub"><span dir="ltr">${esc(c.p.join(' · '))}</span></div></div><button class="btn" data-act="addFromContact" data-i="${i}">افزودن</button></div>`).join('')}</div>`):'')||'<div class="empty">چیزی پیدا نشد.</div>'}
 async function checkUpdate(manual){if(!/^https?:/.test(location.protocol)||!location.hostname.endsWith('github.io')){if(manual)toast('این نما همیشه آخرین نسخه را دارد');return}
@@ -705,10 +707,12 @@ const PIPE_ICON={sale:'sales',export:'export',hive:'hive',client:'therapy',partn
 
 /* ---------- Contacts (phone book lookup, kept apart from «افراد») ---------- */
 let CT=[];
-function rebuildContacts(){CT=[];S.contacts.slice().sort((a,b)=>(a.i||0)-(b.i||0)).forEach(d=>(d.items||[]).forEach(x=>CT.push(x)))}
+const nrm=s=>String(s||'').toLowerCase().replace(/[\s\u200c\u200f\u200e\-_.،,]/g,'').replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه');
+let CTK=[];
+function rebuildContacts(){CT=[];S.contacts.slice().sort((a,b)=>(a.i||0)-(b.i||0)).forEach(d=>(d.items||[]).forEach(x=>CT.push(x)));CTK=CT.map(c=>nrm(c.n+' '+(c.o||'')))}
 const normDigits=s=>en(String(s||'')).replace(/\D/g,'');
-function matchContacts(q,lim=8){q=q.trim();if(q.length<2)return[];const qd=normDigits(q),ql=q.toLowerCase();const out=[];
-  for(const c of CT){if((c.n&&c.n.toLowerCase().includes(ql))||(qd.length>=4&&c.p.some(p=>p.includes(qd)))){out.push(c);if(out.length>=lim)break}}return out}
+function matchContacts(q,lim=8){q=q.trim();if(q.length<2)return[];if(CTK.length!==CT.length)CTK=CT.map(c=>nrm(c.n+' '+(c.o||'')));const qd=normDigits(q),ql=nrm(q);const words=q.split(/\s+/).map(nrm).filter(Boolean);const out=[];
+  for(let i=0;i<CT.length;i++){const c=CT[i],k=CTK[i];if((ql&&k.includes(ql))||(words.length>1&&words.every(w=>k.includes(w)))||(qd.length>=4&&c.p.some(p=>p.includes(qd)))){out.push(c);if(out.length>=lim)break}}return out}
 function contactSuggest(q){const box=document.getElementById('ctSug');if(!box)return;const m=matchContacts(q,6);
   box.innerHTML=m.length?`<div class="list" style="margin-top:6px">${m.map((c,i)=>`<button type="button" class="row" data-act="pickContact" data-i="${i}"><div class="main"><div class="ttl">${esc(c.n)}</div><div class="sub"><span dir="ltr">${esc(c.p.slice(0,2).join(' · '))}</span>${c.o?`<span>${esc(c.o)}</span>`:''}</div></div><span class="pill">از مخاطبین</span></button>`).join('')}</div>`:'';
   box._m=m}
@@ -1144,7 +1148,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='f_src')document.querySelectorAll('[data-src]').forEach(el=>el.hidden=el.dataset.src!==e.target.value);
   if(e.target.id==='f_mk')document.querySelectorAll('[data-mk]').forEach(el=>el.hidden=e.target.value!=='sale');
 });
-document.addEventListener('input',e=>{if(e.target.id==='peopleQ'){ui.peopleQ=e.target.value;render()}if(e.target.id==='gq')runSearch(e.target.value);if(e.target.closest&&e.target.closest('.vline'))vSum();if(e.target.id==='f_name')contactSuggest(e.target.value);if(e.target.dataset&&e.target.dataset.pp){const fid=e.target.dataset.pp;document.getElementById(fid).value='';delete PP[fid];ppSearch(fid,e.target.value)}if(e.target.dataset&&'date' in e.target.dataset)dateSync(e.target.id)});
+document.addEventListener('input',e=>{if(e.target.id==='peopleQ'){ui.peopleQ=e.target.value;clearTimeout(window._pqT);window._pqT=setTimeout(()=>{const box=document.getElementById('peopleRes');if(!box)return render();const t=document.createElement('div');t.innerHTML=vPeople();box.innerHTML=t.querySelector('#peopleRes').innerHTML},150)}if(e.target.id==='gq')runSearch(e.target.value);if(e.target.closest&&e.target.closest('.vline'))vSum();if(e.target.id==='f_name')contactSuggest(e.target.value);if(e.target.dataset&&e.target.dataset.pp){const fid=e.target.dataset.pp;document.getElementById(fid).value='';delete PP[fid];ppSearch(fid,e.target.value)}if(e.target.dataset&&'date' in e.target.dataset)dateSync(e.target.id)});
 document.addEventListener('focusin',e=>{if(e.target.dataset&&e.target.dataset.pp&&!document.getElementById(e.target.dataset.pp).value)ppSearch(e.target.dataset.pp,e.target.value)});
 document.addEventListener('submit',async e=>{
   e.preventDefault();const f=e.target,k=f.dataset.form,id=f.dataset.id||null;if(!await ppResolve(f))return;
