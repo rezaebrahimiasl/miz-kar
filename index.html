@@ -264,7 +264,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.9.3';
+const APP_VER='0.9.4';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -664,6 +664,48 @@ function dupGuard(f,key,msg,strong,openAct){if(f.dataset.dup===key)return false;
   f.closest('.sheet').scrollTo({top:0,behavior:'smooth'});return true}
 const near=(a,b,d=2)=>a&&b&&Math.abs(diffDays(a,b))<=d;
 const simTitle=(a,b)=>{a=nrm(a);b=nrm(b);return a&&b&&(a===b||(Math.min(a.length,b.length)>=6&&(a.includes(b)||b.includes(a))))};
+
+/* ---------- Activity log: every record in the order it was written; tap to open, fix, finish, delete or restore ---------- */
+function idbDel(col,id){return new Promise((res,rej)=>{const t=idb.transaction('docs','readwrite');t.objectStore('docs').delete(col+'/'+id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+async function delDoc(col,id){const d=byId(col,id);if(!d)return false;try{let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}tr.unshift({col,doc:d,at:nowTs()});try{localStorage.setItem('miz.trash',JSON.stringify(tr.slice(0,60)))}catch(_){}
+  if(mode==='cloud')await db.collection(col).doc(id).delete();else{await idbDel(col,id);S[col]=S[col].filter(x=>x.id!==id);render()}return true}catch(e){toast('حذف نشد: '+(e.message||''));return false}}
+async function undoDel(i){let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}const x=tr[i];if(!x)return;await putRaw(x.col,{...x.doc,updated:nowTs()});tr.splice(i,1);try{localStorage.setItem('miz.trash',JSON.stringify(tr))}catch(_){}if(mode==='local')render();toast('برگردانده شد ✓');logSheet()}
+const LOGT2={
+  tasks:{n:'کار',g:'work',a:x=>x.area||'affairs',i:()=>undefined,t:x=>x.title,open:x=>formTask(x),st:x=>x.status==='done'?['انجام شد','ok']:x.status==='archived'?['کنار گذاشته شد','']:null,restore:x=>({status:'open'})},
+  deals:{n:'فرصت',g:'work',a:x=>(PIPES[x.pipe]||{}).area||'sales',i:()=>'marketers',t:x=>x.title,open:x=>viewDeal(x.id),st:x=>x.status&&x.status!=='open'?[x.status==='won'?'موفق':'بسته',x.status==='won'?'ok':'']:null},
+  people:{n:'شخص',g:'people',a:x=>x.area||'affairs',i:()=>'user',t:x=>x.name,open:x=>viewPerson(x.id),st:x=>x.status==='archived'?['برداشته شد','']:null,restore:x=>({status:'active'})},
+  ledger:{n:'حساب',g:'money',a:()=>'finance',i:()=>'finance',t:x=>`${LSHORT[x.kind]||''} ${money(x.amount,x.currency)}${x.personId?' · '+pname(x.personId):''}${x.about?' · '+x.about:''}`,open:x=>viewLedger(x.id),st:x=>x.void?['باطل','bad']:x.settled?['تسویه','ok']:null,restore:x=>({void:false})},
+  vouchers:{n:'سند دستی',g:'money',a:()=>'finance',i:()=>'book',t:x=>x.desc||'سند دستی',open:x=>formVoucher(x),st:x=>x.void?['باطل','bad']:x.unbalanced?['نامتوازن','warn']:null,restore:x=>({void:false})},
+  lots:{n:'ورود کالا',g:'goods',a:()=>'sales',i:()=>'box',t:x=>`${lotName(x)} ${fmtQ(Number(x.qty)||0,x.unit)} · ${lotSrc(x)}`,open:x=>viewLot(x.id),st:x=>x.void?['باطل','bad']:null,restore:x=>({void:false})},
+  moves:{n:'فروش/ارسال',g:'goods',a:x=>MOVE[x.kind]&&MOVE[x.kind].give?'personal':'sales',i:x=>MOVE[x.kind]&&MOVE[x.kind].give?'gift':'truck',t:x=>{const l=byId('lots',x.lotId);return `${(MOVE[x.kind]||{}).n||''} ${fmtQ(Number(x.qty)||0,l?l.unit:'')} ${lotName(l)} · ${whoOf(x)}`},open:x=>viewMove(x.id),st:x=>x.void?['باطل','bad']:null,restore:x=>({void:false})},
+  quotes:{n:'قیمت',g:'goods',a:()=>'marketers',i:()=>'tag',t:x=>`${x.dir==='got'?'گرفتم از':'دادم به'} ${pname(x.personId)||'—'} · ${x.product} ${money(x.price,x.currency)}`,open:x=>viewQuote(x.id),del:1},
+  apiary:{n:'زنبورداری',g:'goods',a:()=>'sales',i:()=>'hive',t:x=>(APT[x.type]||{}).n+(x.to?' ← '+x.to:x.loc?' · '+x.loc:''),open:x=>formApiary(x),st:x=>x.void?['باطل','bad']:null,restore:x=>({void:false})},
+  inbox:{n:'یادداشت سریع',g:'work',a:()=>'affairs',i:()=>'note',t:x=>x.text,open:x=>viewInbox(x.id),st:x=>x.processed?['خط خورد','']:null,restore:x=>({processed:false}),del:1},
+  cases:{n:'پرونده',g:'care',a:()=>'therapy',i:()=>'therapy',t:x=>x.code+(x.complaint?' · '+String(x.complaint).slice(0,40):''),open:x=>viewCase(x.id),st:x=>x.status==='closed'?['بسته','']:null},
+  visits:{n:'ویزیت',g:'care',a:()=>'therapy',i:()=>'therapy',t:x=>`${(byId('cases',x.caseId)||{}).code||''} · ویزیت ${fa(x.no||'')}`,open:x=>formVisit(x.caseId,x),st:x=>x.void?['حذف‌شده','bad']:null,restore:x=>({void:false})},
+  qtopics:{n:'موضوع قرآنی',g:'care',a:()=>'research',i:()=>'book',t:x=>x.title,open:x=>viewTopic(x.id)},
+  qverses:{n:'آیه',g:'care',a:()=>'research',i:()=>'book',t:x=>vRef(x)+((byId('qtopics',x.topicId)||{}).title?' · '+byId('qtopics',x.topicId).title:''),open:x=>formVerse(x.topicId,x),st:x=>x.void?['حذف‌شده','bad']:null,restore:x=>({void:false})},
+  campaigns:{n:'پیام گروهی',g:'people',a:()=>'marketers',i:()=>'marketers',t:x=>x.title||'پیام گروهی',open:x=>viewCampaign(x.id),del:1},
+  habits:{n:'عادت',g:'work',a:x=>x.area||'personal',i:x=>x.icon||'personal',t:x=>x.name,open:x=>formHabit(x)},
+  notes:{n:'یادداشت',g:'work',a:()=>'affairs',i:()=>'note',t:x=>x.title,open:x=>viewNote(x.id)}};
+const LOGG=[['all','همه'],['work','کارها و یادداشت'],['money','پول'],['goods','کالا و زنبورداری'],['people','افراد'],['care','درمان و پژوهش']];
+function logItems(all){const g=all?'all':(ui.logG||'all'),q=all?'':(ui.logQ||'').trim();const L=[];
+  Object.entries(LOGT2).forEach(([col,T])=>{if(g!=='all'&&T.g!==g)return;(S[col]||[]).forEach(x=>{if(!x||!x.id)return;let t='';try{t=T.t(x)||''}catch(_){}L.push({col,x,T,t,ts:x.created||x.updated||''})})});
+  let R=L;if(q.length>=2){const qn=nrm(q);R=L.filter(e=>nrm(e.t+' '+e.T.n).includes(qn))}
+  return R.sort((a,b)=>b.ts.localeCompare(a.ts))}
+function logRow(e,k){const st=e.T.st?e.T.st(e.x):null;const tm=e.ts?new Date(e.ts):null;const hm=tm?fa(String(tm.getHours()).padStart(2,'0')+':'+String(tm.getMinutes()).padStart(2,'0')):'';const edited=e.x.updated&&e.x.created&&(new Date(e.x.updated)-new Date(e.x.created))>60000;
+  return `<div class="row ${st&&st[1]==='bad'?'void':''}">${badge(e.T.a(e.x),e.T.i(e.x))}<button class="main" style="border:0;background:none;text-align:right;padding:0" data-act="logOpen" data-c="${e.col}" data-id="${e.x.id}"><div class="ttl">${esc(String(e.t).slice(0,90))}</div>
+   <div class="sub"><span class="pill">${esc(e.T.n)}</span><span>${hm}</span>${edited?`<span>ویرایش ${jNice(e.x.updated.slice(0,10))}</span>`:''}${st?`<span class="pill ${st[1]}">${st[0]}</span>`:''}</div></button>
+   <div class="end" style="display:flex;flex-direction:column;gap:4px">${st&&e.T.restore?`<button class="pill acc" data-act="logRestore" data-c="${e.col}" data-id="${e.x.id}">برگردان</button>`:''}${e.T.del?`<button class="pill" data-act="logDel" data-c="${e.col}" data-id="${e.x.id}">حذف</button>`:''}</div></div>`}
+function logList(){const L=logItems();const n=ui.logN||80;let h='',day='';
+  L.slice(0,n).forEach((e,k)=>{const d=(e.ts||'').slice(0,10);const dl=d?jNice(isoOf(new Date(e.ts))):'بی‌تاریخ';if(dl!==day){if(day)h+='</div>';day=dl;h+=`<div class="grp">${esc(dl)}${d?' · '+jLong(isoOf(new Date(e.ts))).split(' ')[0]:''}</div><div class="list">`}h+=logRow(e,k)});if(day)h+='</div>';
+  return (h||'<div class="empty">چیزی پیدا نشد.</div>')+(L.length>n?`<button class="btn" style="width:100%;margin-top:10px" data-act="logMore">${fa(L.length-n)} مورد قدیمی‌تر</button>`:'')}
+function logSheet(){let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}
+  openSheet(`<h3>${badge('affairs','note')} همهٔ ثبت‌ها</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">هر چیزی که ثبت کرده‌ای، به ترتیب زمان نوشتن (تازه‌ترین بالا). روی هر ردیف بزن تا باز کنی، کامل یا اصلاح کنی، یا باطل کنی. باطل‌شده‌ها خط خورده می‌مانند و «برگردان» دارند.</p>
+  <div class="chips wrap" style="margin-bottom:8px">${LOGG.map(([k,l])=>`<button class="chip" data-act="logG" data-v="${k}" aria-pressed="${(ui.logG||'all')===k}">${l}</button>`).join('')}</div>
+  <input class="search-in" id="logQ" placeholder="جستجو در ثبت‌ها…" value="${esc(ui.logQ||'')}"><div id="logRes">${logList()}</div>
+  ${tr.length?`<details style="margin-top:14px"><summary style="font-size:13px;color:var(--muted)">حذف‌شده‌ها (${fa(tr.length)})</summary><div class="list" style="margin-top:6px">${tr.map((x,i)=>{const T=LOGT2[x.col];let t='';try{t=T?T.t(x.doc):x.col}catch(_){}return `<div class="row void"><div class="main"><div class="ttl">${esc(String(t).slice(0,80))}</div><div class="sub"><span class="pill">${esc(T?T.n:x.col)}</span><span>حذف ${jNice(x.at.slice(0,10))}</span></div></div><button class="pill acc" data-act="undoDel" data-v="${i}">برگردان</button></div>`}).join('')}</div></details>`:''}
+  <div class="acts" style="margin-top:12px"><button class="btn ghost" data-act="close">بستن</button></div>`)}
 function vToday(){
   const t=today();
   const due=openTasks().filter(x=>x.due&&x.due<=t).sort((a,b)=>(a.priority||3)-(b.priority||3)||a.due.localeCompare(b.due));
@@ -693,6 +735,7 @@ function vToday(){
   {const oc=occSoon();if(oc.length)h+=block('تبریک و مناسبت‌ها',oc.length,`<div class="list">${oc.map(occRow).join('')}</div>`,`<button class="link" data-act="occSheet">همه</button>`)}
   h+=block('سه کار مهم امروز',null,listOr(top,taskRow,'کاری برای امروز نیست. از دکمهٔ + یک کار اضافه کن.'),`<button class="link" data-act="tab" data-v="tasks">همهٔ کارها${due.length>3?' ('+fa(due.length-3)+' کار دیگر امروز)':''}</button>`);
   h+=habitsStrip();
+  {const L=logItems(1).slice(0,4);if(L.length)h+=block('آخرین ثبت‌ها',null,`<div class="list">${L.map(logRow).join('')}</div>`,`<button class="link" data-act="logSheet">همه</button>`)}
   const fs=flowSummary();
     if(fs.short.length)h+=block('هشدار انبار',fs.short.length,listOr(fs.short,l=>`<button class="row" data-act="viewLot" data-id="${l.id}">${badge('therapy','warn')}<div class="main"><div class="ttl">کسری در ${esc(lotName(l))} ${fa(l.code||'')}</div><div class="sub"><span>${fmtQ(-lotStat(l).rem,l.unit)} بیش از موجودی ثبت شده؛ ورود جاافتاده یا مقدار را اصلاح کن</span></div></div></button>`,''));
   if(fs.rows.length)h+=block('زنجیره‌های در جریان',null,`<div class="list">${fs.rows.map(([k,n,c,a,ic])=>`<button class="row" data-act="${k==='recv'||k==='pay'?'tab':'chain'}" data-v="${k==='recv'||k==='pay'?'money':k}">${badge(a,ic)}<div class="main"><div class="ttl">${n}</div></div><div class="end"><b>${fa(c)}</b></div></button>`).join('')}</div>`);
@@ -979,7 +1022,7 @@ function menuSheet(){const T=(act,area,ic,b,sm,extra='')=>`<button class="tile" 
   <div class="grp">درمان و پژوهش</div><div class="tiles">${T('clinic','therapy','therapy','پرونده‌های درمانی',nc?fa(nc)+' پرونده در جریان':'ویزیت و نتیجهٔ درمان')}${T('clients','therapy','user','مراجعین مخاطبین','بیماری، شهر، معرف')}${T('quran','research','book','پژوهش قرآنی',nq?fa(nq)+' موضوع':'موضوع و کلیدواژه')}</div>
   <div class="grp">کسب‌وکار و مالی</div><div class="tiles">${T('apiary','sales','hive','دفتر زنبورداری','کوچ، برداشت، تیمار')}${T('accOpen','finance','book','دفاتر حسابداری','روزنامه، کل، تراز، سود')}${T('reports','finance','note','گزارش‌ها','فروش، قیمت، خریداران')}</div>
   <div class="grp">زندگی و ارتباط</div><div class="tiles">${T('habits','personal','dumbbell','عادت‌ها و چک‌این','')}${T('occSheet','personal','gift','تولدها و مناسبت‌ها',oc?fa(oc)+' مورد این هفته':'')}${T('notesList','affairs','note','یادداشت‌ها و قوانین','')}</div>
-  <div class="grp">برنامه</div><div class="tiles">${mode==='cloud'?T('ask','research','research','سؤال آزاد از دستیار',''):''}${T('backupSheet','affairs','box','پشتیبان و بازیابی',lastBackup()?'آخرین: '+jNice(lastBackup()):'هنوز گرفته نشده')}${T('roadmap','affairs','map','نقشهٔ راه','کارهای بعدی برنامه')}${T('checkUpd','affairs','bell','نسخهٔ '+fa(APP_VER),'بررسی به‌روزرسانی')}</div>
+  <div class="grp">برنامه</div><div class="tiles">${T('logSheet','affairs','note','همهٔ ثبت‌ها','پیدا کردن، اصلاح، حذف')}${mode==='cloud'?T('ask','research','research','سؤال آزاد از دستیار',''):''}${T('backupSheet','affairs','box','پشتیبان و بازیابی',lastBackup()?'آخرین: '+jNice(lastBackup()):'هنوز گرفته نشده')}${T('roadmap','affairs','map','نقشهٔ راه','کارهای بعدی برنامه')}${T('checkUpd','affairs','bell','نسخهٔ '+fa(APP_VER),'بررسی به‌روزرسانی')}</div>
   <p class="hint" style="font-size:12px;color:var(--muted);margin-top:12px">میز کار · نسخهٔ ${fa(APP_VER)} · محل ذخیره: ${mode==='cloud'?'فضای خصوصی Claude (فقط مالک)':'حافظهٔ همین گوشی'}</p>`)}
 
 /* ---------- Apiary log, reports, ask ---------- */
@@ -1242,7 +1285,7 @@ function viewMove(id){const m=byId('moves',id);if(!m)return;const l=byId('lots',
    ${m.ledgerId?'<div class="hint" style="font-size:12px;color:var(--muted)">ردیف مالی این فروش جداگانه در «حساب‌ها» است؛ اگر این فروش را باطل می‌کنی، آن را هم باطل کن.</div>':''}</div>`)}
 function viewQuote(id){const q=byId('quotes',id);if(!q)return;const same=S.quotes.filter(x=>x.product===q.product&&(x.variety||'')===(q.variety||'')&&x.id!==id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   openSheet(`<div class="det"><h3>${badge(q.dir==='got'?'export':'marketers','tag')} ${q.dir==='got'?'قیمت گرفتم از':'قیمت دادم به'} ${esc(pname(q.personId)||'—')}</h3><dl><dt>محصول</dt><dd>${esc(q.product)} ${esc(q.variety||'')}</dd><dt>قیمت</dt><dd>${money(q.price,q.currency)} هر ${esc(q.unit||'کیلو')}</dd><dt>تاریخ</dt><dd>${jShort(q.date)}</dd>${q.note?`<dt>شرایط</dt><dd>${esc(q.note)}</dd>`:''}</dl>
-   <div class="acts"><button class="btn" data-act="editQuote" data-id="${id}">ویرایش</button><button class="btn ghost" data-act="close">بستن</button></div>
+   <div class="acts"><button class="btn" data-act="editQuote" data-id="${id}">ویرایش</button><button class="btn ghost danger" data-act="logDel" data-c="quotes" data-id="${id}">حذف</button><button class="btn ghost" data-act="close">بستن</button></div>
    ${same.length?`<div class="blk-h" style="margin-top:12px"><h2>قیمت‌های دیگر همین محصول</h2></div>${listOr(same,quoteRow,'')}`:''}</div>`)}
 function personTrade(id){const mv=S.moves.filter(m=>m.personId===id&&!m.void);const by={};
   mv.forEach(m=>{const l=byId('lots',m.lotId);if(!l)return;const y=jYear(m.date);const k=`${y}|${l.product}|${l.unit}`;by[k]=by[k]||{q:0,amt:0,cur:m.currency||'تومان'};by[k].q-=MOVE[m.kind].s*(Number(m.qty)||0);if(m.kind==='sale')by[k].amt+=(Number(m.qty)||0)*(Number(m.price)||0)});
@@ -1537,6 +1580,13 @@ document.addEventListener('click',async e=>{
     case'fixLegacy':fixLegacy();break;
     case'legacyOk':try{localStorage.setItem('miz.legacyOk','1')}catch(_){}render();break;
     case'lgMode':{const kd=b.dataset.v==='kind';document.getElementById('f_lgmode').value=b.dataset.v;b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));document.getElementById('lgKind').hidden=!kd;document.getElementById('lgMoney').hidden=kd;document.querySelectorAll('[data-lgm]').forEach(x=>x.hidden=kd);lgSync();break}
+    case'logSheet':ui.logN=80;logSheet();break;
+    case'logG':ui.logG=b.dataset.v;ui.logN=80;logSheet();break;
+    case'logMore':ui.logN=(ui.logN||80)+120;document.getElementById('logRes').innerHTML=logList();break;
+    case'logOpen':{const x=byId(b.dataset.c,id);if(x)LOGT2[b.dataset.c].open(x);break}
+    case'logRestore':{const T=LOGT2[b.dataset.c];const x=byId(b.dataset.c,id);if(x&&T.restore&&await save(b.dataset.c,id,T.restore(x))){toast('برگردانده شد ✓');document.getElementById('logRes').innerHTML=logList()}break}
+    case'logDel':{if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='مطمئنی؟';break}if(await delDoc(b.dataset.c,id)){toast('حذف شد؛ از «حذف‌شده‌ها» برمی‌گردد');logSheet()}break}
+    case'undoDel':undoDel(Number(b.dataset.v));break;
     case'biz':ui.biz=b.dataset.v;render();break;
     case'bulk':bulkSheet();break;
     case'bulkPrev':bulkPreview();break;
@@ -1628,7 +1678,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='f_src')document.querySelectorAll('[data-src]').forEach(el=>el.hidden=!el.dataset.src.split(' ').includes(e.target.value));
   if(e.target.id==='f_mk')document.querySelectorAll('[data-mk]').forEach(el=>el.hidden=e.target.value!=='sale');
 });
-document.addEventListener('input',e=>{if(e.target.id==='f_cpm'){const t=e.target.value;const el=document.getElementById('cpLen');if(el)el.textContent=fa([...t].length)+' حرف · '+fa(smsParts(t))+' پیامک برای هر نفر'}if(e.target.id==='clQ'){ui.clQ=e.target.value;clearTimeout(window._clT);window._clT=setTimeout(()=>{const box=document.getElementById('clRes');if(box)box.innerHTML=clientsList(clientsFilter(),ui.clF||'')},250)}if(e.target.id==='peopleQ'){ui.peopleQ=e.target.value;clearTimeout(window._pqT);window._pqT=setTimeout(()=>{const box=document.getElementById('peopleRes');if(!box)return render();const t=document.createElement('div');t.innerHTML=vPeople();box.innerHTML=t.querySelector('#peopleRes').innerHTML},150)}if(e.target.id==='gq')runSearch(e.target.value);if(e.target.closest&&e.target.closest('.vline'))vSum();if(e.target.id==='f_name')contactSuggest(e.target.value);if(e.target.dataset&&e.target.dataset.pp){const fid=e.target.dataset.pp;document.getElementById(fid).value='';delete PP[fid];ppSearch(fid,e.target.value)}if(e.target.dataset&&'date' in e.target.dataset)dateSync(e.target.id)});
+document.addEventListener('input',e=>{if(e.target.id==='f_cpm'){const t=e.target.value;const el=document.getElementById('cpLen');if(el)el.textContent=fa([...t].length)+' حرف · '+fa(smsParts(t))+' پیامک برای هر نفر'}if(e.target.id==='logQ'){ui.logQ=e.target.value;ui.logN=80;clearTimeout(window._lgT);window._lgT=setTimeout(()=>{const box=document.getElementById('logRes');if(box)box.innerHTML=logList()},250)}if(e.target.id==='clQ'){ui.clQ=e.target.value;clearTimeout(window._clT);window._clT=setTimeout(()=>{const box=document.getElementById('clRes');if(box)box.innerHTML=clientsList(clientsFilter(),ui.clF||'')},250)}if(e.target.id==='peopleQ'){ui.peopleQ=e.target.value;clearTimeout(window._pqT);window._pqT=setTimeout(()=>{const box=document.getElementById('peopleRes');if(!box)return render();const t=document.createElement('div');t.innerHTML=vPeople();box.innerHTML=t.querySelector('#peopleRes').innerHTML},150)}if(e.target.id==='gq')runSearch(e.target.value);if(e.target.closest&&e.target.closest('.vline'))vSum();if(e.target.id==='f_name')contactSuggest(e.target.value);if(e.target.dataset&&e.target.dataset.pp){const fid=e.target.dataset.pp;document.getElementById(fid).value='';delete PP[fid];ppSearch(fid,e.target.value)}if(e.target.dataset&&'date' in e.target.dataset)dateSync(e.target.id)});
 document.addEventListener('focusin',e=>{if(e.target.dataset&&e.target.dataset.pp&&!document.getElementById(e.target.dataset.pp).value)ppSearch(e.target.dataset.pp,e.target.value)});
 document.addEventListener('submit',async e=>{
   e.preventDefault();const f=e.target,k=f.dataset.form,id=f.dataset.id||null;if(!await ppResolve(f))return;
