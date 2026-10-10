@@ -98,6 +98,8 @@ h3 .ab{display:inline-grid;vertical-align:middle;margin-left:6px}
 .kpi .l{font-size:12px;color:var(--muted)}
 .kpi .v{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.chips.wrap{flex-wrap:wrap;overflow:visible}
+.ppw{position:relative}.ppw input{padding-inline-end:40px}.ppx{position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);border:0;background:none;font-size:22px;color:var(--muted);width:32px;height:32px}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:13px}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -427,10 +429,36 @@ function openSheet(html){const r=document.getElementById('sheetRoot');r.innerHTM
 function closeSheet(){ciOpen=false;const r=document.getElementById('sheetRoot');r.hidden=true;r.innerHTML=''}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2200)}
 const opt=(v,l,cur)=>`<option value="${esc(v)}" ${String(cur??'')===String(v)?'selected':''}>${esc(l)}</option>`;
-const personSelect=(id,cur,label='شخص مرتبط')=>`<div class="fld"><label for="${id}">${label}</label><select id="${id}">${opt('','— هیچ —',cur)}${S.people.filter(p=>p.status!=='archived').sort((a,b)=>a.name.localeCompare(b.name,'fa')).map(p=>opt(p.id,p.name,cur)).join('')}</select></div>`;
+const personSelect=(id,cur,label='شخص مرتبط')=>{const p=cur?byId('people',cur):null;return `<div class="fld"><label for="${id}_q">${label}</label><input type="hidden" id="${id}" value="${esc(cur||'')}"><div class="ppw"><input id="${id}_q" data-pp="${id}" autocomplete="off" placeholder="نام یا شماره را بنویس…" value="${esc(p?p.name:'')}"><button type="button" class="ppx" data-act="ppClear" data-f="${id}" ${p?'':'hidden'} aria-label="پاک کن">×</button></div><div class="hint" id="${id}_h" style="font-size:12px;color:var(--muted)">${p?'':'از افراد'+(CT.length?' و '+fa(CT.length.toLocaleString('en'))+' مخاطب گوشی':'')+' جستجو می‌کند'}</div><div id="${id}_s"></div></div>`};
+const PP={};
+function ppSearch(fid,q){const box=document.getElementById(fid+'_s');if(!box)return;q=(q||'').trim();const ql=q.toLowerCase(),qd=normDigits(q);const items=[];
+  const ppl=S.people.filter(p=>p.status!=='archived');
+  const pm=q?ppl.filter(p=>(p.name||'').toLowerCase().includes(ql)||(p.org||'').toLowerCase().includes(ql)||(qd.length>=4&&normDigits(p.phone).includes(qd))):ppl.slice().sort((a,b)=>(b.updated||0)>(a.updated||0)?1:-1);
+  pm.slice(0,q?6:8).forEach(p=>items.push({t:'p',id:p.id,n:p.name,sub:p.org||p.phone||''}));
+  if(q.length>=2){const have=new Set(ppl.flatMap(p=>String(p.phone||'').split(/[^\d۰-۹]+/).map(normDigits).filter(x=>x.length>=7).map(x=>x.slice(-10))));
+    matchContacts(q,14).filter(c=>!c.p.some(x=>have.has(x.slice(-10)))).slice(0,7).forEach(c=>items.push({t:'c',c,n:c.n,sub:c.p.slice(0,2).join(' · ')+(c.o?' · '+c.o:'')}));
+    if(!ppl.some(p=>p.name===q))items.push({t:'n',n:q})}
+  box._m=items;
+  box.innerHTML=items.length?`<div class="list" style="margin-top:6px;max-height:300px;overflow:auto">${items.map((x,i)=>x.t==='n'?`<button type="button" class="row" data-act="ppPick" data-f="${fid}" data-i="${i}"><div class="main"><div class="ttl">+ «${esc(x.n)}» را شخص جدید کن</div></div></button>`:`<button type="button" class="row" data-act="ppPick" data-f="${fid}" data-i="${i}"><div class="main"><div class="ttl">${esc(x.n)}</div>${x.sub?`<div class="sub"><span dir="auto">${esc(x.sub)}</span></div>`:''}</div><span class="pill">${x.t==='c'?'مخاطب گوشی':'افراد'}</span></button>`).join('')}</div>`:(q?'<div class="hint" style="font-size:12.5px">چیزی پیدا نشد</div>':'')}
+function ppPick(fid,i){const box=document.getElementById(fid+'_s');const x=box&&box._m&&box._m[i];if(!x)return;const h=document.getElementById(fid),q=document.getElementById(fid+'_q'),hn=document.getElementById(fid+'_h');
+  q.value=x.n;if(x.t==='p'){h.value=x.id;delete PP[fid];hn.textContent=''}else{h.value='new';PP[fid]=x.t==='c'?x.c:{n:x.n,p:[],e:'',o:''};hn.textContent=x.t==='c'?'با ذخیره، این مخاطب به «افراد» اضافه می‌شود':'با ذخیره، شخص جدید ساخته می‌شود'}
+  box.innerHTML='';const xb=q.parentNode.querySelector('.ppx');if(xb)xb.hidden=false}
+function ppClear(fid){const h=document.getElementById(fid),q=document.getElementById(fid+'_q');h.value='';q.value='';delete PP[fid];const xb=q.parentNode.querySelector('.ppx');if(xb)xb.hidden=true;document.getElementById(fid+'_h').textContent='';q.focus();ppSearch(fid,'')}
+async function ppResolve(f){for(const q of f.querySelectorAll('input[data-pp]')){const fid=q.dataset.pp,h=document.getElementById(fid);const txt=q.value.trim();
+    if(!h.value&&txt){const ex=S.people.find(p=>p.name===txt);if(ex){h.value=ex.id;continue}
+      if(f.dataset.ppw!==txt){f.dataset.ppw=txt;q.focus();ppSearch(fid,txt);toast(`«${txt}» در افراد نیست؛ از فهرست انتخاب کن، یا دوباره «ذخیره» بزن تا شخص جدید ساخته شود`);return false}
+      PP[fid]={n:txt,p:[],e:'',o:''};h.value='new'}
+    if(h.value==='new'&&PP[fid]){const c=PP[fid];const doc={id:newId(),name:c.n,phone:(c.p||[]).join(' ، '),email:c.e||'',org:c.o||'',roles:[],area:'',note:'',status:'active',source:c.p&&c.p.length?'مخاطبین گوشی':'',created:nowTs(),updated:nowTs()};
+      try{await putRaw('people',doc)}catch(e){toast('ساختن شخص ممکن نشد');return false}h.value=doc.id;delete PP[fid]}
+    if(h.value==='new')h.value=''}
+  return true}
 const areaSelect=(id,cur)=>`<div class="fld"><label for="${id}">حوزه</label><select id="${id}">${opt('','— —',cur)}${Object.entries(AREAS).map(([k,v])=>opt(k,v,cur)).join('')}</select></div>`;
-function dateField(id,label,cur,hint){return `<div class="fld"><label for="${id}">${label}</label><input id="${id}" inputmode="numeric" placeholder="مثلاً ${jShort(today())}" value="${cur?jShort(cur):''}">
-  <div class="chips">${[['امروز',0],['فردا',1],['۳ روز',3],['هفته بعد',7],['ماه بعد',30]].map(([l,n])=>`<button type="button" class="chip" data-act="setDate" data-f="${id}" data-v="${addDays(today(),n)}">${l}</button>`).join('')}<button type="button" class="chip" data-act="setDate" data-f="${id}" data-v="">بدون تاریخ</button></div>${hint?`<div class="hint">${hint}</div>`:''}</div>`}
+function dateHint(iso){if(!iso)return'بدون تاریخ';const n=jNice(iso),l=jLong(iso);return ['امروز','فردا','دیروز'].includes(n)?n+' — '+l:l}
+function dateField(id,label,cur,hint){return `<div class="fld"><label for="${id}">${label}</label><input id="${id}" data-date inputmode="numeric" placeholder="مثلاً ${jShort(today())}" value="${cur?jShort(cur):''}">
+  <div class="hint" id="${id}_dh" style="font-size:12.5px;color:var(--ink);margin:4px 2px">${cur?dateHint(cur):''}</div>
+  <div class="chips wrap">${[['امروز',0],['فردا',1],['۳ روز',3],['هفته بعد',7],['ماه بعد',30]].map(([l,n])=>{const v=addDays(today(),n);return `<button type="button" class="chip" data-act="setDate" data-f="${id}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`}).join('')}<button type="button" class="chip" data-act="setDate" data-f="${id}" data-v="" aria-pressed="false">بدون تاریخ</button></div>${hint?`<div class="hint">${hint}</div>`:''}</div>`}
+function dateSync(id){const s=val(id);const r=s?parseJ(s):'';const h=document.getElementById(id+'_dh');if(h)h.textContent=r===null?'تاریخ نامعتبر — به شکل ۱۴۰۵/۰۷/۲۰':dateHint(r);
+  const f=document.getElementById(id);if(f)f.closest('.fld').querySelectorAll('[data-act=setDate]').forEach(c=>c.setAttribute('aria-pressed',String(s!==''&&c.dataset.v===r)))}
 const val=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
 function readDate(id,req){const s=val(id);if(!s){if(req){toast('تاریخ لازم است');return null}return''}const r=parseJ(s);if(r===null){toast('تاریخ را به شکل ۱۴۰۵/۰۷/۲۰ بنویس');return null}return r}
 
@@ -1048,7 +1076,9 @@ document.addEventListener('click',async e=>{
     case'restorePaste':{const t=(document.getElementById('f_paste')||{}).value||'';if(!t.trim())return toast('اول متن فایل را بچسبان');await doRestore(new File([t],'paste.json'));break}
     case'roadmap':viewNote('n_roadmap');break;
     case'stopGoal':formHabit(byId('habits',b.dataset.h));break;
-    case'setDate':{const f=document.getElementById(b.dataset.f);f.value=b.dataset.v?jShort(b.dataset.v):'';break}
+    case'setDate':{const f=document.getElementById(b.dataset.f);f.value=b.dataset.v?jShort(b.dataset.v):'';dateSync(b.dataset.f);if(!b.dataset.v){const h=document.getElementById(b.dataset.f+'_dh');if(h)h.textContent='بدون تاریخ';b.setAttribute('aria-pressed','true')}break}
+    case'ppPick':ppPick(b.dataset.f,Number(b.dataset.i));break;
+    case'ppClear':ppClear(b.dataset.f);break;
     case'toggleChip':b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true');break;
     case'backup':await doBackup();break;
     case'backupSheet':backupSheet();break;
@@ -1099,9 +1129,10 @@ document.addEventListener('change',e=>{
   if(e.target.id==='f_src')document.querySelectorAll('[data-src]').forEach(el=>el.hidden=el.dataset.src!==e.target.value);
   if(e.target.id==='f_mk')document.querySelectorAll('[data-mk]').forEach(el=>el.hidden=e.target.value!=='sale');
 });
-document.addEventListener('input',e=>{if(e.target.id==='peopleQ'){ui.peopleQ=e.target.value;render()}if(e.target.id==='gq')runSearch(e.target.value);if(e.target.closest&&e.target.closest('.vline'))vSum();if(e.target.id==='f_name')contactSuggest(e.target.value)});
+document.addEventListener('input',e=>{if(e.target.id==='peopleQ'){ui.peopleQ=e.target.value;render()}if(e.target.id==='gq')runSearch(e.target.value);if(e.target.closest&&e.target.closest('.vline'))vSum();if(e.target.id==='f_name')contactSuggest(e.target.value);if(e.target.dataset&&e.target.dataset.pp){const fid=e.target.dataset.pp;document.getElementById(fid).value='';delete PP[fid];ppSearch(fid,e.target.value)}if(e.target.dataset&&'date' in e.target.dataset)dateSync(e.target.id)});
+document.addEventListener('focusin',e=>{if(e.target.dataset&&e.target.dataset.pp&&!document.getElementById(e.target.dataset.pp).value)ppSearch(e.target.dataset.pp,e.target.value)});
 document.addEventListener('submit',async e=>{
-  e.preventDefault();const f=e.target,k=f.dataset.form,id=f.dataset.id||null;
+  e.preventDefault();const f=e.target,k=f.dataset.form,id=f.dataset.id||null;if(!await ppResolve(f))return;
   if(k==='capture'){const v=val('capIn');if(!v)return;if(await save('inbox',null,{text:v,processed:false})){document.getElementById('capIn').value='';toast('یادداشت شد');return;toast('در صندوق ورودی ثبت شد')}return}
   if(k==='task'){const due=readDate('f_due');if(due===null)return;const d={title:val('f_title'),due,priority:Number(val('f_pri'))||3,area:val('f_area'),personId:val('f_person'),dealId:val('f_dealT'),note:val('f_note'),loc:readLoc()};
     if(!d.title)return toast('عنوان کار لازم است');if(!id)d.status='open';
