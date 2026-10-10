@@ -238,9 +238,9 @@ const CATS_ALL=[...CATS_IN,...CATS_OUT,'قرض و جابه‌جایی (نه در
 const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت عسل',f:['loc','hives','qty']},visit:{n:'بازدید',f:['loc','hives']},treat:{n:'درمان و دارو',f:['loc','hives','what']},feed:{n:'تغذیه',f:['loc','hives','what','qty']},split:{n:'تقسیم و ملکه',f:['loc','hives']},trade:{n:'خرید یا فروش کلنی',f:['loc','hives']},loss:{n:'تلفات یا مشکل',f:['loc','hives','what']},other:{n:'سایر',f:['loc','hives']}};
 
 /* ---------- State & data ---------- */
-const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[]};
+const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.7.1';
+const APP_VER='0.8';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 const byId=(c,id)=>S[c].find(x=>x.id===id);
@@ -340,6 +340,148 @@ const block=(title,n,body,more)=>`<section class="blk"><div class="blk-h"><h2>${
 const listOr=(arr,fn,emptyMsg)=>`<div class="list">${arr.length?arr.map(fn).join(''):`<div class="empty">${emptyMsg}</div>`}</div>`;
 
 /* ---------- Views ---------- */
+
+/* ---------- Shared file export ---------- */
+async function shareFile(name,txt,type,title){
+  try{const file=new File([txt],name,{type});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:title||name});return true}}catch(e){if(e&&e.name==='AbortError')return false}
+  const dl=window.claude&&await window.claude.use('downloads');if(dl){try{await dl.save({filename:name,data:txt});toast('فایل آماده شد');return true}catch(_){toast('دریافت انجام نشد');return false}}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast('فایل در Downloads ذخیره شد');return true}catch(_){toast('ذخیرهٔ فایل ممکن نشد');return false}}
+
+/* ---------- Clinical cases (TEB method): case → visits → outcomes → research ---------- */
+const CTYPE={tcm:'طب سنتی و زنبوردرمانی',psy:'روان‌درمانی و مشاوره',other:'سایر'};
+const CVARS={
+  tcm:[['شدت شکایت اصلی','down'],['درد','down'],['کیفیت خواب','up'],['انرژی','up'],['گوارش','up'],['خلق','up'],['عملکرد روزانه','up']],
+  psy:[['پریشانی هیجانی','down'],['اضطراب','down'],['ناامیدی','down'],['احساس طردشدگی','down'],['انعطاف شناختی','up'],['تنظیم هیجان','up'],['رضایت از رابطه','up'],['ثبات ارزشمندی','up'],['خطر خودکشی','down']],
+  other:[['شدت مشکل اصلی','down'],['عملکرد روزانه','up']]};
+const CLAYER=['پاکسازی','پرهیز','سبک زندگی','اصلاح مزاج','دارو و درمان','روان‌درمانی / مشاوره','زنبوردرمانی','حجامت و دستی','سایر'];
+const CSTAT={active:'فعال',followup:'پیگیری بعد از درمان',closed:'بسته'};
+const CRISK={low:'کم',mod:'متوسط',high:'زیاد'};
+const CFMT=['حضوری','آنلاین','تلفنی'];
+const HW={full:'کامل',partial:'نسبی',none:'انجام نشد'};
+const cVisits=id=>S.visits.filter(v=>v.caseId===id&&!v.void).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.no||0)-(b.no||0));
+const cVars=c=>(c.vars&&c.vars.length?c.vars:(CVARS[c.type]||CVARS.other).map(([n,g])=>({n,g})));
+function nextCaseCode(){const ns=S.cases.map(c=>Number(String(c.code||'').replace(/\D/g,''))||0);const n=Math.max(28,...ns)+1;return 'TEB-'+String(n).padStart(4,'0')}
+function spark(vals,good){const v=vals.filter(x=>x!=null);if(v.length<2)return'';const w=70,h=20,mx=10;const pts=vals.map((x,i)=>x==null?null:[i*(w/(vals.length-1)),h-(x/mx)*h]).filter(Boolean);
+  const first=v[0],last=v[v.length-1];const better=good==='up'?last>first:last<first;const same=last===first;
+  return `<svg width="${w}" height="${h}" viewBox="-2 -2 ${w+4} ${h+4}" style="vertical-align:middle"><polyline fill="none" stroke="${same?'var(--muted)':better?'var(--ok)':'var(--bad)'}" stroke-width="2" points="${pts.map(p=>p.join(',')).join(' ')}"/></svg>`}
+function caseScores(c){const vs=cVisits(c.id);return cVars(c).map(x=>{const series=[c.baseline&&c.baseline[x.n]!=null?Number(c.baseline[x.n]):null,...vs.map(v=>v.scores&&v.scores[x.n]!=null&&v.scores[x.n]!==''?Number(v.scores[x.n]):null)];
+  const real=series.filter(y=>y!=null);return{...x,series,first:real[0],last:real[real.length-1],cnt:real.length}})}
+function interventionStats(c){const vs=cVisits(c.id);const main=cVars(c)[0];const st={};
+  vs.forEach((v,i)=>{const nx=vs[i+1];const a=v.scores&&v.scores[main.n],b=nx&&nx.scores&&nx.scores[main.n];
+    (v.iv||[]).forEach(x=>{if(!x.n)return;const k=x.n.trim();const o=st[k]=st[k]||{n:k,layer:x.layer,times:0,deltas:[],adverse:0};o.times++;
+      if(a!==undefined&&a!==''&&b!==undefined&&b!==''&&a!=null&&b!=null){const d=Number(b)-Number(a);o.deltas.push(main.g==='up'?d:-d)}if(v.adverse)o.adverse++})});
+  return {main,list:Object.values(st).sort((a,b)=>b.times-a.times)}}
+function caseRow(c){const vs=cVisits(c.id);const lv=vs[vs.length-1];const p=byId('people',c.personId);const nd=lv&&lv.nextDate;
+  return `<button class="row" data-act="viewCase" data-id="${c.id}">${badge('therapy','therapy')}<div class="main"><div class="ttl">${esc(c.code)} ${ui.cPriv?'':(p?'· '+esc(p.name):'')}</div>
+   <div class="sub"><span class="pill">${esc(CTYPE[c.type]||'')}</span>${c.status!=='active'?`<span class="pill">${CSTAT[c.status]}</span>`:''}${c.risk==='high'?'<span class="pill bad">ریسک زیاد</span>':c.risk==='mod'?'<span class="pill warn">ریسک متوسط</span>':''}<span>${fa(vs.length)} ویزیت</span>${lv?`<span>آخرین ${jNice(lv.date)}</span>`:''}${nd&&c.status!=='closed'?`<span>· بعدی ${jNice(nd)}</span>`:''}</div>
+   ${c.complaint?`<div class="sub"><span>${esc(String(c.complaint).slice(0,70))}</span></div>`:''}</div></button>`}
+function clinicSheet(){const f=ui.cF||'active';const arr=S.cases.filter(c=>f==='all'||(f==='active'?c.status!=='closed':c.status==='closed')).sort((a,b)=>(b.updated||'').localeCompare(a.updated||''));
+  openSheet(`<h3>${badge('therapy','therapy')} پرونده‌های درمانی</h3>
+  <p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">به روش TEB: داده خام جدا از برداشت، هر ویزیت با مداخله و نمرهٔ ۰ تا ۱۰، تا نتیجهٔ درمان‌ها سابقه شود و بعد به کار پژوهشی برسد. این بخش به «سؤال آزاد» فرستاده نمی‌شود.</p>
+  <div class="chips" style="margin-bottom:8px">${[['active','در جریان'],['closed','بسته'],['all','همه']].map(([k,l])=>`<button class="chip" data-act="cFilter" data-v="${k}" aria-pressed="${f===k}">${l}</button>`).join('')}<button class="chip" data-act="cPriv" aria-pressed="${!!ui.cPriv}">نام‌ها پنهان</button></div>
+  <div class="list">${arr.length?arr.map(caseRow).join(''):'<div class="empty">پرونده‌ای نیست. با «پرونده جدید» شروع کن.</div>'}</div>
+  <div class="acts" style="margin-top:12px"><button class="btn pri" data-act="newCase">پرونده جدید</button>${S.cases.length?'<button class="btn" data-act="caseExport">خروجی پژوهشی (بی‌نام)</button>':''}<button class="btn ghost" data-act="close">بستن</button></div>`)}
+function formCase(c={}){const type=c.type||'tcm';const vars=cVars({...c,type});
+  openSheet(`<h3>${c.id?'ویرایش پرونده '+esc(c.code):'پرونده درمانی جدید'}</h3><form data-form="case" data-id="${c.id||''}">
+  <div class="row2"><div class="fld"><label for="f_ccode">کد پرونده</label><input id="f_ccode" dir="ltr" value="${esc(c.code||nextCaseCode())}"></div><div class="fld"><label for="f_ctype">نوع</label><select id="f_ctype" ${c.id?'disabled':''}>${Object.entries(CTYPE).map(([k,v])=>opt(k,v,type)).join('')}</select></div></div>
+  ${personSelect('f_person',c.personId,'مراجع (فقط روی گوشی خودت؛ در خروجی‌ها فقط کد می‌آید)')}
+  <div class="fld"><label for="f_ccomp">شکایت اصلی</label><textarea id="f_ccomp" rows="2">${esc(c.complaint||'')}</textarea></div>
+  <div class="fld"><label for="f_chist">شرح حال، داروها و مکمل‌ها، بیماری‌های زمینه‌ای</label><textarea id="f_chist" rows="3">${esc(c.history||'')}</textarea></div>
+  <div class="row2"><div class="fld"><label for="f_cmiz">مزاج و شاخص‌ها</label><input id="f_cmiz" value="${esc(c.mizaj||'')}"></div><div class="fld"><label for="f_crisk">ریسک فعلی</label><select id="f_crisk">${Object.entries(CRISK).map(([k,v])=>opt(k,v,c.risk||'low')).join('')}</select></div></div>
+  <div class="fld"><label for="f_cgoal">اهداف درمان (کوتاه‌مدت / میان‌مدت)</label><textarea id="f_cgoal" rows="2">${esc(c.goals||'')}</textarea></div>
+  <div class="fld"><label for="f_cred">منع مصرف، احتیاط، تداخلات، علائم خطر (ارجاع)</label><textarea id="f_cred" rows="2">${esc(c.cautions||'')}</textarea></div>
+  ${c.id?'':`<div class="fld"><label>نمرهٔ پایه (۰ تا ۱۰، شروع درمان)</label><div class="hint" style="font-size:12px;color:var(--muted)">شاخص‌ها را بعداً هم می‌توانی عوض کنی. فلش ↓ یعنی کمتر بهتر است.</div>
+   <div id="cvars">${vars.map(x=>scoreField(x,'')).join('')}</div></div>`}
+  <div class="fld"><label for="f_cvars">شاخص‌های سنجش (هر خط یکی؛ «↓» آخرش یعنی کمتر بهتر)</label><textarea id="f_cvars" rows="4" dir="auto">${vars.map(x=>x.n+(x.g==='down'?' ↓':'')).join('\n')}</textarea></div>
+  <div class="acts"><button class="btn pri">ذخیره</button><button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`)}
+const scoreField=(x,cur,prev)=>`<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><span style="flex:1;font-size:13.5px">${esc(x.n)} ${x.g==='down'?'<span style="color:var(--muted)">↓</span>':''}${prev!=null?` <span style="font-size:11.5px;color:var(--muted)">(قبلی ${fa(prev)})</span>`:''}</span><select class="sc" data-n="${esc(x.n)}" style="width:86px">${opt('','—',cur)}${Array.from({length:11},(_,i)=>opt(i,fa(i),cur)).join('')}</select></div>`;
+const parseVars=t=>t.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>({n:l.replace(/\s*↓\s*$/,'').trim(),g:/↓\s*$/.test(l)?'down':'up'}));
+function viewCase(id){const c=byId('cases',id);if(!c)return;const p=byId('people',c.personId);const vs=cVisits(id);const sc=caseScores(c);const ivs=interventionStats(c);
+  openSheet(`<div class="det"><h3>${badge('therapy','therapy')} ${esc(c.code)}</h3>
+   <div class="sub" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px"><span class="pill">${esc(CTYPE[c.type]||'')}</span><span class="pill">${CSTAT[c.status||'active']}</span>${c.risk==='high'?'<span class="pill bad">ریسک زیاد</span>':c.risk==='mod'?'<span class="pill warn">ریسک متوسط</span>':''}${p&&!ui.cPriv?`<span class="pill">${esc(p.name)}</span>`:''}</div>
+   <dl>${c.complaint?`<dt>شکایت اصلی</dt><dd>${esc(c.complaint)}</dd>`:''}${c.goals?`<dt>اهداف</dt><dd>${esc(c.goals)}</dd>`:''}${c.mizaj?`<dt>مزاج</dt><dd>${esc(c.mizaj)}</dd>`:''}${c.cautions?`<dt>احتیاط</dt><dd>${esc(c.cautions)}</dd>`:''}<dt>شروع</dt><dd>${jShort((c.created||nowTs()).slice(0,10))}</dd></dl>
+   ${c.history?`<details><summary style="font-size:13px;color:var(--muted)">شرح حال</summary><div class="prose">${esc(c.history)}</div></details>`:''}
+   ${block('روند شاخص‌ها',null,`<div class="list">${sc.map(x=>{const d=x.cnt>=2?x.last-x.first:null;const better=d!=null&&(x.g==='up'?d>0:d<0);return `<div class="row" style="cursor:default"><div class="main"><div class="ttl">${esc(x.n)} ${x.g==='down'?'<span style="color:var(--muted)">↓</span>':''}</div><div class="sub"><span>شروع ${x.first!=null?fa(x.first):'—'} ← آخرین ${x.last!=null?fa(x.last):'—'}</span></div></div><div class="end">${spark(x.series,x.g)}${d?`<div class="${better?'amt-pos':'amt-neg'}" style="font-size:12px">${better?'بهتر':'بدتر'} ${fa(Math.abs(d))}</div>`:''}</div></div>`}).join('')}</div>`)}
+   ${ivs.list.length?block('کدام درمان جواب داده؟',ivs.list.length,`<div class="list">${ivs.list.map(o=>{const avg=o.deltas.length?o.deltas.reduce((a,b)=>a+b,0)/o.deltas.length:null;return `<div class="row" style="cursor:default"><div class="main"><div class="ttl">${esc(o.n)}</div><div class="sub">${o.layer?`<span class="pill">${esc(o.layer)}</span>`:''}<span>${fa(o.times)} بار</span>${o.adverse?`<span class="pill warn">${fa(o.adverse)} عارضه</span>`:''}</div></div><div class="end">${avg!=null?`<b class="${avg>0?'amt-pos':avg<0?'amt-neg':''}">${avg>0?'+':''}${nfmt(avg,1)}</b><div class="sub">«${esc(ivs.main.n)}» در ویزیت بعد</div>`:'<div class="sub">هنوز ویزیت بعدی ندارد</div>'}</div></div>`}).join('')}</div><div class="hint" style="font-size:12px;color:var(--muted)">شواهد اولیهٔ همین پرونده است، نه نتیجهٔ قطعی؛ در جمع چند پرونده معنادار می‌شود.</div>`):''}
+   ${block('ویزیت‌ها',vs.length,`<div class="list">${vs.length?vs.slice().reverse().map(v=>`<button class="row" data-act="editVisit" data-id="${v.id}"><div class="main"><div class="ttl">ویزیت ${fa(v.no||'')} · ${jShort(v.date)}${v.fmt&&v.fmt!=='حضوری'?' · '+esc(v.fmt):''}</div><div class="sub">${(v.iv||[]).filter(x=>x.n).map(x=>`<span class="pill">${esc(x.n)}</span>`).join('')}${v.adverse?'<span class="pill warn">عارضه</span>':''}${v.risk==='high'?'<span class="pill bad">ریسک زیاد</span>':''}</div>${v.response?`<div class="sub"><span>${esc(String(v.response).slice(0,80))}</span></div>`:''}</div></button>`).join(''):'<div class="empty">هنوز ویزیتی ثبت نشده.</div>'}</div>`)}
+   ${(()=>{const pr=vs.filter(v=>v.pearl);return pr.length?block('یافته‌های قابل تعمیم (برای پژوهش)',pr.length,`<div class="list">${pr.map(v=>`<div class="row" style="cursor:default"><div class="main"><div class="ttl">${esc(v.pearl)}</div><div class="sub"><span>ویزیت ${fa(v.no)} · ${jShort(v.date)}</span></div></div></div>`).join('')}</div>`):''})()}
+   <div class="acts" style="margin-top:14px"><button class="btn pri" data-act="newVisit" data-id="${id}">ویزیت جدید</button><button class="btn" data-act="editCase" data-id="${id}">ویرایش پرونده</button>${c.status!=='closed'?`<button class="btn ghost" data-act="closeCase" data-id="${id}">پایان درمان</button>`:`<button class="btn ghost" data-act="reopenCase" data-id="${id}">بازگشایی</button>`}<button class="btn ghost" data-act="clinic">همهٔ پرونده‌ها</button></div></div>`)}
+const ivRow=(x={})=>`<div class="ivr" style="border:1px solid var(--line);border-radius:12px;padding:8px;margin-bottom:6px"><div style="display:flex;gap:6px"><input class="iv_n" style="flex:2" value="${esc(x.n||'')}" placeholder="مداخله (مثلاً نیش زنبور، حجامت، رژیم)" list="ivList"><select class="iv_l" style="flex:1">${opt('','لایه',x.layer||'')}${CLAYER.map(l=>opt(l,l,x.layer)).join('')}</select></div>
+  <div style="display:flex;gap:6px;margin-top:6px"><input class="iv_d" style="flex:1" value="${esc(x.dose||'')}" placeholder="دوز / شدت / نقاط"><input class="iv_g" style="flex:1" value="${esc(x.goal||'')}" placeholder="هدف"></div></div>`;
+function formVisit(caseId,v={}){const c=byId('cases',caseId);if(!c)return;const vs=cVisits(caseId);const prev=v.id?vs[vs.findIndex(x=>x.id===v.id)-1]:vs[vs.length-1];
+  const no=v.no||(vs.length+1);const pv=n=>prev&&prev.scores&&prev.scores[n]!=null&&prev.scores[n]!==''?prev.scores[n]:(vs.length?null:(c.baseline||{})[n]);
+  const ivNames=[...new Set(S.visits.flatMap(x=>(x.iv||[]).map(y=>y.n)).filter(Boolean))];
+  openSheet(`<h3>${esc(c.code)} · ویزیت ${fa(no)}</h3>${prev&&!v.id&&prev.next?`<div class="banner" style="margin:0 0 10px">برنامهٔ ویزیت قبل: ${esc(prev.next)}</div>`:''}<form data-form="visit" data-id="${v.id||''}" data-case="${caseId}" data-no="${no}">
+  <div class="row2">${dateField('f_vdt','تاریخ',v.date||today())}<div class="fld"><label for="f_vfmt">نوع</label><select id="f_vfmt">${CFMT.map(x=>opt(x,x,v.fmt||'حضوری')).join('')}</select></div></div>
+  <div class="fld"><label for="f_vfocus">موضوع اصلی این ویزیت</label><input id="f_vfocus" value="${esc(v.focus||'')}"></div>
+  <div class="fld"><label for="f_vobs">داده خام: گفته‌ها و مشاهده‌ها (واقعیت، بدون تفسیر)</label><textarea id="f_vobs" rows="3">${esc(v.obs||'')}</textarea></div>
+  <div class="fld"><label for="f_vint">برداشت بالینی (تفسیر و فرضیه)</label><textarea id="f_vint" rows="2">${esc(v.interp||'')}</textarea></div>
+  <div class="fld"><label>مداخله‌ها و درمان‌ها</label><datalist id="ivList">${ivNames.map(n=>`<option value="${esc(n)}">`).join('')}</datalist><div id="ivRows">${((v.iv&&v.iv.length)?v.iv:[{}]).map(ivRow).join('')}</div><button type="button" class="btn" data-act="ivAdd">+ مداخله</button></div>
+  <div class="fld"><label for="f_vresp">پاسخ و نتیجه (از ویزیت قبل تا حالا چه تغییری کرده؟)</label><textarea id="f_vresp" rows="2">${esc(v.response||'')}</textarea></div>
+  <div class="fld"><label for="f_vadv">عارضه یا واکنش ناخواسته</label><input id="f_vadv" value="${esc(v.adverse||'')}" placeholder="اگر نبود خالی بگذار"></div>
+  <div class="fld"><label>نمره‌ها (۰ تا ۱۰)</label>${cVars(c).map(x=>scoreField(x,v.scores?v.scores[x.n]:'',pv(x.n))).join('')}</div>
+  <div class="row2"><div class="fld"><label for="f_vhw">انجام توصیه‌ها و تکالیف</label><select id="f_vhw">${opt('','—',v.hw||'')}${Object.entries(HW).map(([k,l])=>opt(k,l,v.hw)).join('')}</select></div><div class="fld"><label for="f_vrisk">ریسک</label><select id="f_vrisk">${Object.entries(CRISK).map(([k,l])=>opt(k,l,v.risk||c.risk||'low')).join('')}</select></div></div>
+  <div class="fld"><label for="f_vnext">برنامهٔ بعدی</label><input id="f_vnext" value="${esc(v.next||'')}"></div>
+  ${dateField('f_vnd','ویزیت یا پیگیری بعدی',v.nextDate||addDays(today(),7),'یک کار پیگیری با کد پرونده (بدون نام) در «کارها» ساخته می‌شود.')}
+  <div class="fld"><label for="f_vpearl">یافتهٔ قابل تعمیم برای پژوهش (اختیاری)</label><input id="f_vpearl" value="${esc(v.pearl||'')}" placeholder="مثلاً: نیش زنبور با دوز کم در هفتهٔ اول درد را بیشتر کرد"></div>
+  <div class="acts"><button class="btn pri">ذخیره</button>${v.id?`<button type="button" class="btn ghost danger" data-act="voidVisit" data-id="${v.id}">حذف این ویزیت</button>`:''}<button type="button" class="btn ghost" data-act="viewCase" data-id="${caseId}">انصراف</button></div></form>`)}
+async function saveVisit(f,id){const caseId=f.dataset.case;const c=byId('cases',caseId);const date=readDate('f_vdt',true);if(date===null)return;const nd=readDate('f_vnd');if(nd===null)return;
+  const scores={};f.querySelectorAll('.sc').forEach(s=>{if(s.value!=='')scores[s.dataset.n]=Number(s.value)});
+  const iv=[...f.querySelectorAll('.ivr')].map(r=>({n:r.querySelector('.iv_n').value.trim(),layer:r.querySelector('.iv_l').value,dose:r.querySelector('.iv_d').value.trim(),goal:r.querySelector('.iv_g').value.trim()})).filter(x=>x.n);
+  const d={caseId,no:Number(f.dataset.no),date,fmt:val('f_vfmt'),focus:val('f_vfocus'),obs:val('f_vobs'),interp:val('f_vint'),iv,response:val('f_vresp'),adverse:val('f_vadv'),scores,hw:val('f_vhw'),risk:val('f_vrisk'),next:val('f_vnext'),nextDate:nd,pearl:val('f_vpearl'),void:false};
+  if(!d.obs&&!iv.length&&!Object.keys(scores).length&&!d.response&&f.dataset.force!=='1'){f.dataset.force='1';return toast('ویزیت تقریباً خالی است؛ اگر عمداً است دوباره «ذخیره» بزن')}
+  if(!(await save('visits',id,d)))return;
+  if(c&&d.risk!==c.risk)await save('cases',caseId,{risk:d.risk});else if(c)await save('cases',caseId,{lastVisit:date});
+  if(!id&&nd&&c&&c.status!=='closed'){for(const t of S.tasks.filter(t=>t.caseId===caseId&&t.status==='open'))await save('tasks',t.id,{status:'done',doneAt:nowTs(),note:(t.note||'')+'\nویزیت ثبت شد'});
+    await save('tasks',null,{title:`پیگیری ${c.code}${d.next?': '+d.next:''}`,due:nd,priority:d.risk==='high'?1:2,area:'therapy',caseId,status:'open'})}
+  if(d.risk==='high')toast('ریسک زیاد ثبت شد؛ پیگیری «فوری» شد');else toast('ویزیت ثبت شد ✓');viewCase(caseId)}
+async function closeCase(id){const c=byId('cases',id);if(!c)return;
+  for(const t of S.tasks.filter(t=>t.caseId===id&&t.status==='open'))await save('tasks',t.id,{status:'done',doneAt:nowTs()});
+  for(const [m,l] of [[30,'۱ ماه'],[90,'۳ ماه'],[180,'۶ ماه'],[365,'۱۲ ماه']])await save('tasks',null,{title:`پیگیری ${l} بعد از درمان ${c.code} (عود؟ ماندگاری نتیجه؟)`,due:addDays(today(),m),priority:3,area:'therapy',caseId:id,status:'open'});
+  await save('cases',id,{status:'followup',endedAt:today()});toast('درمان تمام شد؛ پیگیری ۱، ۳، ۶ و ۱۲ ماهه در کارها آمد');viewCase(id)}
+async function caseExport(){const head=['case','type','visit','day_from_start','format','interventions','layers','adverse','homework','risk','response',...new Set(S.cases.flatMap(c=>cVars(c).map(x=>x.n)))];
+  const csvq=x=>'"'+String(x??'').replace(/"/g,'""').replace(/\n/g,' ')+'"';const rows=[head.map(csvq).join(',')];
+  S.cases.forEach(c=>{const st=(c.created||nowTs()).slice(0,10);const vars=head.slice(11);
+    rows.push([c.code,c.type,0,0,'','','','','','','baseline',...vars.map(n=>c.baseline&&c.baseline[n]!=null?c.baseline[n]:'')].map(csvq).join(','));
+    cVisits(c.id).forEach(v=>rows.push([c.code,c.type,v.no,diffDays(v.date,st),v.fmt,(v.iv||[]).map(x=>x.n+(x.dose?' ('+x.dose+')':'')).join(' | '),(v.iv||[]).map(x=>x.layer).join(' | '),v.adverse?1:0,v.hw||'',v.risk||'',v.response||'',...vars.map(n=>v.scores&&v.scores[n]!=null?v.scores[n]:'')].map(csvq).join(',')))});
+  await shareFile('teb-research-'+en(jShort(today())).replace(/\//g,'-')+'.csv','\ufeff'+rows.join('\r\n'),'text/csv','خروجی پژوهشی پرونده‌ها')}
+
+/* ---------- Quran research: topic → keywords (snowball) → verses ---------- */
+const SURAH='فاتحه بقره آل‌عمران نساء مائده انعام اعراف انفال توبه یونس هود یوسف رعد ابراهیم حجر نحل اسراء کهف مریم طه انبیاء حج مؤمنون نور فرقان شعراء نمل قصص عنکبوت روم لقمان سجده احزاب سبأ فاطر یس صافات ص زمر غافر فصلت شوری زخرف دخان جاثیه احقاف محمد فتح حجرات ق ذاریات طور نجم قمر الرحمن واقعه حدید مجادله حشر ممتحنه صف جمعه منافقون تغابن طلاق تحریم ملک قلم حاقه معارج نوح جن مزمل مدثر قیامت انسان مرسلات نبأ نازعات عبس تکویر انفطار مطففین انشقاق بروج طارق اعلی غاشیه فجر بلد شمس لیل ضحی شرح تین علق قدر بینه زلزله عادیات قارعه تکاثر عصر همزه فیل قریش ماعون کوثر کافرون نصر مسد اخلاص فلق ناس'.split(' ');
+const AYAS=[7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6];
+const vRef=v=>`${SURAH[v.s-1]} ${fa(v.s)}:${fa(v.a)}${v.a2&&v.a2>v.a?'–'+fa(v.a2):''}`;
+const qVerses=tid=>S.qverses.filter(v=>v.topicId===tid&&!v.void).sort((a,b)=>a.s-b.s||a.a-b.a);
+function quranSheet(){const T=S.qtopics.filter(t=>!t.void).sort((a,b)=>(b.updated||'').localeCompare(a.updated||''));
+  openSheet(`<h3>${badge('research','book')} پژوهش قرآنی</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">هر موضوع: کلیدواژه‌ها ← آیه‌ها ← کلیدواژه‌های تازه‌ای که از هر آیه پیدا می‌شود. معلوم می‌ماند هر کلیدواژه از کدام آیه به دست آمد.</p>
+  <div class="list">${T.length?T.map(t=>{const vs=qVerses(t.id);return `<button class="row" data-act="viewTopic" data-id="${t.id}">${badge('research','book')}<div class="main"><div class="ttl">${esc(t.title)}</div><div class="sub"><span>${fa((t.kw||[]).length)} کلیدواژه</span><span>${fa(vs.length)} آیه</span>${t.updated?`<span>به‌روز ${jNice(t.updated.slice(0,10))}</span>`:''}</div></div></button>`}).join(''):'<div class="empty">هنوز موضوعی نیست.</div>'}</div>
+  <div class="acts" style="margin-top:12px"><button class="btn pri" data-act="newTopic">موضوع جدید</button><button class="btn ghost" data-act="close">بستن</button></div>`)}
+function formTopic(t={}){openSheet(`<h3>${t.id?'ویرایش موضوع':'موضوع پژوهشی جدید'}</h3><form data-form="qtopic" data-id="${t.id||''}">
+  <div class="fld"><label for="f_qtt">موضوع</label><input id="f_qtt" value="${esc(t.title||'')}" placeholder="مثلاً عسل و شفا"></div>
+  <div class="fld"><label for="f_qtd">پرسش یا هدف پژوهش</label><textarea id="f_qtd" rows="2">${esc(t.desc||'')}</textarea></div>
+  ${t.id?'':`<div class="fld"><label for="f_qtk">کلیدواژه‌های اولیه (با «،» جدا کن)</label><input id="f_qtk" placeholder="مثلاً نحل، شفاء، عسل"></div>`}
+  <div class="acts"><button class="btn pri">ذخیره</button><button type="button" class="btn ghost" data-act="${t.id?'viewTopic':'quran'}" data-id="${t.id||''}">انصراف</button></div></form>`)}
+const splitKw=s=>String(s||'').split(/[،,؛;\n]+/).map(x=>x.trim()).filter(Boolean);
+function viewTopic(id,kwF){const t=byId('qtopics',id);if(!t)return;let vs=qVerses(id);const kw=t.kw||[];if(kwF)vs=vs.filter(v=>(v.kws||[]).includes(kwF));
+  const cnt=w=>qVerses(id).filter(v=>(v.kws||[]).includes(w)).length;
+  openSheet(`<div class="det"><h3>${badge('research','book')} ${esc(t.title)}</h3>${t.desc?`<p style="font-size:14px;margin:0 0 8px">${esc(t.desc)}</p>`:''}
+  ${block('کلیدواژه‌ها',kw.length,`<div class="chips wrap">${kw.map(k=>`<button class="chip" data-act="topicKw" data-id="${id}" data-v="${esc(k.w)}" aria-pressed="${kwF===k.w}" title="${k.from?'یافته از '+esc(k.from):''}">${esc(k.w)} <span style="opacity:.6">${fa(cnt(k.w))}</span>${k.from?' ✦':''}</button>`).join('')||'<span class="hint">هنوز کلیدواژه‌ای نیست</span>'}</div>
+   <form data-form="qkw" data-id="${id}" style="display:flex;gap:6px;margin-top:8px"><input id="f_qkw" placeholder="کلیدواژهٔ تازه" style="flex:1"><button class="btn">افزودن</button></form>
+   <div class="hint" style="font-size:12px;color:var(--muted)">✦ یعنی از دل یک آیه پیدا شده. برای فیلتر آیه‌ها روی کلیدواژه بزن.</div>`)}
+  ${block(kwF?`آیه‌های «${esc(kwF)}»`:'آیه‌ها (به ترتیب مصحف)',vs.length,`<div class="list">${vs.length?vs.map(v=>`<button class="row" data-act="editVerse" data-id="${v.id}"><div class="main"><div class="ttl">${vRef(v)}</div>${v.text?`<div class="sub" style="font-family:inherit"><span>${esc(String(v.text).slice(0,90))}</span></div>`:''}${v.note?`<div class="sub"><span>${esc(String(v.note).slice(0,90))}</span></div>`:''}<div class="sub">${(v.kws||[]).map(k=>`<span class="pill">${esc(k)}</span>`).join('')}</div></div></button>`).join(''):'<div class="empty">آیه‌ای ثبت نشده.</div>'}</div>`)}
+  <div class="acts" style="margin-top:14px"><button class="btn pri" data-act="newVerse" data-id="${id}">+ آیه</button><button class="btn" data-act="editTopic" data-id="${id}">ویرایش</button><button class="btn" data-act="topicExport" data-id="${id}">خروجی متن</button><button class="btn ghost" data-act="quran">همهٔ موضوع‌ها</button></div></div>`)}
+function formVerse(topicId,v={}){const t=byId('qtopics',topicId);if(!t)return;const kw=(t.kw||[]).map(k=>k.w);
+  openSheet(`<h3>${esc(t.title)} · ${v.id?'ویرایش آیه':'آیهٔ جدید'}</h3><form data-form="qverse" data-id="${v.id||''}" data-topic="${topicId}">
+  <div style="display:flex;gap:6px"><div class="fld" style="flex:2"><label for="f_qs">سوره</label><select id="f_qs">${SURAH.map((n,i)=>opt(i+1,fa(i+1)+'. '+n,v.s||'')).join('')}</select></div>
+   <div class="fld" style="flex:1"><label for="f_qa">آیه</label><input id="f_qa" inputmode="numeric" value="${v.a?fa(v.a):''}"></div><div class="fld" style="flex:1"><label for="f_qa2">تا آیه</label><input id="f_qa2" inputmode="numeric" value="${v.a2?fa(v.a2):''}" placeholder="اختیاری"></div></div>
+  <div class="fld"><label for="f_qtext">متن یا ترجمه (اختیاری، کپی کن)</label><textarea id="f_qtext" rows="2">${esc(v.text||'')}</textarea></div>
+  <div class="fld"><label for="f_qnote">برداشت و نکته</label><textarea id="f_qnote" rows="2">${esc(v.note||'')}</textarea></div>
+  <div class="fld"><label>کلیدواژه‌های مرتبط با این آیه</label><div class="chips wrap">${kw.map(k=>`<button type="button" class="chip" data-act="toggleChip" data-kw="${esc(k)}" aria-pressed="${(v.kws||[]).includes(k)}">${esc(k)}</button>`).join('')}</div></div>
+  <div class="fld"><label for="f_qnew">کلیدواژهٔ تازه‌ای که از این آیه پیدا کردی (با «،» جدا کن)</label><input id="f_qnew"></div>
+  <div class="acts"><button class="btn pri">ذخیره</button>${v.s?`<a class="btn" href="https://quran.com/${v.s}/${v.a}" target="_blank" rel="noopener">دیدن آیه</a>`:''}${v.id?`<button type="button" class="btn ghost danger" data-act="voidVerse" data-id="${v.id}">حذف</button>`:''}<button type="button" class="btn ghost" data-act="viewTopic" data-id="${topicId}">انصراف</button></div></form>`)}
+async function topicExport(id){const t=byId('qtopics',id);const vs=qVerses(id);
+  const txt=[`موضوع: ${t.title}`,t.desc?`پرسش: ${t.desc}`:'',`تاریخ: ${jShort(today())}`,'',`کلیدواژه‌ها (${(t.kw||[]).length}):`,...(t.kw||[]).map(k=>`- ${k.w}${k.from?' (یافته از '+k.from+')':''}`),'',`آیه‌ها (${vs.length}):`,
+    ...vs.map(v=>`- ${vRef(v)}${v.kws&&v.kws.length?' ['+v.kws.join('، ')+']':''}${v.text?'\n  '+v.text:''}${v.note?'\n  برداشت: '+v.note:''}`)].filter(x=>x!==null).join('\n');
+  await shareFile('quran-'+t.title.replace(/\s+/g,'-')+'.txt',txt,'text/plain',t.title)}
 
 /* ---------- Occasions (birthdays etc.), city tasks, calendar ---------- */
 const jIso=(jy,jm,jd)=>{const g=J.toG(jy,jm,Math.min(jd,jm<=6?31:jm<12?30:29));return `${g.gy}-${pad(g.gm)}-${pad(g.gd)}`};
@@ -644,8 +786,8 @@ function quickAdd(){openSheet(`<h3>چه چیزی ثبت کنم؟</h3><div class=
 function searchSheet(){openSheet(`<h3>جستجو در همه‌چیز</h3><input class="search-in" id="gq" data-autofocus placeholder="نام، کار، فرصت، مبلغ…"><div id="gres"></div>`);document.getElementById('gq').focus()}
 function runSearch(q){q=q.trim().toLowerCase();const out=document.getElementById('gres');if(!out)return;if(!q){out.innerHTML='';return}
   const qn=nrm(q),qw=q.split(/\s+/).map(nrm).filter(Boolean);const m=(...xs)=>{const k=nrm(xs.join(' '));return k.includes(qn)||qw.every(w=>k.includes(w))};
-  const P=S.people.filter(x=>m(x.name,x.org,x.note,x.phone,x.email)),D=S.deals.filter(x=>m(x.title,x.nextStep,x.note,pname(x.personId))),T=S.tasks.filter(x=>m(x.title,x.note,pname(x.personId))),L=S.ledger.filter(x=>m(x.about,x.ref,pname(x.personId),fa(x.amount))),N=S.notes.filter(x=>m(x.title,x.body)),A=S.apiary.filter(x=>m((APT[x.type]||{}).n,x.loc,x.from,x.to,x.what,x.note,jShort(x.date))),LO=S.lots.filter(x=>m(lotName(x),x.code,x.note,pname(x.supplierId))),MO=S.moves.filter(x=>m(pname(x.personId),lotName(byId('lots',x.lotId)),x.note,(MOVE[x.kind]||{}).n)),QU=S.quotes.filter(x=>m(pname(x.personId),x.product,x.variety,x.note)),CTm=matchContacts(q,10);window._ctm=CTm;
-  out.innerHTML=(P.length?block('افراد',P.length,listOr(P,x=>`<button class="row" data-act="viewPerson" data-id="${x.id}"><div class="main"><div class="ttl">${esc(x.name)}</div></div></button>`,'')):'')+(D.length?block('فرصت‌ها',D.length,listOr(D,dealRow,'')):'')+(T.length?block('کارها',T.length,listOr(T,taskRow,'')):'')+(L.length?block('حساب‌ها',L.length,listOr(L,ledgerRow,'')):'')+(N.length?block('یادداشت و قوانین',N.length,listOr(N,x=>`<button class="row" data-act="viewNote" data-id="${x.id}"><div class="main"><div class="ttl">${esc(x.title)}</div></div></button>`,'')):'')+(A.length?block('زنبورداری',A.length,listOr(A,apiRow,'')):'')+(LO.length?block('محموله‌ها',LO.length,listOr(LO,lotRow,'')):'')+(MO.length?block('فروش و ارسال',MO.length,listOr(MO,moveRow,'')):'')+(QU.length?block('قیمت‌ها',QU.length,listOr(QU,quoteRow,'')):'')+(CTm.length?block('در دفترچهٔ مخاطبین',CTm.length,`<div class="list">${CTm.map((c,i)=>`<div class="row">${badge('affairs','book')}<div class="main"><div class="ttl">${esc(c.n)}</div><div class="sub"><span dir="ltr">${esc(c.p.join(' · '))}</span></div></div><button class="btn" data-act="addFromContact" data-i="${i}">افزودن</button></div>`).join('')}</div>`):'')||'<div class="empty">چیزی پیدا نشد.</div>'}
+  const P=S.people.filter(x=>m(x.name,x.org,x.note,x.phone,x.email)),D=S.deals.filter(x=>m(x.title,x.nextStep,x.note,pname(x.personId))),T=S.tasks.filter(x=>m(x.title,x.note,pname(x.personId))),L=S.ledger.filter(x=>m(x.about,x.ref,pname(x.personId),fa(x.amount))),N=S.notes.filter(x=>m(x.title,x.body)),A=S.apiary.filter(x=>m((APT[x.type]||{}).n,x.loc,x.from,x.to,x.what,x.note,jShort(x.date))),LO=S.lots.filter(x=>m(lotName(x),x.code,x.note,pname(x.supplierId))),MO=S.moves.filter(x=>m(pname(x.personId),lotName(byId('lots',x.lotId)),x.note,(MOVE[x.kind]||{}).n)),QU=S.quotes.filter(x=>m(pname(x.personId),x.product,x.variety,x.note)),CTm=matchContacts(q,10);window._ctm=CTm;const QT=S.qtopics.filter(x=>!x.void&&m(x.title,x.desc,(x.kw||[]).map(k=>k.w).join(' '))),QV=S.qverses.filter(x=>!x.void&&m(x.note,x.text,(x.kws||[]).join(' '),SURAH[x.s-1])),CS=S.cases.filter(x=>m(x.code,x.complaint));
+  out.innerHTML=(QT.length?block('پژوهش قرآنی',QT.length,listOr(QT,x=>`<button class="row" data-act="viewTopic" data-id="${x.id}"><div class="main"><div class="ttl">${esc(x.title)}</div></div></button>`,'')):'')+(QV.length?block('آیه‌ها',QV.length,listOr(QV.slice(0,20),x=>`<button class="row" data-act="editVerse" data-id="${x.id}"><div class="main"><div class="ttl">${vRef(x)}</div><div class="sub"><span>${esc((byId('qtopics',x.topicId)||{}).title||'')}</span>${x.note?`<span>${esc(String(x.note).slice(0,60))}</span>`:''}</div></div></button>`,'')):'')+(CS.length?block('پرونده‌های درمانی',CS.length,listOr(CS,caseRow,'')):'')+(P.length?block('افراد',P.length,listOr(P,x=>`<button class="row" data-act="viewPerson" data-id="${x.id}"><div class="main"><div class="ttl">${esc(x.name)}</div></div></button>`,'')):'')+(D.length?block('فرصت‌ها',D.length,listOr(D,dealRow,'')):'')+(T.length?block('کارها',T.length,listOr(T,taskRow,'')):'')+(L.length?block('حساب‌ها',L.length,listOr(L,ledgerRow,'')):'')+(N.length?block('یادداشت و قوانین',N.length,listOr(N,x=>`<button class="row" data-act="viewNote" data-id="${x.id}"><div class="main"><div class="ttl">${esc(x.title)}</div></div></button>`,'')):'')+(A.length?block('زنبورداری',A.length,listOr(A,apiRow,'')):'')+(LO.length?block('محموله‌ها',LO.length,listOr(LO,lotRow,'')):'')+(MO.length?block('فروش و ارسال',MO.length,listOr(MO,moveRow,'')):'')+(QU.length?block('قیمت‌ها',QU.length,listOr(QU,quoteRow,'')):'')+(CTm.length?block('در دفترچهٔ مخاطبین',CTm.length,`<div class="list">${CTm.map((c,i)=>`<div class="row">${badge('affairs','book')}<div class="main"><div class="ttl">${esc(c.n)}</div><div class="sub"><span dir="ltr">${esc(c.p.join(' · '))}</span></div></div><button class="btn" data-act="addFromContact" data-i="${i}">افزودن</button></div>`).join('')}</div>`):'')||'<div class="empty">چیزی پیدا نشد.</div>'}
 async function checkUpdate(manual){if(!/^https?:/.test(location.protocol)||!location.hostname.endsWith('github.io')){if(manual)toast('این نما همیشه آخرین نسخه را دارد');return}
   try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const v=(await r.json()).v;const bar=document.getElementById('updBar');
     if(v&&v!==APP_VER){bar.hidden=false;bar.style.display='flex';bar.innerHTML=`<span>نسخهٔ جدید ${fa(v)} آماده است (الان ${fa(APP_VER)})</span><button class="btn pri" data-act="doUpdate">به‌روز کن</button>`}
@@ -658,6 +800,8 @@ function menuSheet(){openSheet(`<h3>بیشتر</h3><div class="acts" style="flex
   <button class="btn" data-act="accOpen">دفاتر حسابداری</button>
   <button class="btn" data-act="habits">عادت‌ها و چک‌این</button>
   <button class="btn" data-act="occSheet">تولدها و مناسبت‌ها</button>
+  <button class="btn" data-act="clinic">پرونده‌های درمانی (ویزیت و نتیجهٔ درمان)</button>
+  <button class="btn" data-act="quran">پژوهش قرآنی (موضوع و کلیدواژه)</button>
   ${mode==='cloud'?'<button class="btn" data-act="ask">سؤال آزاد از دستیار</button>':''}
   <button class="btn" data-act="backupSheet">پشتیبان و بازیابی</button>
   <button class="btn ghost" data-act="checkUpd">نسخهٔ ${fa(APP_VER)} — بررسی به‌روزرسانی</button>
@@ -1204,6 +1348,28 @@ document.addEventListener('click',async e=>{
     case'occDone':{const p=byId('people',id);if(p&&await save('people',id,{occSent:{...(p.occSent||{}),[b.dataset.k]:today()}}))toast('ثبت شد ✓');break}
     case'hereOn':try{localStorage.setItem('miz.here',b.dataset.v)}catch(_){}tab='today';render();scrollTo(0,0);toast('کارهای '+b.dataset.v+' در «امروز» آمد');break;
     case'hereOff':try{localStorage.removeItem('miz.here')}catch(_){}render();toast('سفر تمام شد');break;
+    case'clinic':clinicSheet();break;
+    case'cFilter':ui.cF=b.dataset.v;clinicSheet();break;
+    case'cPriv':ui.cPriv=!ui.cPriv;clinicSheet();break;
+    case'newCase':formCase();break;
+    case'editCase':formCase(byId('cases',id));break;
+    case'viewCase':viewCase(id);break;
+    case'newVisit':formVisit(id);break;
+    case'editVisit':{const v=byId('visits',id);if(v)formVisit(v.caseId,v);break}
+    case'voidVisit':{const v=byId('visits',id);if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='مطمئنی؟ دوباره بزن';break}if(v&&await save('visits',id,{void:true,voidAt:nowTs()})){toast('حذف شد');viewCase(v.caseId)}break}
+    case'ivAdd':document.getElementById('ivRows').insertAdjacentHTML('beforeend',ivRow());break;
+    case'closeCase':closeCase(id);break;
+    case'reopenCase':if(await save('cases',id,{status:'active'}))viewCase(id);break;
+    case'caseExport':caseExport();break;
+    case'quran':quranSheet();break;
+    case'newTopic':formTopic();break;
+    case'editTopic':formTopic(byId('qtopics',id));break;
+    case'viewTopic':viewTopic(id);break;
+    case'topicKw':{const cur=b.getAttribute('aria-pressed')==='true';viewTopic(id,cur?'':b.dataset.v);break}
+    case'newVerse':formVerse(id);break;
+    case'editVerse':{const v=byId('qverses',id);if(v)formVerse(v.topicId,v);break}
+    case'voidVerse':{const v=byId('qverses',id);if(v&&await save('qverses',id,{void:true})){toast('حذف شد');viewTopic(v.topicId)}break}
+    case'topicExport':topicExport(id);break;
     case'checkUpd':closeSheet();checkUpdate(true);break;
     case'doUpdate':doUpdate();break;
     case'ctToPerson':{const c=(window._pc||[])[Number(b.dataset.i)];if(c)formPerson({name:c.n,phone:(c.p||[]).join(' ، '),email:c.e,org:c.o});break}
@@ -1265,6 +1431,25 @@ document.addEventListener('focusin',e=>{if(e.target.dataset&&e.target.dataset.pp
 document.addEventListener('submit',async e=>{
   e.preventDefault();const f=e.target,k=f.dataset.form,id=f.dataset.id||null;if(!await ppResolve(f))return;
   if(k==='capture'){const v=val('capIn');if(!v)return;if(await save('inbox',null,{text:v,processed:false})){document.getElementById('capIn').value='';toast('یادداشت شد');return;toast('در صندوق ورودی ثبت شد')}return}
+  if(k==='case'){const vars=parseVars(val('f_cvars'));if(!vars.length)return toast('دست‌کم یک شاخص سنجش لازم است');const code=val('f_ccode')||nextCaseCode();
+    if(S.cases.some(c=>c.code===code&&c.id!==id))return toast('این کد قبلاً استفاده شده');
+    const d={code,personId:val('f_person'),complaint:val('f_ccomp'),history:val('f_chist'),mizaj:val('f_cmiz'),risk:val('f_crisk'),goals:val('f_cgoal'),cautions:val('f_cred'),vars};
+    if(!id){d.type=val('f_ctype');d.status='active';const bl={};f.querySelectorAll('#cvars .sc').forEach(x=>{if(x.value!=='')bl[x.dataset.n]=Number(x.value)});d.baseline=bl}
+    if(!id){const nid=newId();await putRaw('cases',{id:nid,...d,created:nowTs(),updated:nowTs()});if(mode==='local')render();toast('پرونده '+code+' ساخته شد');formVisit(nid);return}
+    if(await save('cases',id,d)){toast('ذخیره شد');viewCase(id)}return}
+  if(k==='visit'){await saveVisit(f,id);return}
+  if(k==='qtopic'){const title=val('f_qtt');if(!title)return toast('موضوع را بنویس');const d={title,desc:val('f_qtd')};
+    if(!id){d.kw=splitKw(val('f_qtk')).map(w=>({w,from:'',added:today()}));const nid=newId();await putRaw('qtopics',{id:nid,...d,created:nowTs(),updated:nowTs()});if(mode==='local')render();viewTopic(nid);return}
+    if(await save('qtopics',id,d))viewTopic(id);return}
+  if(k==='qkw'){const t=byId('qtopics',id);const ws=splitKw(val('f_qkw')).filter(w=>!(t.kw||[]).some(k=>k.w===w));if(!ws.length)return toast('کلیدواژهٔ تازه‌ای نیست');
+    if(await save('qtopics',id,{kw:[...(t.kw||[]),...ws.map(w=>({w,from:'',added:today()}))]}))viewTopic(id);return}
+  if(k==='qverse'){const tid=f.dataset.topic;const t=byId('qtopics',tid);const sN=Number(val('f_qs'));const a=num(val('f_qa')),a2=num(val('f_qa2'));
+    if(!a||a<1||a>AYAS[sN-1])return toast(`سورهٔ ${SURAH[sN-1]} ${fa(AYAS[sN-1])} آیه دارد؛ شمارهٔ آیه را درست کن`);if(a2&&(a2<a||a2>AYAS[sN-1]))return toast('«تا آیه» درست نیست');
+    if(!id&&qVerses(tid).some(v=>v.s===sN&&v.a===a)&&f.dataset.force!=='1'){f.dataset.force='1';return toast('این آیه قبلاً در همین موضوع ثبت شده؛ اگر عمداً است دوباره «ذخیره» بزن')}
+    const nw=splitKw(val('f_qnew'));const kws=[...new Set([...[...f.querySelectorAll('[data-kw][aria-pressed=true]')].map(x=>x.dataset.kw),...nw])];
+    const ref=`${SURAH[sN-1]} ${sN}:${a}`;const addKw=nw.filter(w=>!(t.kw||[]).some(k=>k.w===w)).map(w=>({w,from:ref,added:today()}));
+    if(!(await save('qverses',id,{topicId:tid,s:sN,a,a2:a2||null,text:val('f_qtext'),note:val('f_qnote'),kws,void:false})))return;
+    await save('qtopics',tid,{kw:[...(t.kw||[]),...addKw]});toast(addKw.length?`ثبت شد؛ ${fa(addKw.length)} کلیدواژهٔ تازه به موضوع اضافه شد ✦`:'ثبت شد');viewTopic(tid);return}
   if(k==='tlog'){const t=byId('tasks',id);if(!t)return;const type=(f.querySelector('[data-act=pick1]:not([data-g])[aria-pressed=true]')||{dataset:{v:'part'}}).dataset.v;const text=val('f_lt');
     const nx=(f.querySelector('[data-g=nx][aria-pressed=true]')||{dataset:{v:'again'}}).dataset.v;let nextDue='';if(nx==='again'){nextDue=readDate('f_ln');if(nextDue===null)return}
     const e={ts:nowTs(),d:today(),type,text,next:nx,nextDue};const d={log:[...(t.log||[]),e],lastLog:e};if(nx==='done'){d.status='done';d.doneAt=nowTs()}else if(nextDue)d.due=nextDue;
