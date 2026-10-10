@@ -94,7 +94,7 @@ h3 .ab{display:inline-grid;vertical-align:middle;margin-left:6px}
 .pill.acc{background:var(--accent-soft);color:var(--accent)}
 .done .ttl{text-decoration:line-through;color:var(--muted)}
 .empty{padding:16px 14px;color:var(--muted);font-size:13.5px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;margin-top:14px}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
 .kpi .l{font-size:12px;color:var(--muted)}
 .kpi .v{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
@@ -264,7 +264,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.9.2';
+const APP_VER='0.9.3';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -684,7 +684,8 @@ function vToday(){
   h+=`<div class="kpis">
     <div class="kpi"><div class="l">کارهای باز</div><div class="v">${fa(openTasks().length)}</div></div>
     <div class="kpi"><div class="l">فرصت‌های باز</div><div class="v">${fa(openDeals().length)}</div></div>
-    <div class="kpi"><div class="l">طلب من</div><div class="v">${Object.keys(recv).length?Object.entries(recv).map(([c,v])=>money(v,c)).join('<br>'):'۰'}</div></div>
+    <div class="kpi" data-act="tab" data-v="money" style="cursor:pointer"><div class="l">طلب من</div><div class="v amt-pos">${Object.keys(recv).length?Object.entries(recv).map(([c,v])=>money(v,c)).join('<br>'):'۰'}</div>${kindLine(kindTotals().due,'amt-pos')}</div>
+    <div class="kpi" data-act="tab" data-v="money" style="cursor:pointer"><div class="l">بدهی من</div><div class="v amt-neg">${(()=>{const pay={};Object.values(personBal()).forEach(m=>Object.entries(m).forEach(([c,v])=>{if(v<0)pay[c]=(pay[c]||0)-v}));return Object.keys(pay).length?Object.entries(pay).map(([c,v])=>money(v,c)).join('<br>'):'۰'})()}</div>${kindLine(kindTotals().owe,'amt-neg')}</div>
   </div>`;
   {const lg=legacyAmounts();if(lg.length&&!(()=>{try{return localStorage.getItem('miz.legacyOk')}catch(_){return 0}})())h+=`<div class="banner">${svg('warn')} ${fa(lg.length)} مبلغ تومانی کمتر از هزار تومان ثبت شده (مثل «${nfmt(lg[0].v)} تومان»). احتمالاً قبل از نسخهٔ ۰٫۷ به میلیون نوشته شده‌اند.<div class="acts" style="margin-top:8px"><button class="btn pri" data-act="fixLegacy">بله، به میلیون تبدیل کن</button><button class="btn ghost" data-act="legacyOk">نه، درست‌اند</button></div></div>`}
   {const hc=hereCity();if(hc){const ct=openTasks().filter(x=>x.city===hc).sort((a,b)=>(a.priority||3)-(b.priority||3)||(a.due||'9').localeCompare(b.due||'9'));
@@ -757,7 +758,7 @@ function vMoney(){
   const pb=personBal();const f=ui.moneyF;
   const tot={recv:{},pay:{}};Object.values(pb).forEach(m=>Object.entries(m).forEach(([c,v])=>{if(v>0)tot.recv[c]=(tot.recv[c]||0)+v;else if(v<0)tot.pay[c]=(tot.pay[c]||0)-v}));
   const fmt=o=>Object.keys(o).length?Object.entries(o).map(([c,v])=>money(v,c)).join('<br>'):'۰';
-  let h=`<div class="kpis"><div class="kpi"><div class="l">جمع طلب من</div><div class="v amt-pos">${fmt(tot.recv)}</div></div><div class="kpi"><div class="l">جمع بدهی من</div><div class="v amt-neg">${fmt(tot.pay)}</div></div></div>`;
+  let h=`<div class="kpis"><div class="kpi"><div class="l">جمع طلب من</div><div class="v amt-pos">${fmt(tot.recv)}</div>${kindLine(kindTotals().due,'amt-pos')}</div><div class="kpi"><div class="l">جمع بدهی من</div><div class="v amt-neg">${fmt(tot.pay)}</div>${kindLine(kindTotals().owe,'amt-neg')}</div></div>`;
   {const kr=kindRows();if(kr)h+=block('طلب و بدهی کالایی (امانی، قرضی)',null,`<div class="list">${kr}</div><div class="hint" style="font-size:12px;color:var(--muted);margin-top:4px">به مقدار کالا نگه داشته می‌شود؛ گران یا ارزان شدن پای همان کسی است که کالا را بدهکار است.</div>`)}
   h+=`<div class="list" style="margin-top:12px"><button class="row" data-act="accOpen">${badge('finance','book')}<div class="main"><div class="ttl">دفاتر حسابداری</div><div class="sub"><span>روزنامه · کل · تراز آزمایشی · سود و زیان · سند دستی</span></div></div></button></div>`;
   const people=Object.entries(pb).filter(([,m])=>Object.values(m).some(v=>Math.abs(v)>0.0001));
@@ -1140,6 +1141,9 @@ function kindBal(){const r={};const bump=(p,l,q)=>{if(!p||!l)return;const k=l.pr
 function priceNow(prod,unit){const c=[];S.quotes.filter(q=>q.product===prod&&(q.unit||'کیلو')===unit&&q.price).forEach(q=>c.push({d:q.date,p:q.price,c:q.currency}));
   S.moves.filter(m=>!m.void&&m.kind==='sale'&&m.price).forEach(m=>{const l=byId('lots',m.lotId);if(l&&l.product===prod&&l.unit===unit)c.push({d:m.date,p:m.price,c:m.currency})});
   S.lots.filter(l=>!l.void&&l.product===prod&&l.unit===unit&&Number(l.cost)).forEach(l=>c.push({d:l.date,p:l.cost,c:l.currency}));c.sort((a,b)=>(b.d||'').localeCompare(a.d||''));return c[0]||null}
+function kindTotals(){const kb=kindBal();const owe={},due={};Object.values(kb).forEach(m=>Object.values(m).forEach(o=>{const k=o.prod+'|'+o.unit;const t=o.q<0?owe:due;t[k]=(t[k]||0)+Math.abs(o.q)}));
+  const txt=t=>Object.entries(t).map(([k,q])=>{const [pr,u]=k.split('|');return fmtQ(q,u)+' '+pr}).join('، ');return{owe:txt(owe),due:txt(due)}}
+const kindLine=(t,cls)=>t?`<div class="${cls}" style="font-size:12.5px;font-weight:700;margin-top:2px">+ ${esc(t)} <span style="font-weight:400;opacity:.75">(کالایی)</span></div>`:'';
 function kindRows(only){const kb=kindBal();const rows=[];Object.entries(kb).forEach(([p,m])=>{if(only&&p!==only)return;Object.values(m).forEach(o=>rows.push({p,...o}))});
   return rows.map(o=>{const pr=priceNow(o.prod,o.unit);const v=pr?Math.abs(o.q)*pr.p:0;const nm=o.p.startsWith('n:')?o.p.slice(2):pname(o.p);return `<button class="row" ${o.p.startsWith('n:')?'data-act="kindHelp"':`data-act="viewPerson" data-id="${o.p}"`}>${badge('sales','box')}<div class="main"><div class="ttl">${o.q<0?'بدهی من به':'طلب من از'} ${esc(nm||'—')}</div><div class="sub"><span>${esc(o.prod)}${o.vars.size?' ('+esc([...o.vars].join('، '))+')':''}</span>${pr?`<span>≈ ${money(v,pr.c)} به آخرین نرخ</span>`:'<span>نرخ روز ثبت نشده</span>'}</div></div><div class="end ${o.q<0?'amt-neg':'amt-pos'}"><b>${fmtQ(Math.abs(o.q),o.unit)}</b><div class="sub">کالایی</div></div></button>`}).join('')}
 const whoOf=m=>pname(m.personId)||m.toName||'—';
