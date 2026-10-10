@@ -64,6 +64,12 @@ section.blk{margin-top:18px}
 .blk-h .n{font-size:12px;color:var(--muted)}
 .blk-h .sp{flex:1}
 .link{border:0;background:none;color:var(--accent);font-size:13px;font-weight:700;padding:4px}
+.tbl{overflow-x:auto;background:var(--surface);border-top:1px solid var(--line)}
+.tbl table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.tbl th{color:var(--muted);font-weight:600;font-size:12px;background:var(--sunk)}
+.tbl td:nth-child(n+2){text-align:left}
+.tbl tr.tot td{font-weight:800}
 .list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .row{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border-top:1px solid var(--line);width:100%;text-align:right;background:none;border-inline:0;border-bottom:0}
 .row:first-child{border-top:0}
@@ -215,7 +221,7 @@ const CATS_ALL=[...CATS_IN,...CATS_OUT,'قرض و جابه‌جایی (نه در
 const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت عسل',f:['loc','hives','qty']},visit:{n:'بازدید',f:['loc','hives']},treat:{n:'درمان و دارو',f:['loc','hives','what']},feed:{n:'تغذیه',f:['loc','hives','what','qty']},split:{n:'تقسیم و ملکه',f:['loc','hives']},trade:{n:'خرید یا فروش کلنی',f:['loc','hives']},loss:{n:'تلفات یا مشکل',f:['loc','hives','what']},other:{n:'سایر',f:['loc','hives']}};
 
 /* ---------- State & data ---------- */
-const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[]};
+const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[]};
 const COLS=Object.keys(S);
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
@@ -259,7 +265,7 @@ async function putRaw(col,doc){
   if(mode==='cloud'){const {id,...rest}=doc;await db.collection(col).doc(id).set(rest)}
   else{const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);await idbPut(col,doc)}
 }
-function backupData(){return {app:'miz-kar',version:'0.5',exported:nowTs(),data:Object.fromEntries(COLS.map(c=>[c,S[c]]))}}
+function backupData(){return {app:'miz-kar',version:'0.6',exported:nowTs(),data:Object.fromEntries(COLS.map(c=>[c,S[c]]))}}
 function lastBackup(){try{return localStorage.getItem('miz.lastBackup')||''}catch(_){return''}}
 async function doBackup(){
   const now=new Date();const stamp=en(jShort(today())).replace(/\//g,'-')+'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');const name='miz-kar-backup-'+stamp+'.json';const shareName='miz-kar-backup-'+stamp+'.txt';
@@ -390,6 +396,7 @@ function vMoney(){
   const tot={recv:{},pay:{}};Object.values(pb).forEach(m=>Object.entries(m).forEach(([c,v])=>{if(v>0)tot.recv[c]=(tot.recv[c]||0)+v;else if(v<0)tot.pay[c]=(tot.pay[c]||0)-v}));
   const fmt=o=>Object.keys(o).length?Object.entries(o).map(([c,v])=>money(v,c)).join('<br>'):'۰';
   let h=`<div class="kpis"><div class="kpi"><div class="l">جمع طلب من</div><div class="v amt-pos">${fmt(tot.recv)}</div></div><div class="kpi"><div class="l">جمع بدهی من</div><div class="v amt-neg">${fmt(tot.pay)}</div></div></div>`;
+  h+=`<div class="list" style="margin-top:12px"><button class="row" data-act="accOpen">${badge('finance','book')}<div class="main"><div class="ttl">دفاتر حسابداری</div><div class="sub"><span>روزنامه · کل · تراز آزمایشی · سود و زیان · سند دستی</span></div></div></button></div>`;
   const people=Object.entries(pb).filter(([,m])=>Object.values(m).some(v=>Math.abs(v)>0.0001));
   h+=block('مانده هر طرف حساب',people.length,listOr(people,([pid,m])=>`<button class="row" data-act="viewPerson" data-id="${pid}"><div class="main"><div class="ttl">${esc(pname(pid)||'بدون طرف حساب')}</div></div><div class="end">${Object.entries(m).filter(([,v])=>Math.abs(v)>0.0001).map(([c,v])=>`<div class="${v>0?'amt-pos':'amt-neg'}">${v>0?'طلب ':'بدهی '}${money(v,c)}</div>`).join('')}</div></button>`,'هنوز طلب یا بدهی‌ای ثبت نشده. با دکمهٔ + و «طلب/بدهی» اولین مورد را ثبت کن.'));
   const due=dueLedger(30);
@@ -528,12 +535,13 @@ function runSearch(q){q=q.trim().toLowerCase();const out=document.getElementById
 function menuSheet(){openSheet(`<h3>بیشتر</h3><div class="acts" style="flex-direction:column;align-items:stretch">
   <button class="btn" data-act="apiary">دفتر زنبورداری</button>
   <button class="btn" data-act="reports">گزارش‌ها</button>
+  <button class="btn" data-act="accOpen">دفاتر حسابداری</button>
   <button class="btn" data-act="habits">عادت‌ها و چک‌این</button>
   ${mode==='cloud'?'<button class="btn" data-act="ask">سؤال آزاد از دستیار</button>':''}
   <button class="btn" data-act="backupSheet">پشتیبان و بازیابی</button>
   <button class="btn" data-act="roadmap">نقشهٔ راه برنامه</button>
   <button class="btn" data-act="notesList">یادداشت‌ها و قوانین</button>
-  <button class="btn ghost" data-act="close">بستن</button></div><p class="hint" style="font-size:12px;color:var(--muted);margin-top:12px">میز کار · نسخهٔ ۰٫۵ · محل ذخیره: ${mode==='cloud'?'فضای خصوصی Claude (فقط مالک)':'حافظهٔ همین گوشی'}</p>`)}
+  <button class="btn ghost" data-act="close">بستن</button></div><p class="hint" style="font-size:12px;color:var(--muted);margin-top:12px">میز کار · نسخهٔ ۰٫۶ · محل ذخیره: ${mode==='cloud'?'فضای خصوصی Claude (فقط مالک)':'حافظهٔ همین گوشی'}</p>`)}
 
 /* ---------- Apiary log, reports, ask ---------- */
 const jYear=iso=>iso?jOf(iso).jy:null;
@@ -603,7 +611,7 @@ function askSheet(){openSheet(`<h3>سؤال آزاد از دستیار</h3><form
 async function runAsk(q){const out=document.getElementById('ans');out.hidden=false;out.textContent='در حال بررسی داده‌ها…';
   const sample=window.claude&&await window.claude.use('sample');if(!sample){out.textContent='پرسش آزاد در این نما در دسترس نیست.';return}
   const strip=o=>{const {created,updated,...r}=o;return r};
-  const data={امروز:today()+' ('+jShort(today())+')',apiary:S.apiary.filter(a=>!a.void).map(strip),ledger:S.ledger.map(strip),deals:S.deals.map(strip),tasks:S.tasks.map(strip),people:S.people.map(p=>({id:p.id,name:p.name,roles:p.roles})),lots:S.lots.filter(l=>!l.void).map(l=>({...strip(l),supplier:pname(l.supplierId),remaining:lotStat(l).rem})),moves:S.moves.filter(m=>!m.void).map(m=>({...strip(m),person:pname(m.personId),lot:lotName(byId('lots',m.lotId)),lotCode:(byId('lots',m.lotId)||{}).code})),quotes:S.quotes.map(q=>({...strip(q),person:pname(q.personId)}))};
+  const data={امروز:today()+' ('+jShort(today())+')',apiary:S.apiary.filter(a=>!a.void).map(strip),ledger:S.ledger.map(strip),deals:S.deals.map(strip),tasks:S.tasks.map(strip),people:S.people.map(p=>({id:p.id,name:p.name,roles:p.roles})),lots:S.lots.filter(l=>!l.void).map(l=>({...strip(l),supplier:pname(l.supplierId),remaining:lotStat(l).rem})),moves:S.moves.filter(m=>!m.void).map(m=>({...strip(m),person:pname(m.personId),lot:lotName(byId('lots',m.lotId)),lotCode:(byId('lots',m.lotId)||{}).code})),quotes:S.quotes.map(q=>({...strip(q),person:pname(q.personId)})),journal:autoEntries().map(e=>({no:e.no,date:e.date,cur:e.cur,desc:e.desc,lines:e.lines.map(x=>({acc:accBy(x.acc).name,dr:x.dr,cr:x.cr,person:pname(x.personId)}))}))};
   const prompt=`تو دستیار مالی و عملیاتی یک زنبوردار و بازرگان ایرانی هستی. فقط بر اساس داده‌های JSON زیر جواب بده و چیزی حدس نزن؛ اگر داده کافی نیست، صریح بگو چه چیزی باید ثبت شود.
 تاریخ‌ها در داده میلادی (YYYY-MM-DD) هستند؛ در جواب به شمسی تبدیل کن. سال‌ها شمسی است (از ۱ فروردین). درآمد = ردیف‌های kind=received با دستهٔ درآمد؛ هزینه = kind=paid. ردیف void=true را حساب نکن. ارزها را با هم جمع نکن.
 lots = محموله‌های ورودی (source=own تولید، buy خرید؛ cost قیمت خرید هر واحد؛ remaining مانده). moves = خروج از انبار (kind: sale فروش، sample نمونه، gift هدیه، loss ضایعات، ret مرجوعی؛ price قیمت هر واحد). quotes = قیمت‌ها (dir=gave من قیمت دادم، got من قیمت گرفتم). مدت ماندن کالا = امروز منهای تاریخ ورود محموله.
@@ -905,6 +913,100 @@ async function stopWhy(hid,v){const h=byId('habits',hid);const done=m=>{toast(m)
   if(v==='other'){reason=val('f_why');if(reason.length<6)return toast('دلیل را کمی روشن‌تر بنویس تا قانع شوم')}
   if(await save('habits',hid,{active:false,offReason:reason,offAt:nowTs()}))done(`«${h.name}» دیگر پرسیده نمی‌شود؛ از «عادت‌ها» دوباره روشن می‌شود`)}
 
+/* ---------- Double-entry accounting: chart of accounts, auto vouchers, books ---------- */
+const ATYPE={A:{n:'دارایی',dr:1},L:{n:'بدهی',dr:0},E:{n:'سرمایه',dr:0},I:{n:'درآمد',dr:0},X:{n:'هزینه',dr:1}};
+const COA=(()=>{const a=[['1101','نقد و بانک','A'],['1201','حساب‌های دریافتنی (طلب از اشخاص)','A'],['1301','موجودی کالا','A'],
+  ['2101','حساب‌های پرداختنی (بدهی به اشخاص)','L'],['3101','سرمایه','E'],['3201','برداشت شخصی','E']];
+  CATS_IN.forEach((c,i)=>a.push(['41'+String(i+1).padStart(2,'0'),c==='عسل'?'فروش عسل':c,'I']));a.push(['4999','درآمد دسته‌بندی‌نشده','I']);
+  a.push(['5001','بهای تمام‌شدهٔ کالای فروش‌رفته','X']);
+  CATS_OUT.filter(c=>c!=='خرید و تأمین کالا'&&c!=='هزینهٔ شخصی').forEach((c,i)=>a.push(['51'+String(i+1).padStart(2,'0'),c,'X']));
+  a.push(['5301','هدیه، نذری و خیرات','X'],['5302','ضایعات و کسری انبار','X'],['5999','هزینهٔ دسته‌بندی‌نشده','X']);
+  return a.map(([code,name,type])=>({code,name,type}))})();
+const accBy=c=>COA.find(a=>a.code===c)||{code:c,name:'حساب '+c,type:'A'};
+const LOAN=CATS_ALL[CATS_ALL.length-1];
+function catAcc(cat,dir){ // dir: 'in' money/claim coming to me, 'out' going from me
+  if(cat===LOAN)return dir==='in'?'2101':'1201';
+  if(cat==='خرید و تأمین کالا')return '1301';
+  if(cat==='هزینهٔ شخصی')return '3201';
+  const ii=CATS_IN.indexOf(cat);if(ii>=0)return '41'+String(ii+1).padStart(2,'0');
+  const oo=CATS_OUT.filter(c=>c!=='خرید و تأمین کالا'&&c!=='هزینهٔ شخصی').indexOf(cat);if(oo>=0)return '51'+String(oo+1).padStart(2,'0');
+  return dir==='in'?'4999':'5999'}
+const L=(acc,dr,cr,personId)=>({acc,dr:dr||0,cr:cr||0,personId:personId||''});
+function autoEntries(){const out=[];
+  S.ledger.filter(l=>!l.void&&Number(l.amount)>0).forEach(l=>{const a=Number(l.amount),p=l.personId||'',c=l.currency||'تومان';let lines;const settle=!!(l.refId||l.settles);
+    if(l.kind==='received')lines=settle?[L('1101',a),L('1201',0,a,p)]:[L('1101',a),L(catAcc(l.category,'in'),0,a,p)];
+    else if(l.kind==='paid')lines=settle?[L('2101',a,0,p),L('1101',0,a)]:[L(catAcc(l.category,'out'),a,0,p),L('1101',0,a)];
+    else if(l.kind==='receivable')lines=l.category===LOAN?[L('1201',a,0,p),L('1101',0,a)]:[L('1201',a,0,p),L(catAcc(l.category,'in'),0,a)];
+    else if(l.kind==='payable')lines=l.category===LOAN?[L('1101',a),L('2101',0,a,p)]:[L(catAcc(l.category,'out'),a),L('2101',0,a,p)];
+    if(lines)out.push({date:l.date,created:l.created||'',cur:c,desc:`${LSHORT[l.kind]}${l.about?' · '+l.about:''}${p?' · '+pname(p):''}`,src:{col:'ledger',id:l.id},lines,warn:!l.category&&!settle?'بدون دسته':''})});
+  S.moves.filter(m=>!m.void).forEach(m=>{const l=byId('lots',m.lotId);if(!l||!Number(l.cost))return;const v=Number(l.cost)*Number(m.qty||0);if(!v)return;const c=l.currency||'تومان';
+    const exp=m.kind==='sale'?'5001':MOVE[m.kind]&&MOVE[m.kind].give?'5301':m.kind==='loss'?'5302':m.kind==='sample'?'5301':null;
+    let lines=null;if(m.kind==='ret')lines=[L('1301',v),L('5001',0,v)];else if(exp)lines=[L(exp,v),L('1301',0,v)];
+    if(lines)out.push({date:m.date,created:m.created||'',cur:c,desc:`${(MOVE[m.kind]||{}).n} ${fmtQ(Number(m.qty),l.unit)} ${lotName(l)} به بهای خرید${m.personId||m.toName?' · '+whoOf(m):''}`,src:{col:'moves',id:m.id},lines})});
+  S.vouchers.filter(v=>!v.void).forEach(v=>out.push({date:v.date,created:v.created||'',cur:v.currency||'تومان',desc:v.desc||'سند دستی',src:{col:'vouchers',id:v.id},lines:(v.lines||[]).map(x=>L(x.acc,Number(x.dr)||0,Number(x.cr)||0,x.personId)),manual:1}));
+  out.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.created||'').localeCompare(b.created||''));
+  const seq={};out.forEach(e=>{const y=jYear(e.date)||0;seq[y]=(seq[y]||0)+1;e.no=fa(y)+'/'+fa(String(seq[y]).padStart(3,'0'));const d=e.lines.reduce((s,x)=>s+x.dr-x.cr,0);if(Math.abs(d)>0.0001)e.unbal=d});
+  return out}
+function balancesByAcc(entries,cur,from,to){const m={};entries.filter(e=>e.cur===cur&&(!from||e.date>=from)&&(!to||e.date<=to)).forEach(e=>e.lines.forEach(x=>{const r=m[x.acc]=m[x.acc]||{dr:0,cr:0,people:{}};r.dr+=x.dr;r.cr+=x.cr;if(x.personId){const pp=r.people[x.personId]=r.people[x.personId]||{dr:0,cr:0};pp.dr+=x.dr;pp.cr+=x.cr}}));return m}
+const natural=(code,r)=>ATYPE[accBy(code).type].dr?r.dr-r.cr:r.cr-r.dr;
+const yearRange=y=>{const g1=J.toG(y,1,1),g2=J.toG(y+1,1,1);const f=`${g1.gy}-${pad(g1.gm)}-${pad(g1.gd)}`;return[f,addDays(`${g2.gy}-${pad(g2.gm)}-${pad(g2.gd)}`,-1)]};
+const amt=v=>fa(new Intl.NumberFormat('en-US',{maximumFractionDigits:2}).format(v).replace(/,/g,'٬'));
+let accUI={v:'journal',cur:'تومان',y:null,acc:null};
+function accountingSheet(v){if(v)accUI.v=v;const E=autoEntries();const curs=[...new Set(E.map(e=>e.cur))];if(!curs.includes(accUI.cur))accUI.cur=curs[0]||'تومان';
+  const thisY=jOf(today()).jy;if(!accUI.y)accUI.y=thisY;const years=[...new Set([thisY,...E.map(e=>jYear(e.date)).filter(Boolean)])].sort().reverse();
+  const tabs=[['journal','دفتر روزنامه'],['gl','دفتر کل'],['tb','تراز آزمایشی'],['pl','سود و زیان']];
+  let h=`<h3>${badge('finance','book')} دفاتر حسابداری</h3>
+   <div class="chips" style="margin-bottom:6px">${tabs.map(([k,n])=>`<button class="chip" data-act="accTab" data-v="${k}" aria-pressed="${accUI.v===k}">${n}</button>`).join('')}</div>
+   <div class="chips" style="margin-bottom:6px">${years.map(y=>`<button class="chip" data-act="accYear" data-v="${y}" aria-pressed="${accUI.y===y}">سال ${fa(y)}</button>`).join('')}${curs.length>1?curs.map(c=>`<button class="chip" data-act="accCur" data-v="${c}" aria-pressed="${accUI.cur===c}">${c}</button>`).join(''):''}</div>
+   <div class="acts" style="margin:4px 0 10px"><button class="btn pri" data-act="newVoucher">سند دستی</button><button class="btn" data-act="newVoucher" data-v="open">سند افتتاحیه</button></div>`;
+  const [from,to]=yearRange(accUI.y);const EY=E.filter(e=>e.cur===accUI.cur&&e.date>=from&&e.date<=to);
+  if(accUI.v==='journal'){
+    h+=EY.length?EY.slice().reverse().map(e=>`<div class="list" style="margin-bottom:8px"><button class="row" data-act="accSrc" data-c="${e.src.col}" data-id="${e.src.id}"><div class="main"><div class="ttl">سند ${e.no} · ${jShort(e.date)}</div><div class="sub"><span>${esc(e.desc)}</span>${e.manual?'<span class="pill acc">دستی</span>':'<span class="pill">خودکار</span>'}${e.unbal?'<span class="pill bad">نامتوازن</span>':''}${e.warn?`<span class="pill warn">${e.warn}</span>`:''}</div></div></button>
+      <div class="tbl"><table><tr><th>حساب</th><th>بدهکار</th><th>بستانکار</th></tr>${e.lines.map(x=>`<tr><td>${esc(accBy(x.acc).name)}${x.personId?' · '+esc(pname(x.personId)):''}</td><td>${x.dr?amt(x.dr):''}</td><td>${x.cr?amt(x.cr):''}</td></tr>`).join('')}</table></div></div>`).join(''):`<div class="list"><div class="empty">در سال ${fa(accUI.y)} سندی نیست. هر فروش، خرید، طلب یا بدهی که ثبت کنی، خودکار اینجا سند می‌شود؛ برای موجودی اول کار «سند افتتاحیه» بزن.</div></div>`}
+  else if(accUI.v==='gl'||accUI.v==='tb'){const B=balancesByAcc(E,accUI.cur,null,to);const BY=balancesByAcc(E,accUI.cur,from,to);
+    const codes=COA.map(a=>a.code).concat(Object.keys(B).filter(c=>!COA.some(a=>a.code===c))).filter(c=>B[c]);
+    if(accUI.v==='gl'){h+=codes.length?Object.entries(ATYPE).map(([t,ti])=>{const cs=codes.filter(c=>accBy(c).type===t);if(!cs.length)return'';const src=(t==='I'||t==='X')?BY:B;
+      return block(ti.n,null,`<div class="list">${cs.filter(c=>src[c]).map(c=>{const v=natural(c,src[c]);return `<button class="row" data-act="accAcc" data-v="${c}"><div class="main"><div class="ttl">${fa(c)} · ${esc(accBy(c).name)}</div>${Object.keys(src[c].people).length?`<div class="sub"><span>${fa(Object.keys(src[c].people).length)} طرف حساب</span></div>`:''}</div><div class="end ${v<0?'amt-neg':''}">${amt(v)}</div></button>`}).join('')}</div>`)}).join(''):`<div class="list"><div class="empty">حسابی گردش ندارد.</div></div>`;
+      h+=`<p class="hint" style="font-size:12px;color:var(--muted)">دارایی، بدهی و سرمایه: مانده تا پایان سال ${fa(accUI.y)}. درآمد و هزینه: فقط گردش همان سال.</p>`}
+    else{let td=0,tc=0;const rows=codes.map(c=>{const r=B[c];td+=r.dr;tc+=r.cr;const bal=r.dr-r.cr;return `<tr><td>${fa(c)}</td><td>${esc(accBy(c).name)}</td><td>${amt(r.dr)}</td><td>${amt(r.cr)}</td><td>${bal>=0?amt(bal):''}</td><td>${bal<0?amt(-bal):''}</td></tr>`}).join('');
+      const ok=Math.abs(td-tc)<0.01;const cash=B['1101']?B['1101'].dr-B['1101'].cr:0;const inv=B['1301']?B['1301'].dr-B['1301'].cr:0;
+      const sanity=[cash<-0.01?`«نقد و بانک» منفی است (${amt(cash)}): در واقعیت ممکن نیست؛ احتمالاً موجودی اول کار (سند افتتاحیه) یا یک دریافتی ثبت نشده.`:'',inv<-0.01?`«موجودی کالا» منفی است: بیش از خرید ثبت‌شده فروخته یا بخشیده شده؛ ورود کالای جاافتاده را ثبت کن.`:''].filter(Boolean);
+      h+=`<div class="banner" style="margin:0 0 10px;${ok?'background:var(--ok-soft);color:var(--ok)':''}">${ok?'✓ تراز است: جمع بدهکار با جمع بستانکار برابر است.':`${svg('warn')} نامتوازن: اختلاف ${amt(Math.abs(td-tc))}. سندهای «نامتوازن» در دفتر روزنامه را اصلاح کن.`}</div>
+      ${sanity.map(t=>`<div class="banner" style="margin:0 0 10px">${svg('warn')} ${t}</div>`).join('')}
+      <div class="tbl"><table><tr><th>کد</th><th>حساب</th><th>گردش بدهکار</th><th>گردش بستانکار</th><th>ماندهٔ بدهکار</th><th>ماندهٔ بستانکار</th></tr>${rows}<tr class="tot"><td></td><td>جمع</td><td>${amt(td)}</td><td>${amt(tc)}</td><td></td><td></td></tr></table></div>
+      <p class="hint" style="font-size:12px;color:var(--muted)">تراز آزمایشی تجمعی تا پایان سال ${fa(accUI.y)} (${esc(accUI.cur)}).</p>`}}
+  else{const BY=balancesByAcc(E,accUI.cur,from,to);let ti=0,tx=0;
+    const inc=COA.filter(a=>a.type==='I'&&BY[a.code]).map(a=>{const v=natural(a.code,BY[a.code]);ti+=v;return [a,v]});const exp=COA.filter(a=>a.type==='X'&&BY[a.code]).map(a=>{const v=natural(a.code,BY[a.code]);tx+=v;return [a,v]});
+    h+=block('درآمدها',null,listOr(inc,([a,v])=>`<div class="row"><div class="main"><div class="ttl">${esc(a.name)}</div></div><div class="end amt-pos">${amt(v)}</div></div>`,'درآمدی در این سال ثبت نشده.'));
+    h+=block('هزینه‌ها',null,listOr(exp,([a,v])=>`<div class="row"><div class="main"><div class="ttl">${esc(a.name)}</div></div><div class="end amt-neg">${amt(v)}</div></div>`,'هزینه‌ای در این سال ثبت نشده.'));
+    const net=ti-tx;h+=`<div class="kpis"><div class="kpi"><div class="l">جمع درآمد</div><div class="v amt-pos">${amt(ti)}</div></div><div class="kpi"><div class="l">جمع هزینه</div><div class="v amt-neg">${amt(tx)}</div></div><div class="kpi"><div class="l">${net>=0?'سود خالص':'زیان خالص'} ${fa(accUI.y)}</div><div class="v ${net>=0?'amt-pos':'amt-neg'}">${amt(Math.abs(net))} ${esc(accUI.cur)}</div></div></div>
+      <p class="hint" style="font-size:12px;color:var(--muted)">برداشت شخصی جزو هزینهٔ کسب‌وکار نیست و در سود و زیان نمی‌آید. خرید کالا هم تا وقتی فروخته نشده «موجودی» است؛ موقع فروش، بهای خریدش هزینه می‌شود.</p>`}
+  h+=`<div class="acts" style="margin-top:12px"><button class="btn ghost" data-act="close">بستن</button></div>`;openSheet(h)}
+function accAccSheet(code){const E=autoEntries().filter(e=>e.cur===accUI.cur);const a=accBy(code);let run=0;const dr=ATYPE[a.type].dr;
+  const rows=[];E.forEach(e=>e.lines.filter(x=>x.acc===code).forEach(x=>{run+=dr?x.dr-x.cr:x.cr-x.dr;rows.push({e,x,run})}));
+  const B=balancesByAcc(E,accUI.cur);const ppl=B[code]?Object.entries(B[code].people):[];
+  openSheet(`<h3>${fa(code)} · ${esc(a.name)}</h3><div class="sub" style="margin-bottom:8px"><span class="pill">${ATYPE[a.type].n}</span> <span class="pill acc">مانده: ${amt(run)} ${esc(accUI.cur)}</span></div>
+   ${ppl.length?block('ریز طرف حساب‌ها',ppl.length,listOr(ppl,([p,r])=>`<button class="row" data-act="viewPerson" data-id="${p}"><div class="main"><div class="ttl">${esc(pname(p)||'—')}</div></div><div class="end">${amt(dr?r.dr-r.cr:r.cr-r.dr)}</div></button>`,'')):''}
+   ${block('گردش حساب',rows.length,`<div class="tbl"><table><tr><th>تاریخ</th><th>سند</th><th>شرح</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th></tr>${rows.reverse().map(r=>`<tr><td>${jShort(r.e.date)}</td><td>${r.e.no}</td><td>${esc(r.e.desc)}</td><td>${r.x.dr?amt(r.x.dr):''}</td><td>${r.x.cr?amt(r.x.cr):''}</td><td>${amt(r.run)}</td></tr>`).join('')}</table></div>`)}
+   <div class="acts" style="margin-top:12px"><button class="btn" data-act="accTab" data-v="gl">بازگشت به دفتر کل</button><button class="btn ghost" data-act="close">بستن</button></div>`)}
+const accOptions=cur=>Object.entries(ATYPE).map(([t,ti])=>`<optgroup label="${ti.n}">${COA.filter(a=>a.type===t).map(a=>opt(a.code,fa(a.code)+' '+a.name,cur)).join('')}</optgroup>`).join('');
+function vLine(i,x={}){return `<div class="vline" data-i="${i}" style="border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px">
+  <div class="fld"><label>حساب</label><select class="v_acc">${opt('','— انتخاب —',x.acc)}${accOptions(x.acc)}</select></div>
+  <div class="fld"><label>طرف حساب (برای طلب و بدهی)</label><select class="v_p">${opt('','—',x.personId)}${S.people.filter(p=>p.status!=='archived').sort((a,b)=>a.name.localeCompare(b.name,'fa')).map(p=>opt(p.id,p.name,x.personId)).join('')}</select></div>
+  <div class="row2"><div class="fld"><label>بدهکار</label><input class="v_dr" inputmode="decimal" value="${x.dr?fa(x.dr):''}"></div><div class="fld"><label>بستانکار</label><input class="v_cr" inputmode="decimal" value="${x.cr?fa(x.cr):''}"></div></div></div>`}
+function formVoucher(v={},tpl){const lines=v.lines&&v.lines.length?v.lines:tpl==='open'?[{acc:'1101'},{acc:'1301'},{acc:'3101'}]:[{},{}];
+  openSheet(`<h3>${v.id?'ویرایش سند دستی':tpl==='open'?'سند افتتاحیه':'سند دستی'}</h3>${tpl==='open'?'<p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">موجودی نقد و بانک و کالای اول کار را بدهکار کن؛ جمعشان در «سرمایه» بستانکار می‌شود. طلب و بدهی‌های قدیمی را بهتر است از «حساب‌ها» با نام شخص ثبت کنی.</p>':''}
+  <form data-form="voucher" data-id="${v.id||''}">
+  <div class="row2">${dateField('f_vdate','تاریخ سند',v.date||today())}<div class="fld"><label for="f_vcur">ارز</label><select id="f_vcur">${CUR.map(c=>opt(c,c,v.currency||'تومان')).join('')}</select></div></div>
+  <div class="fld"><label for="f_vdesc">شرح سند</label><input id="f_vdesc" value="${esc(v.desc||(tpl==='open'?'سند افتتاحیه':''))}"></div>
+  <div id="vlines">${lines.map((x,i)=>vLine(i,x)).join('')}</div>
+  <button type="button" class="btn" data-act="vAddLine">+ ردیف</button>
+  <div id="vsum" class="banner" style="margin-top:10px">جمع بدهکار ۰ · جمع بستانکار ۰</div>
+  <div class="acts" style="margin-top:10px"><button class="btn pri">ذخیره</button>${v.id&&!v.void?`<button type="button" class="btn ghost danger" data-act="voidVoucher" data-id="${v.id}">باطل کردن سند</button>`:''}<button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`);vSum()}
+function readVLines(){return [...document.querySelectorAll('.vline')].map(el=>({acc:el.querySelector('.v_acc').value,personId:el.querySelector('.v_p').value,dr:num(el.querySelector('.v_dr').value)||0,cr:num(el.querySelector('.v_cr').value)||0})).filter(x=>x.acc&&(x.dr||x.cr))}
+function vSum(){const b=document.getElementById('vsum');if(!b)return;const ls=readVLines();const d=ls.reduce((s,x)=>s+x.dr,0),c=ls.reduce((s,x)=>s+x.cr,0);const ok=Math.abs(d-c)<0.01&&d>0;
+  b.style.background=ok?'var(--ok-soft)':'';b.style.color=ok?'var(--ok)':'';b.textContent=`جمع بدهکار ${amt(d)} · جمع بستانکار ${amt(c)}`+(ok?' ✓ تراز است':d||c?` · اختلاف ${amt(Math.abs(d-c))}`:'')}
+
 /* ---------- Actions ---------- */
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id;
@@ -953,6 +1055,15 @@ document.addEventListener('click',async e=>{
     case'apiary':apiarySheet();break;
     case'editApiary':formApiary(byId('apiary',id));break;
     case'reports':reportsSheet();break;
+    case'accOpen':accountingSheet();break;
+    case'accTab':accountingSheet(b.dataset.v);break;
+    case'accYear':accUI.y=Number(b.dataset.v);accountingSheet();break;
+    case'accCur':accUI.cur=b.dataset.v;accountingSheet();break;
+    case'accAcc':accAccSheet(b.dataset.v);break;
+    case'accSrc':{const c=b.dataset.c;if(c==='ledger')viewLedger(id);else if(c==='moves')viewMove(id);else formVoucher(byId('vouchers',id));break}
+    case'newVoucher':formVoucher({},b.dataset.v);break;
+    case'vAddLine':{const box=document.getElementById('vlines');box.insertAdjacentHTML('beforeend',vLine(box.children.length));break}
+    case'voidVoucher':if(await save('vouchers',id,{void:true,voidAt:nowTs()})){toast('سند باطل شد');accountingSheet('journal')}break;
     case'chain':{const ts=openTasks().filter(t=>t.flow&&t.flow.kind===b.dataset.v);openSheet(`<h3>زنجیرهٔ در جریان</h3>${listOr(ts,taskRow,'موردی نیست.')}<p class="hint" style="font-size:12px;color:var(--muted)">با ثبت فروش، خرید یا تسویه، این موارد خودکار بسته می‌شوند. اگر نتیجهٔ دیگری داشت، تیکش را بزن.</p><div class="acts"><button class="btn ghost" data-act="close">بستن</button></div>`);break}
     case'checkin':openCheckin(true);break;
     case'ciAns':await answerCheckin(b.dataset.h,b.dataset.d,b.dataset.v);break;
@@ -988,7 +1099,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='f_src')document.querySelectorAll('[data-src]').forEach(el=>el.hidden=el.dataset.src!==e.target.value);
   if(e.target.id==='f_mk')document.querySelectorAll('[data-mk]').forEach(el=>el.hidden=e.target.value!=='sale');
 });
-document.addEventListener('input',e=>{if(e.target.id==='peopleQ'){ui.peopleQ=e.target.value;render()}if(e.target.id==='gq')runSearch(e.target.value);if(e.target.id==='f_name')contactSuggest(e.target.value)});
+document.addEventListener('input',e=>{if(e.target.id==='peopleQ'){ui.peopleQ=e.target.value;render()}if(e.target.id==='gq')runSearch(e.target.value);if(e.target.closest&&e.target.closest('.vline'))vSum();if(e.target.id==='f_name')contactSuggest(e.target.value)});
 document.addEventListener('submit',async e=>{
   e.preventDefault();const f=e.target,k=f.dataset.form,id=f.dataset.id||null;
   if(k==='capture'){const v=val('capIn');if(!v)return;if(await save('inbox',null,{text:v,processed:false})){document.getElementById('capIn').value='';toast('یادداشت شد');return;toast('در صندوق ورودی ثبت شد')}return}
@@ -1012,6 +1123,10 @@ document.addEventListener('submit',async e=>{
     if(type==='move'&&!d.to)return toast('مقصد کوچ را بنویس');if(type==='harvest'&&!d.qty)return toast('مقدار برداشت را بنویس');
     if(await save('apiary',id,d)){closeSheet();toast('ثبت شد')}return}
   if(k==='ask'){const q=val('f_q');if(q)runAsk(q);return}
+  if(k==='voucher'){const date=readDate('f_vdate',true);if(date===null)return;const lines=readVLines();if(lines.length<2)return toast('هر سند دست‌کم دو ردیف (بدهکار و بستانکار) لازم دارد');
+    const d=lines.reduce((s,x)=>s+x.dr,0),c=lines.reduce((s,x)=>s+x.cr,0),unb=Math.abs(d-c)>=0.01;
+    if(unb&&f.dataset.force!=='1'){f.dataset.force='1';const b2=document.getElementById('vsum');b2.innerHTML=`${svg('warn')} سند تراز نیست (اختلاف ${amt(Math.abs(d-c))}). اصلاحش کن، یا اگر عمداً موقت ثبت می‌کنی دوباره «ذخیره» را بزن؛ در دفاتر با برچسب «نامتوازن» می‌ماند تا درستش کنی.`;return}
+    if(await save('vouchers',id,{date,currency:val('f_vcur'),desc:val('f_vdesc'),lines,unbalanced:unb,void:false})){toast(unb?'ذخیره شد (نامتوازن)':'سند ثبت شد ✓');accountingSheet('journal')}return}
   if(k==='inboxEdit'){const t=val('f_it');if(!t)return toast('متن خالی است');if(await save('inbox',id,{text:t})){closeSheet();toast('ذخیره شد')}return}
   if(k==='note'){const d={title:val('f_nt'),version:val('f_nv'),status:val('f_ns'),body:document.getElementById('f_nb').value};if(!d.title)return toast('عنوان لازم است');if(await save('notes',id,d)){closeSheet();toast('ذخیره شد')}return}
   if(k==='moveEdit'){const m=byId('moves',id);const date=readDate('f_mdate',true);if(date===null)return;const d={personId:val('f_person'),toName:val('f_person')?'':val('f_mto'),date,note:val('f_mnote')};
