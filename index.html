@@ -262,14 +262,14 @@ async function putRaw(col,doc){
 function backupData(){return {app:'miz-kar',version:'0.5',exported:nowTs(),data:Object.fromEntries(COLS.map(c=>[c,S[c]]))}}
 function lastBackup(){try{return localStorage.getItem('miz.lastBackup')||''}catch(_){return''}}
 async function doBackup(){
-  const name='miz-kar-backup-'+en(jShort(today())).replace(/\//g,'-')+'.json';
+  const now=new Date();const stamp=en(jShort(today())).replace(/\//g,'-')+'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');const name='miz-kar-backup-'+stamp+'.json';const shareName='miz-kar-backup-'+stamp+'.txt';
   const txt=JSON.stringify(backupData());
   const markDone=()=>{try{localStorage.setItem('miz.lastBackup',today())}catch(_){}render()};
-  try{const file=new File([txt],name,{type:'application/json'});
+  try{const file=new File([txt],shareName,{type:'text/plain'});
     if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'پشتیبان میز کار'});markDone();toast('ارسال شد');return}}catch(e){if(e&&e.name==='AbortError')return}
   const dl=window.claude&&await window.claude.use('downloads');
   if(dl){try{await dl.save({filename:name,data:txt});markDone();toast('فایل آماده شد؛ آن را در درایو بارگذاری کن')}catch(_){toast('دریافت انجام نشد')}return}
-  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();markDone();toast('فایل پشتیبان ذخیره شد')}catch(_){toast('ذخیرهٔ فایل ممکن نشد')}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();markDone();toast('منوی اشتراک در این نما نیست؛ فایل در Downloads ذخیره شد — از آنجا در درایو بگذار')}catch(_){toast('ذخیرهٔ فایل ممکن نشد')}
 }
 async function doRestore(file){
   let j;try{j=JSON.parse(await file.text())}catch(_){return toast('فایل پشتیبان معتبر نیست')}
