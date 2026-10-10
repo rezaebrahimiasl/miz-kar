@@ -264,7 +264,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.9.5';
+const APP_VER='0.9.6';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -293,7 +293,7 @@ function idbPut(col,doc){return new Promise((res,rej)=>{const t=idb.transaction(
 async function save(col,id,data){const prev=col==='tasks'&&id?byId('tasks',id):null;const was=prev?{...prev}:null;const ok=await save0(col,id,data);
   if(ok&&was&&was.repeat&&was.status!=='done'&&data.status==='done'){const nd=nextOcc(was.due||today(),was.repeat);await putRaw('tasks',{id:newId(),title:was.title,area:was.area||'',priority:was.priority||3,personId:was.personId||'',dealId:was.dealId||'',note:was.note||'',repeat:was.repeat,due:nd,status:'open',created:nowTs(),updated:nowTs()});if(mode==='local')render();setTimeout(()=>toast('نوبت بعدی: '+jNice(nd)+' ↻'),2300)}
   return ok}
-async function save0(col,id,data){
+async function save0(col,id,data){ghDirty=true;
   try{
     if(mode==='cloud'){
       if(id){await db.collection(col).doc(id).update({...data,updated:nowTs()})}
@@ -307,7 +307,7 @@ async function save0(col,id,data){
     toast('ثبت ممکن نیست؛ محل ذخیره در دسترس نیست');return false
   }catch(e){toast(e.code==='quota_exceeded'?'ظرفیت پایگاه داده پر است':'ثبت نشد: '+(e.code||e.message||'خطا'));return false}
 }
-async function putRaw(col,doc){
+async function putRaw(col,doc){ghDirty=true;
   if(mode==='cloud'){const {id,...rest}=doc;await db.collection(col).doc(id).set(rest)}
   else{const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);await idbPut(col,doc)}
 }
@@ -325,6 +325,8 @@ async function doBackup(){
 }
 async function doRestore(file){
   let j;try{j=JSON.parse(await file.text())}catch(_){return toast('فایل پشتیبان معتبر نیست')}
+  return restoreJson(j)}
+async function restoreJson(j){
   const data=j&&j.data;if(!data||j.app!=='miz-kar')return toast('این فایل پشتیبان میز کار نیست');
   let n=0;
   try{for(const c of COLS){for(const d of (data[c]||[])){if(!d||!d.id)continue;const cur=S[c].find(x=>x.id===d.id);if(!cur||(d.updated||'')>(cur.updated||'')){await putRaw(c,d);n++}}}}
@@ -733,6 +735,31 @@ function reviewSheet(){const t=today();const inbox=S.inbox.filter(i=>!i.processe
   ${sec(touch.length,'در تماس بمان','کسانی که قرار بود از آن‌ها خبر بگیری.',touch.map(touchRow).join(''))}
   <div class="acts" style="margin-top:14px"><button class="btn pri" data-act="rvDone">مرور تمام شد ✓</button><button class="btn ghost" data-act="close">بعداً</button></div>
   ${lastReview()?`<p class="hint" style="font-size:12px;color:var(--muted)">آخرین مرور: ${jNice(lastReview())}</p>`:''}`)}
+
+/* ---------- Automatic encrypted backup to a private GitHub repository (no app registration needed) ---------- */
+const GH={get cfg(){try{return JSON.parse(localStorage.getItem('miz.gh')||'{}')}catch(_){return{}}},set cfg(v){try{localStorage.setItem('miz.gh',JSON.stringify(v))}catch(_){}}};
+let ghDirty=false,ghBusy=false;
+const b64e=u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)};
+const b64d=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function ghKey(pass,salt){const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+async function ghPack(obj,pass){const txt=JSON.stringify(obj);if(!pass)return txt;const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},await ghKey(pass,salt),new TextEncoder().encode(txt)));return JSON.stringify({app:'miz-kar-enc',v:1,salt:b64e(salt),iv:b64e(iv),ct:b64e(ct)})}
+async function ghUnpack(txt,pass){const j=JSON.parse(txt);if(j.app!=='miz-kar-enc')return j;if(!pass)throw new Error('این پشتیبان رمز دارد؛ رمز را در تنظیمات بنویس');const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(j.iv)},await ghKey(pass,b64d(j.salt)),b64d(j.ct));return JSON.parse(new TextDecoder().decode(pt))}
+async function ghApi(path,opt={}){const c=GH.cfg;const r=await fetch('https://api.github.com/repos/'+c.repo+'/contents/'+path,{...opt,headers:{Authorization:'Bearer '+c.token,Accept:opt.raw?'application/vnd.github.raw':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',...(opt.headers||{})}});return r}
+async function ghPush(manual){const c=GH.cfg;if(!c.token||!c.repo){if(manual)ghSheet();return}if(ghBusy)return;if(!navigator.onLine){if(manual)toast('اینترنت وصل نیست؛ وقتی وصل شد خودش می‌فرستد');return}
+  ghBusy=true;try{const body=await ghPack(backupData(),c.pass||'');const path='miz-kar-backup.json';let sha;const g=await ghApi(path);if(g.status===200)sha=(await g.json()).sha;else if(g.status===401||g.status===403)throw new Error('توکن معتبر نیست یا دسترسی ندارد');else if(g.status===404&&!(await fetch('https://api.github.com/repos/'+c.repo,{headers:{Authorization:'Bearer '+c.token}})).ok)throw new Error('مخزن پیدا نشد؛ نام آن را بررسی کن');
+    const r=await ghApi(path,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'backup '+jShort(today())+' '+new Date().toTimeString().slice(0,5),content:b64e(new TextEncoder().encode(body)),sha})});
+    if(!r.ok)throw new Error('ارسال نشد ('+r.status+')');GH.cfg={...GH.cfg,last:nowTs(),err:''};ghDirty=false;try{localStorage.setItem('miz.lastBackup',today())}catch(_){}if(manual)toast('در گیت‌هاب ذخیره شد ✓')}
+  catch(e){GH.cfg={...GH.cfg,err:e.message||'خطا'};if(manual)toast(e.message||'ارسال نشد')}finally{ghBusy=false}}
+async function ghPull(){const c=GH.cfg;if(!c.token||!c.repo)return toast('اول تنظیمات را کامل کن');try{const r=await ghApi('miz-kar-backup.json',{raw:true});if(!r.ok)throw new Error(r.status===404?'هنوز پشتیبانی در مخزن نیست':'دریافت نشد ('+r.status+')');const j=await ghUnpack(await r.text(),c.pass||'');await restoreJson(j)}catch(e){toast(e.message||'بازیابی نشد')}}
+function ghSheet(){const c=GH.cfg;openSheet(`<h3>${badge('affairs','box')} پشتیبان خودکار ابری</h3>
+  <p style="font-size:13.5px;margin:0 0 10px">هر وقت اینترنت وصل باشد و چیزی عوض شده باشد، خودش یک نسخه در <b>مخزن خصوصی گیت‌هاب</b> خودت می‌گذارد. همهٔ نسخه‌های قبلی هم در تاریخچهٔ گیت‌هاب می‌مانند. با رمز، رمزنگاری می‌شود و حتی گیت‌هاب هم نمی‌تواند بخواندش.</p>
+  ${c.last?`<div class="banner" style="background:var(--ok-soft);color:var(--ok);margin:0 0 10px">آخرین ارسال: ${jNice(c.last.slice(0,10))} ساعت ${fa(new Date(c.last).toTimeString().slice(0,5))}</div>`:''}${c.err?`<div class="banner" style="margin:0 0 10px">${svg('warn')} ${esc(c.err)}</div>`:''}
+  <form data-form="gh"><div class="fld"><label for="f_ghrepo">مخزن (نام کاربری/نام مخزن)</label><input id="f_ghrepo" dir="ltr" value="${esc(c.repo||'rezaebrahimiasl/miz-kar-data')}"></div>
+  <div class="fld"><label for="f_ghtok">توکن دسترسی (فقط روی همین گوشی می‌ماند)</label><input id="f_ghtok" dir="ltr" type="password" value="${esc(c.token||'')}" placeholder="github_pat_…"></div>
+  <div class="fld"><label for="f_ghpass">رمز رمزنگاری (اختیاری ولی توصیه می‌شود؛ فراموشش نکن)</label><input id="f_ghpass" type="password" value="${esc(c.pass||'')}"></div>
+  <div class="acts"><button class="btn pri">ذخیره و ارسال الان</button>${c.token?'<button type="button" class="btn" data-act="ghPull">بازیابی از گیت‌هاب</button>':''}<button type="button" class="btn ghost" data-act="close">بستن</button></div></form>`)}
+addEventListener('online',()=>{if(ghDirty)ghPush()});addEventListener('load',()=>setTimeout(()=>{const c=GH.cfg;if(c.token&&(!c.last||Date.now()-new Date(c.last)>864e5)){ghDirty=true;ghPush()}},5000));setInterval(()=>{if(ghDirty)ghPush()},5*60*1000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ghDirty)ghPush()});
 function vToday(){
   const t=today();
   const due=openTasks().filter(x=>x.due&&x.due<=t).sort((a,b)=>(a.priority||3)-(b.priority||3)||a.due.localeCompare(b.due));
@@ -1139,7 +1166,8 @@ ${JSON.stringify(data)}`;
 function backupSheet(){const lb=lastBackup();openSheet(`<h3>پشتیبان و بازیابی</h3>
   <p style="margin:0 0 10px;font-size:14px">محل ذخیرهٔ فعلی: <b>${mode==='cloud'?'فضای خصوصی Claude':'حافظهٔ همین گوشی'}</b>${lb?` · آخرین پشتیبان: ${jNice(lb)}`:' · هنوز پشتیبانی گرفته نشده'}</p>
   <div class="acts" style="flex-direction:column;align-items:stretch">
-   <button class="btn pri" data-act="backup">پشتیبان‌گیری (ارسال به وان‌درایو یا گوگل‌درایو)</button>
+   <button class="btn pri" data-act="ghSheet">${svg('box')} پشتیبان خودکار ابری ${GH.cfg.token?'(فعال · '+(GH.cfg.last?jNice(GH.cfg.last.slice(0,10)):'هنوز ارسال نشده')+')':'(راه‌اندازی)'}</button>
+   <button class="btn" data-act="backup">پشتیبان دستی (ارسال فایل به وان‌درایو یا گوگل‌درایو)</button>
    <button class="btn" data-act="pickFile" data-f="f_restore">بازیابی از فایل پشتیبان</button><input type="file" id="f_restore" class="vh" tabindex="-1" aria-hidden="true">
    <button class="btn" data-act="pickFile" data-f="f_vcf">افزودن مخاطبین از فایل VCF (${fa(CT.length)} مخاطب فعلی)</button><input type="file" id="f_vcf" class="vh" tabindex="-1" aria-hidden="true">
    <details style="margin-top:4px"><summary style="font-size:13px;color:var(--muted);cursor:pointer">انتخاب فایل باز نشد؟</summary><div class="fld" style="margin-top:8px"><label for="f_paste">متن فایل پشتیبان را اینجا بچسبان</label><textarea id="f_paste" dir="ltr" placeholder='{"app":"miz-kar",...}'></textarea></div><button class="btn" data-act="restorePaste">بازیابی از متن چسبانده‌شده</button><p class="hint" style="font-size:12px;color:var(--muted)">برای فایل مخاطبین هم می‌توانی فایل را در گفتگو برای Claude بفرستی تا مستقیم واردش کند.</p></details>
@@ -1624,6 +1652,8 @@ document.addEventListener('click',async e=>{
     case'rvI':if(await save('inbox',id,{processed:true})){toast('خط خورد');reviewSheet()}break;
     case'rvDone':try{localStorage.setItem('miz.review',today())}catch(_){}closeSheet();render();toast('مرور هفتگی ثبت شد ✓ هفتهٔ بعد یادآوری می‌کنم');break;
     case'touched':if(await save('people',id,{lastTouch:today()})){toast('ثبت شد ✓');if(document.getElementById('sheetRoot').hidden)render();else closeSheet()}break;
+    case'ghSheet':ghSheet();break;
+    case'ghPull':ghPull();break;
     case'biz':ui.biz=b.dataset.v;render();break;
     case'bulk':bulkSheet();break;
     case'bulkPrev':bulkPreview();break;
@@ -1723,6 +1753,8 @@ document.addEventListener('submit',async e=>{
   if(k==='bulk'){const L=window._bulk||[];for(const el of f.querySelectorAll('[data-bi]')){const x=L[Number(el.dataset.bi)];if(el.dataset.bk==='area')x.area=el.value;else{const v=el.value.trim();if(!v)x.due='';else{const r=parseJ(v);if(r===null){el.focus();return toast('تاریخ «'+v+'» درست نیست؛ به شکل ۱۴۰۵/۰۷/۲۰')}x.due=r}}}
     let n=0;for(const x of L){await putRaw('tasks',{id:newId(),title:x.title,tag:x.tag||'',area:x.area||'',due:x.due||'',priority:x.priority,city:x.city||'',repeat:x.repeat||'',status:'open',created:nowTs(),updated:nowTs()});n++}
     window._bulk=null;closeSheet();tab='tasks';ui.taskF='open';render();toast(fa(n)+' کار ثبت شد ✓');return}
+  if(k==='gh'){const repo=val('f_ghrepo').replace(/^https?:\/\/github\.com\//,'').replace(/\/$/,''),token=val('f_ghtok');if(!/^[\w.-]+\/[\w.-]+$/.test(repo))return toast('نام مخزن به شکل نام‌کاربری/نام‌مخزن باشد');if(!token)return toast('توکن را بچسبان');
+    GH.cfg={...GH.cfg,repo,token,pass:val('f_ghpass'),err:''};toast('در حال ارسال…');await ghPush(true);ghSheet();return}
   if(k==='campaign'){const msg=val('f_cpm');if(!msg)return toast('متن پیام را بنویس');const nums=window._campNums||[];if(!nums.length)return toast('شمارهٔ موبایلی در این فهرست نیست');
     const nid=newId();await putRaw('campaigns',{id:nid,title:val('f_cpt'),msg,nums,batch:Number(val('f_cpb'))||20,done:0,sep:';',created:nowTs(),updated:nowTs()});viewCampaign(nid);return}
   if(k==='case'){const vars=parseVars(val('f_cvars'));if(!vars.length)return toast('دست‌کم یک شاخص سنجش لازم است');const code=val('f_ccode')||nextCaseCode();
