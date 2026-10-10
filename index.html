@@ -264,7 +264,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.9.4';
+const APP_VER='0.9.5';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -637,8 +637,8 @@ function legacyAmounts(){const out=[];const chk=(col,doc,f,c)=>{const v=Number(d
   S.moves.filter(x=>!x.void).forEach(x=>chk('moves',x,'price',x.currency));S.deals.forEach(x=>chk('deals',x,'value',x.currency));return out}
 async function fixLegacy(){const L=legacyAmounts();for(const x of L)await save(x.col,x.id,{[x.f]:Math.round(x.v*1e6)});toast(fa(L.length)+' مبلغ اصلاح شد ✓');render()}
 
-const ROADMAP={done:[['۰٫۱–۰٫۵','امروز، کارها، فرصت‌ها، افراد، حساب‌ها، تاریخ شمسی، نصب روی گوشی، پشتیبان، انبار و فروش، هدیه و نذری، زنجیرهٔ پیگیری، چک‌این عادت‌ها'],['۰٫۶','حسابداری دوطرفه: سند خودکار، روزنامه، کل، تراز، سود و زیان'],['۰٫۶٫x','جستجوی افراد و ۱۳ هزار مخاطب، شمارهٔ نسخه و به‌روزرسانی با یک لمس، ثبت پیشرفت و سابقهٔ ارتباط'],['۰٫۷','میلیون تومان، کار تکراری و زوج/فرد، کالای امانی و تهاتر، تولدها و تبریک، کارهای هر شهر، تقویم'],['۰٫۸','پرونده‌های درمانی به روش TEB، مراجعین مخاطبین، پژوهش قرآنی، پیام گروهی دسته‌ای، چند کار با هم'],['۰٫۹','بازطراحی: زبانه‌های امروز/کارها/افراد/کسب‌وکار/حساب‌ها، منوی دسته‌بندی‌شده، اصلاح مبالغ قدیمی']],
-  next:['نامه، قرارداد و فاکتور با سربرگ عسل رضا','آپلود پشتیبان به وان‌درایو و گوگل‌درایو با اینترنت همراه (نیمه‌کاره)','همگام‌سازی خودکار با درایو','قفل رمز برای بخش درمان','مناسبت‌های عمومی (نوروز، اعیاد قمری، روز پدر و مادر)','چک‌های دریافتنی و پرداختنی و ترازنامه','گزارش صبحگاهی و اعلان روزانه','تسویهٔ ماهانهٔ بازاریاب‌ها و سایت‌های پسر','رزومهٔ اصلی و پیگیری لینکدین','اتصال Gmail و تقویم']};
+const ROADMAP={done:[['۰٫۱–۰٫۵','امروز، کارها، فرصت‌ها، افراد، حساب‌ها، تاریخ شمسی، نصب روی گوشی، پشتیبان، انبار و فروش، هدیه و نذری، زنجیرهٔ پیگیری، چک‌این عادت‌ها'],['۰٫۶','حسابداری دوطرفه: سند خودکار، روزنامه، کل، تراز، سود و زیان'],['۰٫۶٫x','جستجوی افراد و ۱۳ هزار مخاطب، شمارهٔ نسخه و به‌روزرسانی با یک لمس، ثبت پیشرفت و سابقهٔ ارتباط'],['۰٫۷','میلیون تومان، کار تکراری و زوج/فرد، کالای امانی و تهاتر، تولدها و تبریک، کارهای هر شهر، تقویم'],['۰٫۸','پرونده‌های درمانی به روش TEB، مراجعین مخاطبین، پژوهش قرآنی، پیام گروهی دسته‌ای، چند کار با هم'],['۰٫۹','بازطراحی: زبانه‌های امروز/کارها/افراد/کسب‌وکار/حساب‌ها، منوی دسته‌بندی‌شده، اصلاح مبالغ قدیمی'],['۰٫۹٫۱–۰٫۹٫۵','تاریخ آسان، کالایی در فرم طلب و بدهی، هشدار تکراری، همهٔ ثبت‌ها، مرور هفتگی، در تماس بمان']],
+  next:['پشتیبان خودکار به وان‌درایو (در انتظار ثبت برنامه در حساب مایکروسافت)','تقویم گوگل برای کارها و تولدها','تطبیق پیامک‌های بانک با طلب و بدهی','نامه، قرارداد و فاکتور با سربرگ عسل رضا','آپلود پشتیبان به وان‌درایو و گوگل‌درایو با اینترنت همراه (نیمه‌کاره)','همگام‌سازی خودکار با درایو','قفل رمز برای بخش درمان','مناسبت‌های عمومی (نوروز، اعیاد قمری، روز پدر و مادر)','چک‌های دریافتنی و پرداختنی و ترازنامه','گزارش صبحگاهی و اعلان روزانه','تسویهٔ ماهانهٔ بازاریاب‌ها و سایت‌های پسر','رزومهٔ اصلی و پیگیری لینکدین','اتصال Gmail و تقویم']};
 function roadmapSheet(){openSheet(`<h3>${badge('affairs','map')} نقشهٔ راه</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">همراه هر نسخه خودش به‌روز می‌شود. نسخهٔ فعلی: ${fa(APP_VER)}</p>
   ${block('در صف (به ترتیب)',ROADMAP.next.length,`<div class="list">${ROADMAP.next.map((x,i)=>`<div class="row" style="cursor:default"><span class="pill ${i===0?'acc':''}">${fa(i+1)}</span><div class="main"><div class="ttl">${esc(x)}</div></div></div>`).join('')}</div>`)}
   ${block('انجام‌شده',ROADMAP.done.length,`<div class="list">${ROADMAP.done.slice().reverse().map(([v,t])=>`<div class="row" style="cursor:default"><span class="pill ok">${v}</span><div class="main"><div class="sub" style="margin:0"><span>${esc(t)}</span></div></div></div>`).join('')}</div>`)}
@@ -706,6 +706,33 @@ function logSheet(){let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash'
   <input class="search-in" id="logQ" placeholder="جستجو در ثبت‌ها…" value="${esc(ui.logQ||'')}"><div id="logRes">${logList()}</div>
   ${tr.length?`<details style="margin-top:14px"><summary style="font-size:13px;color:var(--muted)">حذف‌شده‌ها (${fa(tr.length)})</summary><div class="list" style="margin-top:6px">${tr.map((x,i)=>{const T=LOGT2[x.col];let t='';try{t=T?T.t(x.doc):x.col}catch(_){}return `<div class="row void"><div class="main"><div class="ttl">${esc(String(t).slice(0,80))}</div><div class="sub"><span class="pill">${esc(T?T.n:x.col)}</span><span>حذف ${jNice(x.at.slice(0,10))}</span></div></div><button class="pill acc" data-act="undoDel" data-v="${i}">برگردان</button></div>`}).join('')}</div></details>`:''}
   <div class="acts" style="margin-top:12px"><button class="btn ghost" data-act="close">بستن</button></div>`)}
+
+/* ---------- Stay in touch (personal CRM, Monica/Clay style) ---------- */
+const EVERY=[[0,'یادآوری نکن'],[7,'هر هفته'],[14,'هر دو هفته'],[30,'هر ماه'],[60,'هر دو ماه'],[90,'هر سه ماه'],[180,'هر شش ماه'],[365,'هر سال']];
+function lastTouch(p){let d=p.lastTouch||'';const up=x=>{if(x&&x>d)d=x};
+  S.tasks.filter(t=>t.personId===p.id).forEach(t=>(t.log||[]).forEach(l=>up(l.d)));S.ledger.filter(l=>l.personId===p.id&&!l.void).forEach(l=>up(l.date));S.moves.filter(m=>m.personId===p.id&&!m.void).forEach(m=>up(m.date));
+  S.quotes.filter(q=>q.personId===p.id).forEach(q=>up(q.date));S.cases.filter(c=>c.personId===p.id).forEach(c=>cVisits(c.id).forEach(v=>up(v.date)));Object.values(p.occSent||{}).forEach(up);return d}
+function touchDue(){const t=today();return S.people.filter(p=>p.status!=='archived'&&Number(p.every)>0).map(p=>{const lt=lastTouch(p);const late=lt?diffDays(t,lt)-Number(p.every):999;return{p,lt,late}}).filter(x=>x.late>=0).sort((a,b)=>b.late-a.late)}
+function touchRow(x){const ph=firstPhone(x.p);return `<div class="row" style="flex-wrap:wrap">${badge(x.p.area||'affairs','user')}<button class="main" style="border:0;background:none;text-align:right;padding:0" data-act="viewPerson" data-id="${x.p.id}"><div class="ttl">${esc(x.p.name)}</div><div class="sub"><span class="pill">${esc((EVERY.find(e=>e[0]===Number(x.p.every))||[,''])[1])}</span><span>${x.lt?'آخرین ارتباط '+jNice(x.lt):'هنوز ارتباطی ثبت نشده'}</span>${x.late>0&&x.late<999?`<span class="pill warn">${fa(x.late)} روز عقب</span>`:''}</div></button>
+  <div class="acts" style="width:100%;margin-top:6px">${ph?`<a class="btn" href="tel:${ph}">تماس</a><a class="btn" href="sms:${ph}">پیامک</a><a class="btn" href="https://wa.me/${intlPhone(ph)}" target="_blank" rel="noopener">واتساپ</a>`:''}<button class="btn ghost" data-act="touched" data-id="${x.p.id}">خبر گرفتم ✓</button></div></div>`}
+
+/* ---------- Weekly review (GTD): empty the inbox, decide overdue and undated, wake stale deals ---------- */
+const lastReview=()=>{try{return localStorage.getItem('miz.review')||''}catch(_){return''}};
+function reviewSheet(){const t=today();const inbox=S.inbox.filter(i=>!i.processed);const over=openTasks().filter(x=>x.due&&x.due<t).sort((a,b)=>a.due.localeCompare(b.due));const undated=openTasks().filter(x=>!x.due);
+  const stale=openDeals().filter(d=>!d.nextStep||!d.nextDate||d.nextDate<t||(d.updated&&diffDays(t,d.updated.slice(0,10))>14));const money=dueLedger(0);const touch=touchDue();
+  const total=inbox.length+over.length+undated.length+stale.length+money.length+touch.length;
+  const sec=(n,ttl,why,body)=>`<div class="grp" style="display:flex;gap:6px;align-items:center"><span class="pill ${n?'warn':'ok'}">${n?fa(n):'✓'}</span> ${ttl}</div>${n?`<div class="hint" style="font-size:12px;color:var(--muted);margin:-2px 2px 6px">${why}</div><div class="list">${body}</div>`:''}`;
+  const tRow=x=>`<div class="row" style="flex-wrap:wrap"><button class="main" style="border:0;background:none;text-align:right;padding:0" data-act="editTask" data-id="${x.id}"><div class="ttl">${esc(x.title)}</div><div class="sub">${x.due?duePill(x.due):''}${x.personId?`<span>${esc(pname(x.personId))}</span>`:''}</div></button>
+    <div class="acts" style="width:100%;margin-top:4px"><button class="btn" data-act="rvT" data-id="${x.id}" data-v="done">انجام شد</button><button class="btn" data-act="rvT" data-id="${x.id}" data-v="1">فردا</button><button class="btn" data-act="rvT" data-id="${x.id}" data-v="7">هفتهٔ بعد</button><button class="btn ghost" data-act="rvT" data-id="${x.id}" data-v="drop">کنار بگذار</button></div></div>`;
+  openSheet(`<h3>${badge('affairs','check')} مرور هفتگی</h3><p style="font-size:13.5px;margin:0 0 6px">ده دقیقه، هفته‌ای یک بار. هر ردیف را تصمیم بگیر: انجام، تاریخ تازه یا کنار گذاشتن. ${total?`<b>${fa(total)} مورد</b> منتظر تصمیم است.`:'همه‌چیز مرتب است 👌'}</p>
+  ${sec(inbox.length,'یادداشت‌های سریعِ پردازش‌نشده','هر یادداشت یا کار می‌شود یا خط می‌خورد.',inbox.map(i=>`<div class="row" style="flex-wrap:wrap"><div class="main"><div class="ttl">${esc(i.text)}</div></div><div class="acts" style="width:100%;margin-top:4px"><button class="btn" data-act="inboxToTask" data-id="${i.id}">کار کن</button><button class="btn ghost" data-act="rvI" data-id="${i.id}">خط بزن</button></div></div>`).join(''))}
+  ${sec(over.length,'کارهای عقب‌افتاده','کار عقب‌افتاده‌ای که تاریخ واقعی ندارد، ذهن را خسته می‌کند.',over.map(tRow).join(''))}
+  ${sec(undated.length,'کارهای بی‌تاریخ','به هر کدام یک روز بده یا کنارش بگذار.',undated.slice(0,15).map(tRow).join(''))}
+  ${sec(stale.length,'فرصت‌های راکد','بدون قدم بعدی یا بیش از دو هفته بی‌خبر. فرصت بی‌قدم بعدی به فروش نمی‌رسد.',stale.map(dealRow).join(''))}
+  ${sec(money.length,'طلب و بدهی سررسیده','پیگیری کن یا سررسید را اصلاح کن.',money.map(ledgerRow).join(''))}
+  ${sec(touch.length,'در تماس بمان','کسانی که قرار بود از آن‌ها خبر بگیری.',touch.map(touchRow).join(''))}
+  <div class="acts" style="margin-top:14px"><button class="btn pri" data-act="rvDone">مرور تمام شد ✓</button><button class="btn ghost" data-act="close">بعداً</button></div>
+  ${lastReview()?`<p class="hint" style="font-size:12px;color:var(--muted)">آخرین مرور: ${jNice(lastReview())}</p>`:''}`)}
 function vToday(){
   const t=today();
   const due=openTasks().filter(x=>x.due&&x.due<=t).sort((a,b)=>(a.priority||3)-(b.priority||3)||a.due.localeCompare(b.due));
@@ -732,6 +759,8 @@ function vToday(){
   {const lg=legacyAmounts();if(lg.length&&!(()=>{try{return localStorage.getItem('miz.legacyOk')}catch(_){return 0}})())h+=`<div class="banner">${svg('warn')} ${fa(lg.length)} مبلغ تومانی کمتر از هزار تومان ثبت شده (مثل «${nfmt(lg[0].v)} تومان»). احتمالاً قبل از نسخهٔ ۰٫۷ به میلیون نوشته شده‌اند.<div class="acts" style="margin-top:8px"><button class="btn pri" data-act="fixLegacy">بله، به میلیون تبدیل کن</button><button class="btn ghost" data-act="legacyOk">نه، درست‌اند</button></div></div>`}
   {const hc=hereCity();if(hc){const ct=openTasks().filter(x=>x.city===hc).sort((a,b)=>(a.priority||3)-(b.priority||3)||(a.due||'9').localeCompare(b.due||'9'));
     h+=block(`در ${esc(hc)} هستی · کارهای اینجا`,ct.length,listOr(ct,taskRow,'کار بازی برای این شهر نمانده.'),`<button class="link" data-act="hereOff">سفر تمام شد</button>`)}}
+  {const lr=lastReview();const fri=wdOf(today())===5||wdOf(today())===4;if(!lr||diffDays(today(),lr)>=7&&(fri||diffDays(today(),lr)>=9))h+=`<button class="row" data-act="review" style="margin-top:12px;border:1px solid var(--accent);border-radius:14px;background:var(--accent-soft)">${badge('affairs','check')}<div class="main"><div class="ttl">وقت مرور هفتگی است (۱۰ دقیقه)</div><div class="sub"><span>${lr?'آخرین مرور '+jNice(lr):'هنوز مرور نکرده‌ای'} · کارهای نیمه‌کاره را تعیین تکلیف کن</span></div></div></button>`}
+  {const td=touchDue();if(td.length)h+=block('در تماس بمان',td.length,`<div class="list">${td.slice(0,3).map(touchRow).join('')}</div>`,td.length>3?`<button class="link" data-act="review">همه</button>`:'')}
   {const oc=occSoon();if(oc.length)h+=block('تبریک و مناسبت‌ها',oc.length,`<div class="list">${oc.map(occRow).join('')}</div>`,`<button class="link" data-act="occSheet">همه</button>`)}
   h+=block('سه کار مهم امروز',null,listOr(top,taskRow,'کاری برای امروز نیست. از دکمهٔ + یک کار اضافه کن.'),`<button class="link" data-act="tab" data-v="tasks">همهٔ کارها${due.length>3?' ('+fa(due.length-3)+' کار دیگر امروز)':''}</button>`);
   h+=habitsStrip();
@@ -920,6 +949,7 @@ function formPerson(p={}){openSheet(`<h3>${p.id?'ویرایش شخص':'شخص ی
   <div class="row2"><div class="fld"><label for="f_org">سازمان / شهر</label><input id="f_org" value="${esc(p.org)}"></div>${areaSelect('f_area',p.area)}</div>
   ${(()=>{const b=(p.occ||[]).find(o=>o.t==='تولد')||{};return `<div class="fld"><label>تولد (شمسی)</label><div style="display:flex;gap:6px">${dSel('b_d',b.d)}${mSel('b_m',b.m)}<input id="f_by" style="flex:1.4" inputmode="numeric" placeholder="سال (اختیاری)" value="${b.y?fa(b.y):''}"></div></div>
   <div class="fld"><label>مناسبت‌های دیگر</label><div id="occRows">${(p.occ||[]).filter(o=>o.t!=='تولد').map(occEdit).join('')}</div><button type="button" class="btn" data-act="occAdd">+ مناسبت</button></div>`})()}
+  <div class="fld"><label for="f_every">هر چند وقت خبر بگیرم؟</label><select id="f_every">${EVERY.map(([v,l])=>opt(v,l,Number(p.every)||0)).join('')}</select><div class="hint" style="font-size:12px;color:var(--muted)">اگر از موعد بگذرد، در «امروز» و مرور هفتگی یادآوری می‌شود. هر تماس، پیامک، فروش یا ویزیت ثبت‌شده، ارتباط حساب می‌شود.</div></div>
   <div class="fld"><label for="f_note">یادداشت (واقعیت را از برداشت جدا بنویس)</label><textarea id="f_note">${esc(p.note)}</textarea></div>
   <div class="acts"><button class="btn pri">ذخیره</button>${p.id?`<button type="button" class="btn ghost danger" data-act="archivePerson" data-id="${p.id}">از فهرست افراد بردار</button>`:''}<button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`)}
 function formLedger(l={},pre={}){l={...pre,...l};const kind=l.kind||'receivable';openSheet(`<h3>ثبت طلب، بدهی، دریافت یا پرداخت</h3><form data-form="ledger">
@@ -970,6 +1000,7 @@ function viewPerson(id){const p=byId('people',id);if(!p){toast('شخص پیدا 
   openSheet(`<div class="det"><h3>${esc(p.name)}</h3><div class="sub" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">${(p.roles||[]).map(r=>`<span class="pill">${esc(r)}</span>`).join('')}</div><dl>
    ${p.org?`<dt>سازمان</dt><dd>${esc(p.org)}</dd>`:''}${p.phone?`<dt>تلفن</dt><dd dir="ltr" style="text-align:right">${esc(p.phone)}</dd>`:''}${p.email?`<dt>ایمیل/لینک</dt><dd dir="ltr" style="text-align:right">${esc(p.email)}</dd>`:''}
    ${(p.occ||[]).length?`<dt>مناسبت‌ها</dt><dd>${p.occ.map(o=>`${esc(o.t)}: ${fa(o.d)} ${MONTHS[o.m-1]}${o.y?' '+fa(o.y)+' ('+fa(jOf(today()).jy-o.y)+' سال)':''}`).join('<br>')}</dd>`:''}
+   <dt>آخرین ارتباط</dt><dd>${(()=>{const lt=lastTouch(p);return (lt?jNice(lt)+' ('+fa(diffDays(today(),lt))+' روز پیش)':'ثبت نشده')+(Number(p.every)?' · '+esc((EVERY.find(e=>e[0]===Number(p.every))||[,''])[1]):'')})()} <button class="link" data-act="touched" data-id="${id}">خبر گرفتم ✓</button></dd>
    <dt>مانده</dt><dd>${bs.length?bs.map(([c,v])=>`<span class="${v>0?'amt-pos':'amt-neg'}">${v>0?'طلب من ':'بدهی من '}${money(v,c)}</span>`).join('<br>'):'بی‌حساب'}</dd></dl>
    ${p.note?`<div class="prose">${esc(p.note)}</div>`:''}
    ${(()=>{const kr=kindRows(id);return kr?`<div class="blk-h" style="margin-top:12px"><h2>طلب و بدهی کالایی</h2></div><div class="list">${kr.replace(/data-act="viewPerson"/g,'data-act="kindHelp"')}</div>`:''})()}
@@ -1021,7 +1052,7 @@ function menuSheet(){const T=(act,area,ic,b,sm,extra='')=>`<button class="tile" 
   openSheet(`<h3>بیشتر</h3>
   <div class="grp">درمان و پژوهش</div><div class="tiles">${T('clinic','therapy','therapy','پرونده‌های درمانی',nc?fa(nc)+' پرونده در جریان':'ویزیت و نتیجهٔ درمان')}${T('clients','therapy','user','مراجعین مخاطبین','بیماری، شهر، معرف')}${T('quran','research','book','پژوهش قرآنی',nq?fa(nq)+' موضوع':'موضوع و کلیدواژه')}</div>
   <div class="grp">کسب‌وکار و مالی</div><div class="tiles">${T('apiary','sales','hive','دفتر زنبورداری','کوچ، برداشت، تیمار')}${T('accOpen','finance','book','دفاتر حسابداری','روزنامه، کل، تراز، سود')}${T('reports','finance','note','گزارش‌ها','فروش، قیمت، خریداران')}</div>
-  <div class="grp">زندگی و ارتباط</div><div class="tiles">${T('habits','personal','dumbbell','عادت‌ها و چک‌این','')}${T('occSheet','personal','gift','تولدها و مناسبت‌ها',oc?fa(oc)+' مورد این هفته':'')}${T('notesList','affairs','note','یادداشت‌ها و قوانین','')}</div>
+  <div class="grp">زندگی و ارتباط</div><div class="tiles">${T('review','affairs','check','مرور هفتگی',lastReview()?'آخرین: '+jNice(lastReview()):'هنوز انجام نشده')}${T('habits','personal','dumbbell','عادت‌ها و چک‌این','')}${T('occSheet','personal','gift','تولدها و مناسبت‌ها',oc?fa(oc)+' مورد این هفته':'')}${T('notesList','affairs','note','یادداشت‌ها و قوانین','')}</div>
   <div class="grp">برنامه</div><div class="tiles">${T('logSheet','affairs','note','همهٔ ثبت‌ها','پیدا کردن، اصلاح، حذف')}${mode==='cloud'?T('ask','research','research','سؤال آزاد از دستیار',''):''}${T('backupSheet','affairs','box','پشتیبان و بازیابی',lastBackup()?'آخرین: '+jNice(lastBackup()):'هنوز گرفته نشده')}${T('roadmap','affairs','map','نقشهٔ راه','کارهای بعدی برنامه')}${T('checkUpd','affairs','bell','نسخهٔ '+fa(APP_VER),'بررسی به‌روزرسانی')}</div>
   <p class="hint" style="font-size:12px;color:var(--muted);margin-top:12px">میز کار · نسخهٔ ${fa(APP_VER)} · محل ذخیره: ${mode==='cloud'?'فضای خصوصی Claude (فقط مالک)':'حافظهٔ همین گوشی'}</p>`)}
 
@@ -1117,6 +1148,7 @@ function backupSheet(){const lb=lastBackup();openSheet(`<h3>پشتیبان و ب
 
 /* ---------- Visual identity: one colour + one icon per area ---------- */
 const IC={
+  check:'<path d="m5 12.5 4.2 4.2L19 7"/>',
   chevR:'<path d="m9 6 6 6-6 6"/>',chevL:'<path d="m15 6-6 6 6 6"/>',cal:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
   sales:'<path d="M8 4h8v3H8z"/><path d="M7 7h10l-.6 11.2A2 2 0 0 1 14.4 20H9.6a2 2 0 0 1-2-1.8z"/><path d="M10 12c0 1.2.9 1.5 1 2.6M14 11v2"/>',
   export:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9S14.6 18.4 12 21M12 3C9.4 5.6 8.2 8.6 8.2 12s1.2 6.4 3.8 9"/>',
@@ -1587,6 +1619,11 @@ document.addEventListener('click',async e=>{
     case'logRestore':{const T=LOGT2[b.dataset.c];const x=byId(b.dataset.c,id);if(x&&T.restore&&await save(b.dataset.c,id,T.restore(x))){toast('برگردانده شد ✓');document.getElementById('logRes').innerHTML=logList()}break}
     case'logDel':{if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='مطمئنی؟';break}if(await delDoc(b.dataset.c,id)){toast('حذف شد؛ از «حذف‌شده‌ها» برمی‌گردد');logSheet()}break}
     case'undoDel':undoDel(Number(b.dataset.v));break;
+    case'review':reviewSheet();break;
+    case'rvT':{const v=b.dataset.v;const d=v==='done'?{status:'done',doneAt:nowTs()}:v==='drop'?{status:'archived'}:{due:addDays(today(),Number(v))};if(await save('tasks',id,d)){toast('ثبت شد');reviewSheet()}break}
+    case'rvI':if(await save('inbox',id,{processed:true})){toast('خط خورد');reviewSheet()}break;
+    case'rvDone':try{localStorage.setItem('miz.review',today())}catch(_){}closeSheet();render();toast('مرور هفتگی ثبت شد ✓ هفتهٔ بعد یادآوری می‌کنم');break;
+    case'touched':if(await save('people',id,{lastTouch:today()})){toast('ثبت شد ✓');if(document.getElementById('sheetRoot').hidden)render();else closeSheet()}break;
     case'biz':ui.biz=b.dataset.v;render();break;
     case'bulk':bulkSheet();break;
     case'bulkPrev':bulkPreview();break;
@@ -1723,7 +1760,7 @@ document.addEventListener('submit',async e=>{
     const roles=[...f.querySelectorAll('[data-act=toggleChip][aria-pressed=true]')].map(x=>x.dataset.v);
     const occ=[];{const bd=Number(f.querySelector('.b_d').value),bm=Number(f.querySelector('.b_m').value),by=num(val('f_by'));if(bd&&bm)occ.push({t:'تولد',d:bd,m:bm,y:by&&by>1250&&by<1500?by:null});else if(bd||bm)return toast('برای تولد هم روز و هم ماه را انتخاب کن')}
     for(const r of f.querySelectorAll('.occr')){const t=r.querySelector('.o_t').value.trim(),dd=Number(r.querySelector('.o_d').value),mm=Number(r.querySelector('.o_m').value);if(!t&&!dd&&!mm)continue;if(!t||!dd||!mm)return toast('برای هر مناسبت، نام و روز و ماه را کامل کن');occ.push({t,d:dd,m:mm})}
-    const d={name:val('f_name'),roles,phone:val('f_phone'),email:val('f_email'),org:val('f_org'),area:val('f_area'),note:val('f_note'),occ};if(!d.name)return toast('نام لازم است');if(!id)d.status='active';
+    const d={name:val('f_name'),roles,phone:val('f_phone'),email:val('f_email'),org:val('f_org'),area:val('f_area'),note:val('f_note'),occ,every:Number(val('f_every'))||0};if(!d.name)return toast('نام لازم است');if(!id)d.status='active';
     if(await save('people',id,d)){closeSheet();toast('ذخیره شد')}return}
   if(k==='ledger'&&val('f_lgmode')==='kind'){await saveKindLedger(f);return}
   if(k==='ledger'){const amt=toBase(num(val('f_amt')),val('f_cur'));if(!amt||amt<=0)return toast('مبلغ را درست وارد کن');const date=readDate('f_date',true);if(date===null)return;const due=readDate('f_due');if(due===null)return;
