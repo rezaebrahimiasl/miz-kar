@@ -264,7 +264,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.9.6';
+const APP_VER='0.9.7';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -749,7 +749,7 @@ async function ghPush(manual){const c=GH.cfg;if(!c.token||!c.repo){if(manual)ghS
   ghBusy=true;try{const body=await ghPack(backupData(),c.pass||'');const path='miz-kar-backup.json';let sha;const g=await ghApi(path);if(g.status===200)sha=(await g.json()).sha;else if(g.status===401||g.status===403)throw new Error('توکن معتبر نیست یا دسترسی ندارد');else if(g.status===404&&!(await fetch('https://api.github.com/repos/'+c.repo,{headers:{Authorization:'Bearer '+c.token}})).ok)throw new Error('مخزن پیدا نشد؛ نام آن را بررسی کن');
     const r=await ghApi(path,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'backup '+jShort(today())+' '+new Date().toTimeString().slice(0,5),content:b64e(new TextEncoder().encode(body)),sha})});
     if(!r.ok)throw new Error('ارسال نشد ('+r.status+')');GH.cfg={...GH.cfg,last:nowTs(),err:''};ghDirty=false;try{localStorage.setItem('miz.lastBackup',today())}catch(_){}if(manual)toast('در گیت‌هاب ذخیره شد ✓')}
-  catch(e){GH.cfg={...GH.cfg,err:e.message||'خطا'};if(manual)toast(e.message||'ارسال نشد')}finally{ghBusy=false}}
+  catch(e){let m=e.message||'خطا';if(e instanceof TypeError||/fetch/i.test(m)){let up=false;try{up=(await fetch('https://api.github.com/zen',{cache:'no-store'})).ok}catch(_){}m=up?'گیت‌هاب در دسترس است ولی ارسال انجام نشد؛ توکن را دوباره کپی و جای‌گذاری کن (بدون فاصلهٔ اضافه).':'به گیت‌هاب وصل نشد (api.github.com). احتمالاً فیلتر است: با فیلترشکن روشن یا خاموش دوباره امتحان کن. بعد از یک بار موفق، هر وقت وصل باشی خودش می‌فرستد.'}GH.cfg={...GH.cfg,err:m};if(manual)toast(m)}finally{ghBusy=false}}
 async function ghPull(){const c=GH.cfg;if(!c.token||!c.repo)return toast('اول تنظیمات را کامل کن');try{const r=await ghApi('miz-kar-backup.json',{raw:true});if(!r.ok)throw new Error(r.status===404?'هنوز پشتیبانی در مخزن نیست':'دریافت نشد ('+r.status+')');const j=await ghUnpack(await r.text(),c.pass||'');await restoreJson(j)}catch(e){toast(e.message||'بازیابی نشد')}}
 function ghSheet(){const c=GH.cfg;openSheet(`<h3>${badge('affairs','box')} پشتیبان خودکار ابری</h3>
   <p style="font-size:13.5px;margin:0 0 10px">هر وقت اینترنت وصل باشد و چیزی عوض شده باشد، خودش یک نسخه در <b>مخزن خصوصی گیت‌هاب</b> خودت می‌گذارد. همهٔ نسخه‌های قبلی هم در تاریخچهٔ گیت‌هاب می‌مانند. با رمز، رمزنگاری می‌شود و حتی گیت‌هاب هم نمی‌تواند بخواندش.</p>
@@ -1753,7 +1753,7 @@ document.addEventListener('submit',async e=>{
   if(k==='bulk'){const L=window._bulk||[];for(const el of f.querySelectorAll('[data-bi]')){const x=L[Number(el.dataset.bi)];if(el.dataset.bk==='area')x.area=el.value;else{const v=el.value.trim();if(!v)x.due='';else{const r=parseJ(v);if(r===null){el.focus();return toast('تاریخ «'+v+'» درست نیست؛ به شکل ۱۴۰۵/۰۷/۲۰')}x.due=r}}}
     let n=0;for(const x of L){await putRaw('tasks',{id:newId(),title:x.title,tag:x.tag||'',area:x.area||'',due:x.due||'',priority:x.priority,city:x.city||'',repeat:x.repeat||'',status:'open',created:nowTs(),updated:nowTs()});n++}
     window._bulk=null;closeSheet();tab='tasks';ui.taskF='open';render();toast(fa(n)+' کار ثبت شد ✓');return}
-  if(k==='gh'){const repo=val('f_ghrepo').replace(/^https?:\/\/github\.com\//,'').replace(/\/$/,''),token=val('f_ghtok');if(!/^[\w.-]+\/[\w.-]+$/.test(repo))return toast('نام مخزن به شکل نام‌کاربری/نام‌مخزن باشد');if(!token)return toast('توکن را بچسبان');
+  if(k==='gh'){const repo=val('f_ghrepo').replace(/^https?:\/\/github\.com\//,'').replace(/\/$/,''),token=val('f_ghtok').replace(/[\s\u200c\u200e\u200f]/g,'');if(!/^[\w.-]+\/[\w.-]+$/.test(repo))return toast('نام مخزن به شکل نام‌کاربری/نام‌مخزن باشد');if(!token)return toast('توکن را بچسبان');
     GH.cfg={...GH.cfg,repo,token,pass:val('f_ghpass'),err:''};toast('در حال ارسال…');await ghPush(true);ghSheet();return}
   if(k==='campaign'){const msg=val('f_cpm');if(!msg)return toast('متن پیام را بنویس');const nums=window._campNums||[];if(!nums.length)return toast('شمارهٔ موبایلی در این فهرست نیست');
     const nid=newId();await putRaw('campaigns',{id:nid,title:val('f_cpt'),msg,nums,batch:Number(val('f_cpb'))||20,done:0,sep:';',created:nowTs(),updated:nowTs()});viewCampaign(nid);return}
