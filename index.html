@@ -226,7 +226,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.6.3';
+const APP_VER='0.6.4';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 const byId=(c,id)=>S[c].find(x=>x.id===id);
@@ -305,7 +305,7 @@ function taskRow(t){const done=t.status==='done';return `<div class="row ${done?
   <button class="chk ${done?'on':''}" data-act="toggleTask" data-id="${t.id}" aria-label="${done?'برگرداندن':'انجام شد'}">${ICON.check}</button>
   ${t.area?badge(t.area):''}<button class="main" style="border:0;background:none;text-align:right;padding:0" data-act="editTask" data-id="${t.id}">
     <div class="ttl">${esc(t.title)}</div>
-    <div class="sub">${t.due&&!done?duePill(t.due):''}${t.priority==1?'<span class="pill bad">فوری</span>':t.priority==2?'<span class="pill acc">مهم</span>':''}${t.area?`<span>${esc(AREAS[t.area]||'')}</span>`:''}${t.personId?`<span>· ${esc(pname(t.personId))}</span>`:''}${t.loc&&(t.loc.place||t.loc.lat)?`<span>· ${esc(t.loc.place||'موقعیت ثبت‌شده')}</span>`:''}</div>
+    <div class="sub">${t.due&&!done?duePill(t.due):''}${t.priority==1?'<span class="pill bad">فوری</span>':t.priority==2?'<span class="pill acc">مهم</span>':''}${t.area?`<span>${esc(AREAS[t.area]||'')}</span>`:''}${t.personId?`<span>· ${esc(pname(t.personId))}</span>`:''}${t.loc&&(t.loc.place||t.loc.lat)?`<span>· ${esc(t.loc.place||'موقعیت ثبت‌شده')}</span>`:''}${t.lastLog?`<span>· آخرین: ${esc(logName(t.lastLog.type))} ${jNice(t.lastLog.d)}</span>`:''}</div>
   </button></div>`}
 function stageBar(d){const p=PIPES[d.pipe];if(!p)return'';const i=p.st.indexOf(d.stage);return `<div class="stage">${p.st.map((_,k)=>`<i class="${k<=i?'on':''}"></i>`).join('')}</div>`}
 function dealRow(d){const p=PIPES[d.pipe]||{n:''};const st=d.status||'open';const miss=st==='open'&&(!d.nextStep||!d.nextDate);
@@ -469,7 +469,20 @@ function dateSync(id){const s=val(id);const r=s?parseJ(s):'';const h=document.ge
 const val=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
 function readDate(id,req){const s=val(id);if(!s){if(req){toast('تاریخ لازم است');return null}return''}const r=parseJ(s);if(r===null){toast('تاریخ را به شکل ۱۴۰۵/۰۷/۲۰ بنویس');return null}return r}
 
-function formTask(t={},pre={}){t={...pre,...t};openSheet(`<h3>${t.id?'ویرایش کار':'کار جدید'}</h3><form data-form="task" data-id="${t.id||''}">
+const LOGT=[['sms','پیامک'],['call','تماس'],['msg','واتساپ/پیام'],['mail','ایمیل'],['meet','دیدار'],['part','بخشی از کار']];
+const logName=k=>(LOGT.find(x=>x[0]===k)||[,'یادداشت'])[1];
+const logLine=(x,withTask)=>`<div class="row" style="cursor:default"><div class="main"><div class="ttl"><span class="pill">${esc(logName(x.type))}</span> ${esc(x.text||'')}</div><div class="sub"><span>${jNice(x.d)}</span>${withTask?`<span>· ${esc(withTask)}</span>`:''}${x.next==='done'?'<span>· کار تمام شد</span>':x.nextDue?`<span>· پیگیری بعدی ${jNice(x.nextDue)}</span>`:''}</div></div></div>`;
+function taskProgress(t){const log=(t.log||[]).slice().reverse();const per=t.personId?byId('people',t.personId):null;
+  return `<h3>${esc(t.title)}</h3><div class="sub" style="display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 10px">${t.due?duePill(t.due):''}${per?`<span class="pill">${esc(per.name)}</span>`:''}${per&&per.phone?`<a class="pill" href="tel:${esc(normDigits(String(per.phone).split(/[،,]/)[0]))}">تماس</a><a class="pill" href="sms:${esc(normDigits(String(per.phone).split(/[،,]/)[0]))}">پیامک</a>`:''}</div>
+  <form data-form="tlog" data-id="${t.id}" style="border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px">
+   <div class="fld"><label>چه کردی؟ (ثبت پیشرفت)</label><div class="chips wrap">${LOGT.map(([k,l],i)=>`<button type="button" class="chip" data-act="pick1" data-v="${k}" aria-pressed="${i===0}">${l}</button>`).join('')}</div></div>
+   <div class="fld"><textarea id="f_lt" rows="2" placeholder="مثلاً پیامک پیگیری فرستادم؛ گفت تا فردا خبر می‌دهد"></textarea></div>
+   <div class="fld"><label>قدم بعد</label><div class="chips wrap"><button type="button" class="chip" data-act="pick1" data-g="nx" data-v="again" aria-pressed="true">باز هم پیگیری لازم است</button><button type="button" class="chip" data-act="pick1" data-g="nx" data-v="done" aria-pressed="false">کار تمام شد ✓</button></div></div>
+   <div id="nxDate">${dateField('f_ln','پیگیری بعدی',addDays(today(),3))}</div>
+   <button class="btn pri" style="width:100%">ثبت پیشرفت</button></form>
+  ${log.length?`<div class="blk-h"><h2>سابقهٔ این کار</h2><span class="n">${fa(log.length)}</span></div><div class="list">${log.map(x=>logLine(x)).join('')}</div>`:''}
+  <details style="margin-top:12px"><summary style="font-size:14px;color:var(--muted);cursor:pointer;padding:6px 0">ویرایش جزئیات کار (عنوان، تاریخ، شخص، …)</summary>`}
+function formTask(t={},pre={}){t={...pre,...t};openSheet(`${t.id?taskProgress(t):'<h3>کار جدید</h3>'}<form data-form="task" data-id="${t.id||''}">
   <div class="fld"><label for="f_title">چه کاری؟ (قدم مشخص و قابل انجام)</label><input id="f_title" data-autofocus value="${esc(t.title)}" required></div>
   ${dateField('f_due','تاریخ انجام',t.due||today())}
   <div class="row2"><div class="fld"><label for="f_pri">اولویت</label><select id="f_pri">${Object.entries(PRI).map(([k,v])=>opt(k,v,t.priority||3)).join('')}</select></div>${areaSelect('f_area',t.area)}</div>
@@ -477,7 +490,7 @@ function formTask(t={},pre={}){t={...pre,...t};openSheet(`<h3>${t.id?'ویرای
   <div class="fld"><label for="f_dealT">فرصت مرتبط</label><select id="f_dealT">${opt('','— هیچ —',t.dealId)}${openDeals().map(d=>opt(d.id,d.title,t.dealId)).join('')}</select></div>
   ${locField(t.loc)}
   <div class="fld"><label for="f_note">یادداشت</label><textarea id="f_note">${esc(t.note)}</textarea></div>
-  <div class="acts"><button class="btn pri">ذخیره</button>${t.id?`<button type="button" class="btn ghost danger" data-act="archiveTask" data-id="${t.id}">دیگر لازم نیست</button>`:''}<button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`)}
+  <div class="acts"><button class="btn pri">ذخیره</button>${t.id?`<button type="button" class="btn ghost danger" data-act="archiveTask" data-id="${t.id}">دیگر لازم نیست</button>`:''}<button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>${t.id?'</details>':''}`)}
 function formDeal(d={},pre={}){d={...pre,...d};const pipe=d.pipe||'sale';openSheet(`<h3>${d.id?'ویرایش فرصت':'فرصت جدید'}</h3><form data-form="deal" data-id="${d.id||''}">
   <div class="fld"><label for="f_title">عنوان</label><input id="f_title" data-autofocus value="${esc(d.title)}" required></div>
   <div class="row2"><div class="fld"><label for="f_pipe">نوع قیف</label><select id="f_pipe" data-act-change="pipe">${Object.entries(PIPES).map(([k,v])=>opt(k,v.n,pipe)).join('')}</select></div>
@@ -536,6 +549,7 @@ function viewPerson(id){const p=byId('people',id);if(!p){toast('شخص پیدا 
    ${p.note?`<div class="prose">${esc(p.note)}</div>`:''}
    ${deals.length?`<div class="blk-h" style="margin-top:12px"><h2>فرصت‌ها</h2></div>${listOr(deals,dealRow,'')}`:''}
    ${tasks.length?`<div class="blk-h" style="margin-top:12px"><h2>کارهای باز</h2></div>${listOr(tasks,taskRow,'')}`:''}
+   ${(()=>{const L=S.tasks.filter(t=>t.personId===id).flatMap(t=>(t.log||[]).map(x=>({...x,_t:t.title}))).sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,10);return L.length?`<div class="blk-h" style="margin-top:12px"><h2>سابقهٔ ارتباط و پیگیری</h2></div><div class="list">${L.map(x=>logLine(x,x._t)).join('')}</div>`:''})()}
    ${led.length?`<div class="blk-h" style="margin-top:12px"><h2>ریز حساب</h2></div>${listOr(led,ledgerRow,'')}`:''}
    ${(()=>{const t=personTrade(id);return t?`<div class="blk-h" style="margin-top:12px"><h2>کالای ارسالی به تفکیک سال</h2></div><div class="list">${t}</div>`:''})()}
    ${(()=>{const sup=S.lots.filter(l=>l.supplierId===id&&!l.void);return sup.length?`<div class="blk-h" style="margin-top:12px"><h2>محموله‌های خریداری‌شده از او</h2></div>${listOr(sup,lotRow,'')}`:''})()}
@@ -1098,6 +1112,7 @@ document.addEventListener('click',async e=>{
     case'checkUpd':closeSheet();checkUpdate(true);break;
     case'doUpdate':doUpdate();break;
     case'ctToPerson':{const c=(window._pc||[])[Number(b.dataset.i)];if(c)formPerson({name:c.n,phone:(c.p||[]).join(' ، '),email:c.e,org:c.o});break}
+    case'pick1':{const g=b.dataset.g||'';b.parentNode.querySelectorAll('[data-act=pick1]').forEach(c=>{if((c.dataset.g||'')===g)c.setAttribute('aria-pressed',String(c===b))});if(g==='nx'){const n=document.getElementById('nxDate');if(n)n.hidden=b.dataset.v==='done'}break}
     case'toggleChip':b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true');break;
     case'backup':await doBackup();break;
     case'backupSheet':backupSheet();break;
@@ -1153,6 +1168,10 @@ document.addEventListener('focusin',e=>{if(e.target.dataset&&e.target.dataset.pp
 document.addEventListener('submit',async e=>{
   e.preventDefault();const f=e.target,k=f.dataset.form,id=f.dataset.id||null;if(!await ppResolve(f))return;
   if(k==='capture'){const v=val('capIn');if(!v)return;if(await save('inbox',null,{text:v,processed:false})){document.getElementById('capIn').value='';toast('یادداشت شد');return;toast('در صندوق ورودی ثبت شد')}return}
+  if(k==='tlog'){const t=byId('tasks',id);if(!t)return;const type=(f.querySelector('[data-act=pick1]:not([data-g])[aria-pressed=true]')||{dataset:{v:'part'}}).dataset.v;const text=val('f_lt');
+    const nx=(f.querySelector('[data-g=nx][aria-pressed=true]')||{dataset:{v:'again'}}).dataset.v;let nextDue='';if(nx==='again'){nextDue=readDate('f_ln');if(nextDue===null)return}
+    const e={ts:nowTs(),d:today(),type,text,next:nx,nextDue};const d={log:[...(t.log||[]),e],lastLog:e};if(nx==='done'){d.status='done';d.doneAt=nowTs()}else if(nextDue)d.due=nextDue;
+    if(await save('tasks',id,d)){closeSheet();toast(nx==='done'?'ثبت شد و کار بسته شد ✓':'ثبت شد · پیگیری بعدی '+jNice(nextDue||t.due))}return}
   if(k==='task'){const due=readDate('f_due');if(due===null)return;const d={title:val('f_title'),due,priority:Number(val('f_pri'))||3,area:val('f_area'),personId:val('f_person'),dealId:val('f_dealT'),note:val('f_note'),loc:readLoc()};
     if(!d.title)return toast('عنوان کار لازم است');if(!id)d.status='open';
     if(await save('tasks',id,d)){if(f.dataset.inbox)await save('inbox',f.dataset.inbox,{processed:true});closeSheet();toast('ذخیره شد')}return}
