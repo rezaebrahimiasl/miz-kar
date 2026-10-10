@@ -99,6 +99,7 @@ h3 .ab{display:inline-grid;vertical-align:middle;margin-left:6px}
 .kpi .v{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 .chips.wrap{flex-wrap:wrap;overflow:visible}
+.banner svg{width:18px;height:18px;vertical-align:-4px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8}
 a.btn,a.pill{text-decoration:none;color:inherit;display:inline-flex;align-items:center;justify-content:center}
 .ppw{position:relative}.ppw input{padding-inline-end:40px}.ppx{position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);border:0;background:none;font-size:22px;color:var(--muted);width:32px;height:32px}
 .chips::-webkit-scrollbar{display:none}
@@ -238,9 +239,9 @@ const CATS_ALL=[...CATS_IN,...CATS_OUT,'قرض و جابه‌جایی (نه در
 const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت عسل',f:['loc','hives','qty']},visit:{n:'بازدید',f:['loc','hives']},treat:{n:'درمان و دارو',f:['loc','hives','what']},feed:{n:'تغذیه',f:['loc','hives','what','qty']},split:{n:'تقسیم و ملکه',f:['loc','hives']},trade:{n:'خرید یا فروش کلنی',f:['loc','hives']},loss:{n:'تلفات یا مشکل',f:['loc','hives','what']},other:{n:'سایر',f:['loc','hives']}};
 
 /* ---------- State & data ---------- */
-const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[]};
+const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.8.2';
+const APP_VER='0.8.3';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 const byId=(c,id)=>S[c].find(x=>x.id===id);
@@ -469,11 +470,37 @@ function clientsSheet(){const ix=clientsIdx();const q=ui.clQ||'',fl=ui.clF||'';c
   <div class="fld"><label>بیماری و شکایت</label><div class="chips wrap">${ix.cond.map(([k,v])=>chip('c',k,v)).join('')}</div></div>
   <div class="fld"><label>شهر</label><div class="chips wrap">${ix.city.slice(0,14).map(([k,v])=>chip('t',k,v)).join('')}</div></div>
   ${ix.ref.length?`<div class="fld"><label>بیشترین معرف‌ها (چه کسی مراجع می‌فرستد)</label><div class="chips wrap">${ix.ref.map(([k,v])=>chip('r',k,v)).join('')}</div></div>`:''}
+  ${campList()}
   <input class="search-in" id="clQ" placeholder="جستجو در مراجعین (نام، شکایت، شماره)…" value="${esc(q)}">
+  <button class="btn" style="width:100%;margin-top:8px" data-act="campNew">پیام گروهی به ${fl||q?'همین فهرست':'همهٔ مراجعین'}</button>
   <div id="clRes">${clientsList(L,fl)}</div>
   <div class="acts" style="margin-top:12px"><button class="btn" data-act="clinic">پرونده‌های درمانی</button><button class="btn ghost" data-act="close">بستن</button></div>`)}
 function clientsList(L,fl){window._cl=L;const show=L.slice(0,60);
   return `<div class="blk-h" style="margin-top:10px"><h2>${fl?'فیلتر شده':'همه'}</h2><span class="n">${fa(L.length)}</span>${fl?'<span class="sp"></span><button class="link" data-act="clF" data-v="">برداشتن فیلتر</button>':''}</div><div class="list">${show.map(i=>{const c=CT[i];const ph=c.p[0]||'';return `<div class="row">${badge('therapy','user')}<div class="main"><div class="ttl">${esc(clientName(c.n))}</div><div class="sub"><span dir="ltr">${esc(ph)}</span></div></div><div class="end" style="display:flex;gap:4px">${ph?`<a class="pill" href="tel:${esc(ph)}">تماس</a>`:''}<button class="pill" data-act="clCase" data-i="${i}">+ پرونده</button></div></div>`}).join('')||'<div class="empty">موردی نیست.</div>'}</div>${L.length>60?`<div class="hint" style="font-size:12px;color:var(--muted);margin-top:6px">${fa(L.length-60)} مورد دیگر؛ با جستجو یا فیلتر دقیق‌ترش کن.</div>`:''}`}
+
+
+/* ---------- Group messages in batches (phone SMS limit) + export for SMS panels ---------- */
+const mobileOf=c=>{for(const p of (c.p||[])){let x=normDigits(p);if(x.startsWith('0098'))x='0'+x.slice(4);else if(x.startsWith('98')&&x.length===12)x='0'+x.slice(2);if(/^09\d{9}$/.test(x))return x}return''};
+const smsParts=t=>{const n=[...t].length;if(!n)return 0;const fa_=/[^\x00-\x7F]/.test(t);const one=fa_?70:160,multi=fa_?67:153;return n<=one?1:Math.ceil(n/multi)};
+const campRows=c=>{const B=c.batch||20;return Math.ceil((c.nums||[]).length/B)};
+function formCampaign(L,label){const nums=[...new Set(L.map(i=>mobileOf(CT[i])).filter(Boolean))];window._campNums=nums;
+  openSheet(`<h3>پیام گروهی</h3><p style="font-size:13.5px;margin:0 0 8px">${esc(label||'گروه انتخاب‌شده')}: ${fa(L.length)} نفر، که <b>${fa(nums.length)} شمارهٔ موبایل</b> یکتا دارند (تلفن ثابت و تکراری حذف شد).</p>
+  <form data-form="campaign"><div class="fld"><label for="f_cpt">عنوان</label><input id="f_cpt" value="${esc(label||'')}"></div>
+  <div class="fld"><label for="f_cpm">متن پیام</label><textarea id="f_cpm" rows="4" placeholder="سلام، … رضا ابراهیمی"></textarea><div class="hint" id="cpLen" style="font-size:12px;color:var(--muted)">۰ حرف</div></div>
+  <div class="fld"><label for="f_cpb">تعداد در هر دسته</label><select id="f_cpb">${[10,15,20,25,30].map(n=>opt(n,fa(n)+' نفر',20)).join('')}</select><div class="hint" style="font-size:12px;color:var(--muted)">گوشی و اپراتور بیش از حدود ۲۰ تا ۳۰ پیامک در نیم ساعت را محدود یا مشکوک می‌دانند؛ برای همین دسته‌دسته با فاصله فرستاده می‌شود.</div></div>
+  <div class="acts"><button class="btn pri">ساختن و شروع</button><button type="button" class="btn" data-act="campCsv">فقط خروجی شماره‌ها برای سامانهٔ پیامکی</button><button type="button" class="btn ghost" data-act="clients">انصراف</button></div></form>`)}
+function viewCampaign(id){const c=byId('campaigns',id);if(!c)return;const B=c.batch||20,N=campRows(c),done=c.done||0;const last=c.lastAt?new Date(c.lastAt):null;const wait=last?Math.max(0,30-Math.round((Date.now()-last)/60000)):0;
+  const sep=c.sep||';';const next=(c.nums||[]).slice(done*B,(done+1)*B);
+  openSheet(`<h3>${esc(c.title||'پیام گروهی')}</h3>
+  <div class="kpis"><div class="kpi"><div class="l">ارسال‌شده</div><div class="v">${fa(Math.min(done*B,c.nums.length))} از ${fa(c.nums.length)}</div></div><div class="kpi"><div class="l">دسته</div><div class="v">${fa(done)} از ${fa(N)}</div></div></div>
+  <div class="prose" style="white-space:pre-wrap;margin:10px 0">${esc(c.msg)}</div><div class="hint" style="font-size:12px;color:var(--muted)">${fa(smsParts(c.msg))} پیامک برای هر نفر</div>
+  ${done>=N?'<div class="banner" style="background:var(--ok-soft);color:var(--ok)">همهٔ دسته‌ها فرستاده شد ✓</div>':`${wait>0?`<div class="banner">${svg('warn')} از دستهٔ قبل ${fa(30-wait)} دقیقه گذشته؛ بهتر است ${fa(wait)} دقیقهٔ دیگر صبر کنی. اگر عجله داری، باز هم می‌شود فرستاد.</div>`:''}
+   <a class="btn pri" style="width:100%;margin-top:8px" href="sms:${next.join(sep)}?body=${encodeURIComponent(c.msg)}" data-act="campOpen" data-id="${id}">باز کردن دستهٔ ${fa(done+1)} (${fa(next.length)} نفر) در پیامک</a>
+   <div class="acts" style="margin-top:8px"><button class="btn" data-act="campMark" data-id="${id}">این دسته فرستاده شد ✓</button><button class="btn ghost" data-act="campSep" data-id="${id}">فقط یک گیرنده آمد؟</button></div>`}
+  <div class="acts" style="margin-top:12px"><button class="btn" data-act="campCsvId" data-id="${id}">خروجی شماره‌ها (CSV)</button><button class="btn ghost" data-act="clients">بازگشت</button></div>
+  <p class="hint" style="font-size:12px;color:var(--muted)">برای صدها یا هزاران نفر، راه درست «سامانهٔ پیامک انبوه» با خط اختصاصی است: فایل CSV را آنجا بارگذاری کن تا یکجا و با نام فرستنده برود.</p>`)}
+async function campCsv(nums,title){await shareFile('numbers-'+String(title||'group').replace(/\s+/g,'-')+'.csv','﻿mobile\r\n'+nums.join('\r\n'),'text/csv',title)}
+const campList=()=>{const L=S.campaigns.slice().sort((a,b)=>(b.created||'').localeCompare(a.created||''));return L.length?`<div class="fld"><label>پیام‌های گروهی</label><div class="list">${L.map(c=>`<button class="row" data-act="viewCamp" data-id="${c.id}"><div class="main"><div class="ttl">${esc(c.title||'پیام گروهی')}</div><div class="sub"><span>${fa(Math.min((c.done||0)*(c.batch||20),c.nums.length))} از ${fa(c.nums.length)}</span>${(c.done||0)>=campRows(c)?'<span class="pill ok">تمام</span>':'<span class="pill warn">در جریان</span>'}</div></div></button>`).join('')}</div></div>`:''};
 
 /* ---------- Quran research: topic → keywords (snowball) → verses ---------- */
 const SURAH='فاتحه بقره آل‌عمران نساء مائده انعام اعراف انفال توبه یونس هود یوسف رعد ابراهیم حجر نحل اسراء کهف مریم طه انبیاء حج مؤمنون نور فرقان شعراء نمل قصص عنکبوت روم لقمان سجده احزاب سبأ فاطر یس صافات ص زمر غافر فصلت شوری زخرف دخان جاثیه احقاف محمد فتح حجرات ق ذاریات طور نجم قمر الرحمن واقعه حدید مجادله حشر ممتحنه صف جمعه منافقون تغابن طلاق تحریم ملک قلم حاقه معارج نوح جن مزمل مدثر قیامت انسان مرسلات نبأ نازعات عبس تکویر انفطار مطففین انشقاق بروج طارق اعلی غاشیه فجر بلد شمس لیل ضحی شرح تین علق قدر بینه زلزله عادیات قارعه تکاثر عصر همزه فیل قریش ماعون کوثر کافرون نصر مسد اخلاص فلق ناس'.split(' ');
@@ -1379,6 +1406,13 @@ document.addEventListener('click',async e=>{
     case'hereOff':try{localStorage.removeItem('miz.here')}catch(_){}render();toast('سفر تمام شد');break;
     case'clinic':clinicSheet();break;
     case'clients':clientsSheet();break;
+    case'campNew':{const fl=ui.clF||'';formCampaign(clientsFilter(),fl?fl.split(':')[1]:(ui.clQ?'جستجوی «'+ui.clQ+'»':'همهٔ مراجعین'));break}
+    case'campCsv':campCsv(window._campNums||[],val('f_cpt'));break;
+    case'campCsvId':{const c=byId('campaigns',id);if(c)campCsv(c.nums,c.title);break}
+    case'viewCamp':viewCampaign(id);break;
+    case'campOpen':{const c=byId('campaigns',id);if(c)setTimeout(()=>toast('بعد از ارسال در برنامهٔ پیامک، برگرد و «این دسته فرستاده شد» را بزن'),600);return}
+    case'campMark':{const c=byId('campaigns',id);if(c&&await save('campaigns',id,{done:(c.done||0)+1,lastAt:Date.now()})){toast('ثبت شد');viewCampaign(id)}break}
+    case'campSep':{const c=byId('campaigns',id);if(c&&await save('campaigns',id,{sep:(c.sep||';')===';'?',':';'})){toast('جداکنندهٔ شماره‌ها عوض شد؛ دوباره «باز کردن دسته» را بزن');viewCampaign(id)}break}
     case'clF':ui.clF=b.dataset.v;clientsSheet();break;
     case'clCase':{const c=CT[Number(b.dataset.i)];if(!c)break;formCase({});const q=document.getElementById('f_person_q');q.value=clientName(c.n);document.getElementById('f_person').value='new';PP['f_person']={...c,n:clientName(c.n)};document.getElementById('f_person_h').textContent='با ذخیره، این مراجع به «افراد» اضافه می‌شود (نام کامل مخاطب در یادداشتش می‌ماند)';const cc=document.getElementById('f_ccomp');if(cc)cc.value=c.n;break}
     case'cFilter':ui.cF=b.dataset.v;clinicSheet();break;
@@ -1458,11 +1492,13 @@ document.addEventListener('change',e=>{
   if(e.target.id==='f_src')document.querySelectorAll('[data-src]').forEach(el=>el.hidden=!el.dataset.src.split(' ').includes(e.target.value));
   if(e.target.id==='f_mk')document.querySelectorAll('[data-mk]').forEach(el=>el.hidden=e.target.value!=='sale');
 });
-document.addEventListener('input',e=>{if(e.target.id==='clQ'){ui.clQ=e.target.value;clearTimeout(window._clT);window._clT=setTimeout(()=>{const box=document.getElementById('clRes');if(box)box.innerHTML=clientsList(clientsFilter(),ui.clF||'')},250)}if(e.target.id==='peopleQ'){ui.peopleQ=e.target.value;clearTimeout(window._pqT);window._pqT=setTimeout(()=>{const box=document.getElementById('peopleRes');if(!box)return render();const t=document.createElement('div');t.innerHTML=vPeople();box.innerHTML=t.querySelector('#peopleRes').innerHTML},150)}if(e.target.id==='gq')runSearch(e.target.value);if(e.target.closest&&e.target.closest('.vline'))vSum();if(e.target.id==='f_name')contactSuggest(e.target.value);if(e.target.dataset&&e.target.dataset.pp){const fid=e.target.dataset.pp;document.getElementById(fid).value='';delete PP[fid];ppSearch(fid,e.target.value)}if(e.target.dataset&&'date' in e.target.dataset)dateSync(e.target.id)});
+document.addEventListener('input',e=>{if(e.target.id==='f_cpm'){const t=e.target.value;const el=document.getElementById('cpLen');if(el)el.textContent=fa([...t].length)+' حرف · '+fa(smsParts(t))+' پیامک برای هر نفر'}if(e.target.id==='clQ'){ui.clQ=e.target.value;clearTimeout(window._clT);window._clT=setTimeout(()=>{const box=document.getElementById('clRes');if(box)box.innerHTML=clientsList(clientsFilter(),ui.clF||'')},250)}if(e.target.id==='peopleQ'){ui.peopleQ=e.target.value;clearTimeout(window._pqT);window._pqT=setTimeout(()=>{const box=document.getElementById('peopleRes');if(!box)return render();const t=document.createElement('div');t.innerHTML=vPeople();box.innerHTML=t.querySelector('#peopleRes').innerHTML},150)}if(e.target.id==='gq')runSearch(e.target.value);if(e.target.closest&&e.target.closest('.vline'))vSum();if(e.target.id==='f_name')contactSuggest(e.target.value);if(e.target.dataset&&e.target.dataset.pp){const fid=e.target.dataset.pp;document.getElementById(fid).value='';delete PP[fid];ppSearch(fid,e.target.value)}if(e.target.dataset&&'date' in e.target.dataset)dateSync(e.target.id)});
 document.addEventListener('focusin',e=>{if(e.target.dataset&&e.target.dataset.pp&&!document.getElementById(e.target.dataset.pp).value)ppSearch(e.target.dataset.pp,e.target.value)});
 document.addEventListener('submit',async e=>{
   e.preventDefault();const f=e.target,k=f.dataset.form,id=f.dataset.id||null;if(!await ppResolve(f))return;
   if(k==='capture'){const v=val('capIn');if(!v)return;if(await save('inbox',null,{text:v,processed:false})){document.getElementById('capIn').value='';toast('یادداشت شد');return;toast('در صندوق ورودی ثبت شد')}return}
+  if(k==='campaign'){const msg=val('f_cpm');if(!msg)return toast('متن پیام را بنویس');const nums=window._campNums||[];if(!nums.length)return toast('شمارهٔ موبایلی در این فهرست نیست');
+    const nid=newId();await putRaw('campaigns',{id:nid,title:val('f_cpt'),msg,nums,batch:Number(val('f_cpb'))||20,done:0,sep:';',created:nowTs(),updated:nowTs()});viewCampaign(nid);return}
   if(k==='case'){const vars=parseVars(val('f_cvars'));if(!vars.length)return toast('دست‌کم یک شاخص سنجش لازم است');const code=val('f_ccode')||nextCaseCode();
     if(S.cases.some(c=>c.code===code&&c.id!==id))return toast('این کد قبلاً استفاده شده');
     const d={code,personId:val('f_person'),complaint:val('f_ccomp'),history:val('f_chist'),mizaj:val('f_cmiz'),risk:val('f_crisk'),goals:val('f_cgoal'),cautions:val('f_cred'),vars};
