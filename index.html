@@ -277,7 +277,7 @@ async function doRestore(file){
   let n=0;
   try{for(const c of COLS){for(const d of (data[c]||[])){if(!d||!d.id)continue;const cur=S[c].find(x=>x.id===d.id);if(!cur||(d.updated||'')>(cur.updated||'')){await putRaw(c,d);n++}}}}
   catch(e){toast('بازیابی نیمه‌کاره ماند: '+(e.code||e.message));render();return}
-  render();closeSheet();toast(fa(n)+' ردیف بازیابی یا به‌روز شد');
+  rebuildContacts();render();closeSheet();toast(fa(n)+' ردیف بازیابی یا به‌روز شد'+(CT.length?' · '+fa(CT.length)+' مخاطب':''));
 }
 
 /* ---------- Derived ---------- */
