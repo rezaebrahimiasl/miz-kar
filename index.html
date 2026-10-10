@@ -240,7 +240,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.8';
+const APP_VER='0.8.1';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 const byId=(c,id)=>S[c].find(x=>x.id===id);
@@ -1435,6 +1435,7 @@ document.addEventListener('submit',async e=>{
     if(S.cases.some(c=>c.code===code&&c.id!==id))return toast('این کد قبلاً استفاده شده');
     const d={code,personId:val('f_person'),complaint:val('f_ccomp'),history:val('f_chist'),mizaj:val('f_cmiz'),risk:val('f_crisk'),goals:val('f_cgoal'),cautions:val('f_cred'),vars};
     if(!id){d.type=val('f_ctype');d.status='active';const bl={};f.querySelectorAll('#cvars .sc').forEach(x=>{if(x.value!=='')bl[x.dataset.n]=Number(x.value)});d.baseline=bl}
+    if(d.personId){const pp=byId('people',d.personId);if(pp&&!(pp.roles||[]).includes('مراجع'))await save('people',pp.id,{roles:[...(pp.roles||[]),'مراجع']})}
     if(!id){const nid=newId();await putRaw('cases',{id:nid,...d,created:nowTs(),updated:nowTs()});if(mode==='local')render();toast('پرونده '+code+' ساخته شد');formVisit(nid);return}
     if(await save('cases',id,d)){toast('ذخیره شد');viewCase(id)}return}
   if(k==='visit'){await saveVisit(f,id);return}
