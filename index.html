@@ -264,7 +264,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.9.8';
+const APP_VER='0.9.9';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -766,6 +766,14 @@ async function ghPush(manual){const c=GH.cfg;if(!c.token||!c.repo){if(manual)ghS
     if(!r.ok)throw new Error('ارسال نشد ('+r.status+')');GH.cfg={...GH.cfg,last:nowTs(),err:''};ghDirty=false;if(GH.cfg.cal)await calPush(manual);try{localStorage.setItem('miz.lastBackup',today())}catch(_){}if(manual)toast('در گیت‌هاب ذخیره شد ✓')}
   catch(e){let m=e.message||'خطا';if(e instanceof TypeError||/fetch/i.test(m)){let up=false;try{up=(await fetch('https://api.github.com/zen',{cache:'no-store'})).ok}catch(_){}m=up?'گیت‌هاب در دسترس است ولی ارسال انجام نشد؛ توکن را دوباره کپی و جای‌گذاری کن (بدون فاصلهٔ اضافه).':'به گیت‌هاب وصل نشد (api.github.com). احتمالاً فیلتر است: با فیلترشکن روشن یا خاموش دوباره امتحان کن. بعد از یک بار موفق، هر وقت وصل باشی خودش می‌فرستد.'}GH.cfg={...GH.cfg,err:m};if(manual)toast(m)}finally{ghBusy=false}}
 async function ghPull(){const c=GH.cfg;if(!c.token||!c.repo)return toast('اول تنظیمات را کامل کن');try{const r=await ghApi('miz-kar-backup.json',{raw:true});if(!r.ok)throw new Error(r.status===404?'هنوز پشتیبانی در مخزن نیست':'دریافت نشد ('+r.status+')');const j=await ghUnpack(await r.text(),c.pass||'');await restoreJson(j)}catch(e){toast(e.message||'بازیابی نشد')}}
+
+async function gistDelete(){const c=GH.cfg;if(!c.gist||!c.token)return true;try{const r=await fetch('https://api.github.com/gists/'+c.gist,{method:'DELETE',headers:{Authorization:'Bearer '+c.token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}});return r.ok||r.status===404}catch(_){return false}}
+async function cloudDisconnect(){const okG=await gistDelete();try{localStorage.removeItem('miz.gh')}catch(_){}ghDirty=false;
+  openSheet(`<h3>${badge('affairs','box')} اتصال‌ها قطع شد</h3><p style="font-size:14px">از این لحظه برنامه فقط روی همین گوشی کار می‌کند و چیزی به بیرون نمی‌فرستد. توکن و رمز از گوشی پاک شد.${okG?' فایل تقویم هم از گیت‌هاب حذف شد.':' <b>فایل تقویم حذف نشد</b> (اینترنت یا فیلتر)؛ در قدم ۳ دستی پاکش کن.'}</p>
+  <p style="font-size:13.5px;margin:0 0 6px">برای پاک‌سازی کامل بیرون از برنامه (اختیاری):</p>
+  <ol style="font-size:13px;line-height:2;padding-inline-start:18px"><li>تقویم گوگل ← تنظیمات ← تقویم «میز کار» ← <b>Unsubscribe</b></li><li>github.com/settings/personal-access-tokens ← <b>miz-kar-phone</b> ← <b>Delete</b></li><li>اگر نسخه‌های قبلی را هم نمی‌خواهی: مخزن <b>miz-kar-data</b> ← Settings ← پایین صفحه <b>Delete this repository</b>${okG?'':'، و در gist.github.com فایل miz-kar.ics را پاک کن'}</li></ol>
+  <p class="hint" style="font-size:12px;color:var(--muted)">داده‌های داخل برنامه دست نخورده‌اند. هر وقت خواستی، دوباره از همین صفحه وصل کن.</p>
+  <div class="acts"><button class="btn ghost" data-act="close">بستن</button></div>`)}
 function ghSheet(){const c=GH.cfg;openSheet(`<h3>${badge('affairs','box')} پشتیبان خودکار ابری</h3>
   <p style="font-size:13.5px;margin:0 0 10px">هر وقت اینترنت وصل باشد و چیزی عوض شده باشد، خودش یک نسخه در <b>مخزن خصوصی گیت‌هاب</b> خودت می‌گذارد. همهٔ نسخه‌های قبلی هم در تاریخچهٔ گیت‌هاب می‌مانند. با رمز، رمزنگاری می‌شود و حتی گیت‌هاب هم نمی‌تواند بخواندش.</p>
   ${c.last?`<div class="banner" style="background:var(--ok-soft);color:var(--ok);margin:0 0 10px">آخرین ارسال: ${jNice(c.last.slice(0,10))} ساعت ${fa(new Date(c.last).toTimeString().slice(0,5))}</div>`:''}${c.err?`<div class="banner" style="margin:0 0 10px">${svg('warn')} ${esc(c.err)}</div>`:''}
@@ -773,10 +781,11 @@ function ghSheet(){const c=GH.cfg;openSheet(`<h3>${badge('affairs','box')} پش�
   <div class="fld"><label for="f_ghtok">توکن دسترسی (فقط روی همین گوشی می‌ماند)</label><input id="f_ghtok" dir="ltr" type="password" value="${esc(c.token||'')}" placeholder="github_pat_…"></div>
   <div class="fld"><label for="f_ghpass">رمز رمزنگاری (اختیاری ولی توصیه می‌شود؛ فراموشش نکن)</label><input id="f_ghpass" type="password" value="${esc(c.pass||'')}"></div>
   <div class="acts"><button class="btn pri">ذخیره و ارسال الان</button>${c.token?'<button type="button" class="btn" data-act="ghPull">بازیابی از گیت‌هاب</button>':''}<button type="button" class="btn ghost" data-act="close">بستن</button></div></form>
+  ${c.token?`<div class="grp" style="margin-top:16px;color:var(--bad)">قطع اتصال</div><p style="font-size:13px;margin:0 0 6px">برنامه را دوباره فقط به گوشی متکی کن: ارسال خودکار و تقویم متوقف می‌شود، توکن از گوشی پاک می‌شود و فایل تقویم از گیت‌هاب حذف می‌شود. داده‌های برنامه دست نمی‌خورد.</p><button class="btn danger" style="width:100%" data-act="cloudOff">قطع همهٔ اتصال‌های بیرونی</button>`:''}
   ${c.token?`<div class="grp" style="margin-top:16px">${svg('cal')} تقویم گوگل</div>
   <p style="font-size:13px;margin:0 0 8px">کارهای تاریخ‌دار، قدم بعدی فرصت‌ها، سررسید طلب و بدهی (بدون مبلغ) و تولدها، همراه پشتیبان در یک تقویم به‌روز می‌شوند و تقویم گوگل هر چند ساعت خودش آن را می‌خواند. کارهای پرونده‌های درمانی فرستاده نمی‌شوند.</p>
   ${c.cal?`${c.calErr?`<div class="banner" style="margin:0 0 8px">${svg('warn')} ${esc(c.calErr)}</div>`:''}${c.calUrl?`<div class="fld"><label>نشانی تقویم (یک بار در تقویم گوگل اضافه کن)</label><input id="f_calurl" dir="ltr" readonly value="${esc(c.calUrl)}"></div>
-   <div class="acts"><button class="btn pri" data-act="calCopy">کپی نشانی</button><a class="btn" href="https://calendar.google.com/calendar/u/0/r/settings/addbyurl" target="_blank" rel="noopener">باز کردن «افزودن با نشانی» در گوگل</a><button class="btn ghost" data-act="calOff">خاموش کن</button></div>
+   <div class="acts"><button class="btn pri" data-act="calCopy">کپی نشانی</button><a class="btn" href="https://calendar.google.com/calendar/u/0/r/settings/addbyurl" target="_blank" rel="noopener">باز کردن «افزودن با نشانی» در گوگل</a><button class="btn ghost" data-act="calOff">خاموش کردن تقویم</button></div>
    <ol style="font-size:12.5px;color:var(--muted);padding-inline-start:18px;line-height:1.9"><li>«کپی نشانی» را بزن.</li><li>«باز کردن افزودن با نشانی» را بزن (اگر اپ تقویم باز شد، در Chrome با «Desktop site» باز کن).</li><li>نشانی را بچسبان و «Add calendar» را بزن.</li><li>در اپ تقویم گوگل گوشی، تقویم «میز کار» را روشن کن و برایش اعلان بگذار.</li></ol>
    <p class="hint" style="font-size:12px;color:var(--muted)">آخرین به‌روزرسانی تقویم: ${c.calLast?jNice(c.calLast.slice(0,10))+' '+fa(new Date(c.calLast).toTimeString().slice(0,5)):'—'}. نشانی محرمانه است؛ آن را به کسی نده.</p>`:'<p class="hint">در حال ساختن…</p>'}`:`<button class="btn" style="width:100%" data-act="calOn">${svg('cal')} روشن کردن تقویم گوگل</button>`}`:''}`)}
 addEventListener('online',()=>{if(ghDirty)ghPush()});addEventListener('load',()=>setTimeout(()=>{const c=GH.cfg;if(c.token&&(!c.last||Date.now()-new Date(c.last)>864e5)){ghDirty=true;ghPush()}},5000));setInterval(()=>{if(ghDirty)ghPush()},5*60*1000);
@@ -1675,7 +1684,8 @@ document.addEventListener('click',async e=>{
     case'touched':if(await save('people',id,{lastTouch:today()})){toast('ثبت شد ✓');if(document.getElementById('sheetRoot').hidden)render();else closeSheet()}break;
     case'ghSheet':ghSheet();break;
     case'calOn':GH.cfg={...GH.cfg,cal:true};toast('در حال ساختن تقویم…');await calPush(true);ghSheet();break;
-    case'calOff':GH.cfg={...GH.cfg,cal:false};toast('تقویم دیگر به‌روز نمی‌شود');ghSheet();break;
+    case'calOff':{const ok=await gistDelete();GH.cfg={...GH.cfg,cal:false,gist:'',calUrl:'',calErr:''};toast(ok?'تقویم خاموش و فایلش حذف شد؛ در تقویم گوگل هم Unsubscribe کن':'تقویم خاموش شد؛ فایلش حذف نشد (اینترنت)');ghSheet();break}
+    case'cloudOff':if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='مطمئنی؟ دوباره بزن';break}await cloudDisconnect();break;
     case'calCopy':{const u=GH.cfg.calUrl;try{await navigator.clipboard.writeText(u);toast('نشانی کپی شد')}catch(_){const el=document.getElementById('f_calurl');el.select();document.execCommand('copy');toast('نشانی کپی شد')}break}
     case'ghPull':ghPull();break;
     case'biz':ui.biz=b.dataset.v;render();break;
