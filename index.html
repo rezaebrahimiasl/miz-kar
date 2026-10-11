@@ -236,7 +236,7 @@ const toBase=(x,c)=>x==null?x:(MIL(c)?Math.round(x*1e6):x);
 const fromBase=(x,c)=>x==null||x===''?'':(MIL(c)?Math.round(Number(x)/1e6*1e6)/1e6:Number(x));
 const nfmt=(v,d=2)=>fa(new Intl.NumberFormat('en-US',{maximumFractionDigits:d}).format(v).replace(/,/g,'٬').replace('.','٫'));
 const ul=(sel,c)=>`<span class="ul" data-for="${sel}" style="font-weight:400;color:var(--muted)">${MIL(c)?' (میلیون تومان)':''}</span>`;
-const money=(v,c)=>{const a=Math.abs(Number(v)||0);if(MIL(c)&&a>=1000)return nfmt(a/1e6,3)+' میلیون تومان';return nfmt(a)+' '+(c||'تومان')};
+const money=(v,c)=>{const a=Math.abs(Number(v)||0);if(MIL(c)&&a>=1e6)return nfmt(a/1e6,3)+' میلیون تومان';if(MIL(c)&&a>=1000)return nfmt(a/1000,1)+' هزار تومان';return nfmt(a)+' '+(c||'تومان')};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 /* ---------- Domain model ---------- */
@@ -264,7 +264,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[]};
 const COLS=Object.keys(S);
-const APP_VER='0.9.9';
+const APP_VER='1.0';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -790,6 +790,40 @@ function ghSheet(){const c=GH.cfg;openSheet(`<h3>${badge('affairs','box')} پش�
    <p class="hint" style="font-size:12px;color:var(--muted)">آخرین به‌روزرسانی تقویم: ${c.calLast?jNice(c.calLast.slice(0,10))+' '+fa(new Date(c.calLast).toTimeString().slice(0,5)):'—'}. نشانی محرمانه است؛ آن را به کسی نده.</p>`:'<p class="hint">در حال ساختن…</p>'}`:`<button class="btn" style="width:100%" data-act="calOn">${svg('cal')} روشن کردن تقویم گوگل</button>`}`:''}`)}
 addEventListener('online',()=>{if(ghDirty)ghPush()});addEventListener('load',()=>setTimeout(()=>{const c=GH.cfg;if(c.token&&(!c.last||Date.now()-new Date(c.last)>864e5)){ghDirty=true;ghPush()}},5000));setInterval(()=>{if(ghDirty)ghPush()},5*60*1000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ghDirty)ghPush()});
+
+/* ---------- Bank receipts and messages → payment/receipt entries (share from bank app or paste) ---------- */
+const MY_NAMES=['رضا ابراهیمی اصل','رضا ابراهیمی‌اصل','رضا ابراهیمی'];
+function parseBank(raw){const t=en(String(raw||'')).replace(/‌/g,' ').replace(/[ \t]+/g,' ');const L=t.split(/\n+/).map(x=>x.trim()).filter(Boolean);const r={raw};
+  let best=0,unit='';for(const m of t.matchAll(/(\d{1,3}(?:[,٬]\d{3})+|\d{4,})\s*(ریال|تومان)?/g)){const n=Number(m[1].replace(/[,٬]/g,''));if(m[2]&&n>best){best=n;unit=m[2]}}
+  if(!best){for(const m of t.matchAll(/(?:مبلغ|مبلغ انتقال|برداشت|واریز)[^\d]{0,12}(\d[\d,٬]{3,})/g)){const n=Number(m[1].replace(/[,٬]/g,''));if(n>best){best=n;unit='ریال'}}}
+  r.toman=best?(unit==='تومان'?best:Math.round(best/10)):0;
+  const lab=(re)=>{for(let i=0;i<L.length;i++){const m=L[i].match(re);if(m)return (m[1]||L[i+1]||'').trim()}return''};
+  r.ref=(lab(/(?:شماره پیگیری|کد پیگیری|پیگیری)\s*[:：]?\s*(\d{4,})?\s*$/)||lab(/(?:شماره مرجع|مرجع)\s*[:：]?\s*(\d{4,})?\s*$/)).replace(/\D/g,'');
+  const from=lab(/(?:انتقال دهنده|انتقال‌دهنده|فرستنده|واریزکننده)\s*[:：]?\s*(.*)$/),to=lab(/(?:گیرنده|به نام|دریافت کننده|مقصد)\s*[:：]?\s*([^\d].*)$/);
+  const mine=x=>MY_NAMES.some(n=>nrm(x).includes(nrm(n)));
+  if(/واریز|دریافت شد|به حساب شما|\+\s*\d/.test(t)&&!/برداشت|خرید|انتقال موفق/.test(t))r.dir='in';else if(from&&!mine(from))r.dir='in';else r.dir='out';
+  let who=r.dir==='in'?(from&&!mine(from)?from:''):(to&&!mine(to)?to:'');
+  if(!who){const labels=/زمان|تاریخ|مبلغ|انتقال|روش|سپرده|کارت|شماره|پیگیری|مرجع|ریال|تومان|موفق|بانک|مانده|حساب|ساعت|blu|transfer/i;who=(L.find(x=>/^[؀-ۿ ]{4,40}$/.test(x)&&!labels.test(x)&&!mine(x))||'')}
+  r.who=who.replace(/\s+/g,' ').trim();
+  r.method=['کارت به کارت','پایا','ساتنا','پل','خرید','انتقال'].find(k=>t.includes(k))||'';
+  const dm=t.match(/(\d{1,2})\s*(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)\s*(\d{4})?/)||t.match(/(1[34]\d\d)[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+  r.date=dm?(parseJ(dm[0])||today()):today();r.bank=/blu|بلو/i.test(t)?'بلوبانک':(t.match(/بانک\s*(\S+)/)||['',''])[1]?('بانک '+t.match(/بانک\s*(\S+)/)[1]):'';
+  return r}
+async function receiptSheet(text,img){const r=parseBank(text);window._rcpt=r;window._rcptImg=img||null;
+  const dup=r.ref&&S.ledger.find(l=>!l.void&&(l.ref===r.ref||(l.evidence||'').includes(r.ref)));
+  openSheet(`<h3>${badge('finance','finance')} ثبت از رسید یا پیام بانک</h3>
+  ${img?`<img src="${img}" alt="رسید" style="width:100%;max-height:260px;object-fit:contain;border-radius:12px;background:var(--bg);margin-bottom:8px">`:''}
+  <div class="fld"><label for="f_rtext">متن رسید یا پیامک (اگر خالی است، اینجا بچسبان)</label><textarea id="f_rtext" rows="4" dir="auto">${esc(text||'')}</textarea><button type="button" class="btn" style="margin-top:6px" data-act="rcptParse">دوباره بخوان</button></div>
+  ${dup?`<div class="banner" style="margin:0 0 10px;background:var(--bad-soft);color:var(--bad)">${svg('warn')} این رسید (پیگیری ${fa(r.ref)}) قبلاً ثبت شده است.</div>`:''}
+  ${r.toman?`<div class="list" style="margin-bottom:10px"><div class="row" style="cursor:default">${badge('finance',r.dir==='in'?'finance':'truck')}<div class="main"><div class="ttl">${r.dir==='in'?'دریافت':'پرداخت'} ${money(r.toman,'تومان')}</div><div class="sub">${r.who?`<span>${r.dir==='in'?'از':'به'} ${esc(r.who)}</span>`:''}<span>${jNice(r.date)}</span>${r.method?`<span>${esc(r.method)}</span>`:''}${r.ref?`<span>پیگیری ${fa(r.ref)}</span>`:''}</div></div></div></div>
+   <div class="acts"><button class="btn pri" data-act="rcptUse" data-v="${r.dir==='in'?'received':'paid'}">ثبت ${r.dir==='in'?'دریافت':'پرداخت'}</button><button class="btn" data-act="rcptUse" data-v="${r.dir==='in'?'paid':'received'}">برعکس است (${r.dir==='in'?'پرداخت':'دریافت'})</button><button class="btn ghost" data-act="close">بستن</button></div>
+   <p class="hint" style="font-size:12px;color:var(--muted)">در فرم بعدی شخص، بابت و دسته را کامل کن. اگر بابت تسویهٔ طلب یا بدهی قبلی است، تیک «تسویه» را بزن.</p>`
+  :`<div class="banner" style="margin:0 0 10px">${svg('warn')} مبلغی در متن پیدا نشد.${img?' این رسید فقط به‌صورت عکس آمده؛ مبلغ و طرف را خودت در فرم بنویس.':''}</div><div class="acts"><button class="btn pri" data-act="rcptUse" data-v="paid">ثبت پرداخت</button><button class="btn" data-act="rcptUse" data-v="received">ثبت دریافت</button><button class="btn ghost" data-act="close">بستن</button></div>`}`)}
+function rcptToForm(kind){const r=window._rcpt||{};formLedger({kind,about:[r.method||(kind==='paid'?'پرداخت':'دریافت'),r.who?(kind==='paid'?'به ':'از ')+r.who:''].filter(Boolean).join(' '),instrument:'حواله'});
+  setTimeout(()=>{const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v};if(r.toman)set('f_amt',fa(fromBase(r.toman,'تومان')));set('f_ref',r.ref);set('f_ev',[r.bank,'رسید',r.ref?'پیگیری '+r.ref:''].filter(Boolean).join(' · '));
+    if(r.date){set('f_date',jShort(r.date));dateSync('f_date')}if(r.who){const q=document.getElementById('f_person_q');if(q){q.value=r.who;ppSearch('f_person',r.who)}}},60)}
+async function checkShared(){if(!/[?&]share=1/.test(location.search))return;history.replaceState(null,'',location.pathname);try{const c=await caches.open('miz-share');const tr=await c.match('share-text');const ir=await c.match('share-image');const text=tr?await tr.text():'';let img=null;if(ir){img=URL.createObjectURL(await ir.blob())}await c.delete('share-text');await c.delete('share-image');receiptSheet(text,img)}catch(_){receiptSheet('',null)}}
+addEventListener('load',()=>setTimeout(checkShared,900));
 function vToday(){
   const t=today();
   const due=openTasks().filter(x=>x.due&&x.due<=t).sort((a,b)=>(a.priority||3)-(b.priority||3)||a.due.localeCompare(b.due));
@@ -1090,6 +1124,7 @@ function quickAdd(){openSheet(`<h3>چه چیزی ثبت کنم؟</h3><div class=
   <button data-act="newMove">${svg('truck')}فروش / ارسال</button>
   <button data-act="newLot">${svg('box')}ورود کالا</button>
   <button data-act="newQuote">${svg('tag')}ثبت قیمت</button>
+  <button data-act="receipt">${svg('finance')}رسید یا پیام بانک</button>
   <button data-act="new" data-v="ledger"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>طلب/بدهی</button>
   <button data-act="new" data-v="apiary"><svg viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>عملیات زنبورداری</button></div>
   <button class="btn ghost" data-act="close" style="width:100%;margin-top:10px">بستن</button>`)}
@@ -1688,6 +1723,9 @@ document.addEventListener('click',async e=>{
     case'cloudOff':if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='مطمئنی؟ دوباره بزن';break}await cloudDisconnect();break;
     case'calCopy':{const u=GH.cfg.calUrl;try{await navigator.clipboard.writeText(u);toast('نشانی کپی شد')}catch(_){const el=document.getElementById('f_calurl');el.select();document.execCommand('copy');toast('نشانی کپی شد')}break}
     case'ghPull':ghPull();break;
+    case'receipt':receiptSheet('',null);break;
+    case'rcptParse':receiptSheet(val('f_rtext'),window._rcptImg);break;
+    case'rcptUse':rcptToForm(b.dataset.v);break;
     case'biz':ui.biz=b.dataset.v;render();break;
     case'bulk':bulkSheet();break;
     case'bulkPrev':bulkPreview();break;
@@ -1831,7 +1869,7 @@ document.addEventListener('submit',async e=>{
   if(k==='ledger'&&val('f_lgmode')==='kind'){await saveKindLedger(f);return}
   if(k==='ledger'){const amt=toBase(num(val('f_amt')),val('f_cur'));if(!amt||amt<=0)return toast('مبلغ را درست وارد کن');const date=readDate('f_date',true);if(date===null)return;const due=readDate('f_due');if(due===null)return;
     const d={kind:val('f_kind'),personId:val('f_person'),amount:amt,currency:val('f_cur'),about:val('f_about'),category:val('f_cat'),instrument:val('f_instr'),ref:val('f_ref'),settles:(d0=>d0&&d0.checked&&(val('f_kind')==='received'||val('f_kind')==='paid'))(document.getElementById('f_settles')),date,due,evidence:val('f_ev'),settled:false,void:false};
-    if(!d.personId&&!d.about)return toast('طرف حساب یا «بابت» را بنویس');{const sm=S.ledger.find(x=>!x.void&&x.kind===d.kind&&(x.personId||'')===(d.personId||'')&&Number(x.amount)===d.amount&&near(x.date,date));if(sm&&dupGuard(f,'l'+sm.id,`${esc(LSHORT[sm.kind])} ${money(sm.amount,sm.currency)}${sm.personId?' با '+esc(pname(sm.personId)):''} در ${jNice(sm.date)}`,true))return}
+    if(!d.personId&&!d.about)return toast('طرف حساب یا «بابت» را بنویس');if(d.ref){const sr=S.ledger.find(x=>!x.void&&x.ref===d.ref);if(sr&&dupGuard(f,'r'+sr.id,`همین شمارهٔ پیگیری (${fa(d.ref)}) قبلاً ثبت شده: ${esc(LSHORT[sr.kind])} ${money(sr.amount,sr.currency)}`,true))return}{const sm=S.ledger.find(x=>!x.void&&x.kind===d.kind&&(x.personId||'')===(d.personId||'')&&Number(x.amount)===d.amount&&near(x.date,date));if(sm&&dupGuard(f,'l'+sm.id,`${esc(LSHORT[sm.kind])} ${money(sm.amount,sm.currency)}${sm.personId?' با '+esc(pname(sm.personId)):''} در ${jNice(sm.date)}`,true))return}
     if(await save('ledger',null,d)){closeSheet();toast('ثبت شد')}return}
   if(k==='apiary'){const date=readDate('f_adate',true);if(date===null)return;const type=val('f_atype');const show=APT[type].f;
     const d={type,date,note:val('f_anote'),geo:readLoc()};
