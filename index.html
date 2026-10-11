@@ -138,6 +138,7 @@ a.btn,a.pill{text-decoration:none;color:inherit;display:inline-flex;align-items:
 #pickRoot .pko[aria-selected=true]{background:var(--acc-soft,rgba(180,120,20,.12));font-weight:700}
 #pickRoot .pko .ck{margin-inline-start:auto;color:var(--acc,#b07a12)}
 .fmrow .seg{margin:6px 0 0;flex-wrap:wrap}.fmrow .seg button{flex:1 1 auto;font-size:12.5px;padding:6px 8px}
+.hq{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);color:var(--muted);font-weight:800;font-size:14px;margin-inline-start:6px;vertical-align:middle}
 .ans{border:1px solid var(--line);border-radius:16px;padding:12px;margin:10px 0;background:var(--surface)}.ans .q{font-size:12px;color:var(--muted)}.ans .a{font-size:15px;margin-top:4px;line-height:1.9} .amt-neg{color:var(--bad);font-weight:700}
 .void .ttl,.void .end{text-decoration:line-through;color:var(--muted)}
 /* sheet */
@@ -281,7 +282,7 @@ const INVEST='خرید دارایی و سرمایه‌گذاری (طلا، سک�
 const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت عسل',f:['loc','hives','qty']},census:{n:'سرشماری سالانهٔ کلنی (پاییز)',f:['loc','hives','officer','by','ref']},visit:{n:'بازدید',f:['loc','hives']},treat:{n:'درمان و دارو',f:['loc','hives','what']},feed:{n:'تغذیه',f:['loc','hives','what','qty']},split:{n:'تقسیم و ملکه',f:['loc','hives']},trade:{n:'خرید یا فروش کلنی',f:['loc','hives']},loss:{n:'تلفات یا مشکل',f:['loc','hives','what']},other:{n:'سایر',f:['loc','hives']}};
 
 /* ---------- State & data ---------- */
-const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[]};
+const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],meta:[]};
 const COLS=Object.keys(S);
 const APP_VER='1.6';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
@@ -655,7 +656,7 @@ const dSel=(cls,cur)=>`<select class="${cls}" style="flex:1">${opt('','روز',c
 const mSel=(cls,cur)=>`<select class="${cls}" style="flex:2">${opt('','ماه',cur||'')}${MONTHS.map((m,i)=>opt(i+1,m,cur)).join('')}</select>`;
 const occEdit=(o={})=>`<div class="occr" style="display:flex;gap:6px;margin-bottom:6px"><input class="o_t" style="flex:3" value="${esc(o.t||'')}" placeholder="مثلاً سالگرد ازدواج">${dSel('o_d',o.d)}${mSel('o_m',o.m)}</div>`;
 const cities=()=>[...new Set(S.tasks.map(t=>t.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fa'));
-const hereCity=()=>{try{return localStorage.getItem('miz.here')||''}catch(_){return''}};
+const hereCity=()=>{try{return localStorage.getItem('miz.here')||PROF().city||''}catch(_){return PROF().city||''}};
 
 /* ---------- One-time fix: toman amounts typed as millions before v0.7 ---------- */
 function legacyAmounts(){const out=[];const chk=(col,doc,f,c)=>{const v=Number(doc[f]);if(MIL(c)&&v>0&&v<1000)out.push({col,id:doc.id,f,v})};
@@ -663,8 +664,8 @@ function legacyAmounts(){const out=[];const chk=(col,doc,f,c)=>{const v=Number(d
   S.moves.filter(x=>!x.void).forEach(x=>chk('moves',x,'price',x.currency));S.deals.forEach(x=>chk('deals',x,'value',x.currency));return out}
 async function fixLegacy(){const L=legacyAmounts();for(const x of L)await save(x.col,x.id,{[x.f]:Math.round(x.v*1e6)});toast(fa(L.length)+' مبلغ اصلاح شد ✓');render()}
 
-const ROADMAP={done:[['۰٫۱–۰٫۵','امروز، کارها، فرصت‌ها، افراد، حساب‌ها، تاریخ شمسی، نصب روی گوشی، پشتیبان، انبار و فروش، هدیه و نذری، زنجیرهٔ پیگیری، چک‌این عادت‌ها'],['۰٫۶','حسابداری دوطرفه: سند خودکار، روزنامه، کل، تراز، سود و زیان'],['۰٫۶٫x','جستجوی افراد و ۱۳ هزار مخاطب، شمارهٔ نسخه و به‌روزرسانی با یک لمس، ثبت پیشرفت و سابقهٔ ارتباط'],['۰٫۷','میلیون تومان، کار تکراری و زوج/فرد، کالای امانی و تهاتر، تولدها و تبریک، کارهای هر شهر، تقویم'],['۰٫۸','پرونده‌های درمانی به روش TEB، مراجعین مخاطبین، پژوهش قرآنی، پیام گروهی دسته‌ای، چند کار با هم'],['۰٫۹','بازطراحی: زبانه‌های امروز/کارها/افراد/کسب‌وکار/حساب‌ها، منوی دسته‌بندی‌شده، اصلاح مبالغ قدیمی'],['۰٫۹٫۱–۰٫۹٫۵','تاریخ آسان، کالایی در فرم طلب و بدهی، هشدار تکراری، همهٔ ثبت‌ها، مرور هفتگی، در تماس بمان'],['۰٫۹٫۶–۰٫۹٫۸','پشتیبان خودکار رمزنگاری‌شده در گیت‌هاب، تقویم گوگل با اشتراک نشانی'],['۱٫۰–۱٫۱','رسید بانک، سفرها، سرفصل‌های کامل هزینه، پیگیری و پرداخت در کارها، ارسال قیمت، حذف، تکمیل ناقص‌ها'],['۱٫۲','پرداخت‌های دوره‌ای: خودکار بانک با تأیید، دستی با یادآوری'],['۱٫۳–۱٫۴','پشتیبان روی گوشی، پرداخت روزانه و چندروزه، جهت پول (دریافتی، به جای من)، سند با بدهکار/بستانکار، سود خالص، گاوصندوق رمزدار'],['۱٫۵','جستجوی پیشرفته، «برنامه‌ام به هم خورد»، گفتن با صدا، سرشماری کلنی، نتیجهٔ پایان درمان، اصلاح از دل گزارش‌ها، دسته‌های هم‌جهت، مقصد پول در سود خالص، ارزش بخشش به بهای خرید']],
-  next:['شروع برنامه: پروفایل، تنظیمات و پرسش‌های اولیه','کاتالوگ و راهنمای داخل برنامه (دکمهٔ ؟ در هر بخش)','عبادات: نماز اول وقت و مسجد، روزه‌های مستحب با تقویم قمری، صلهٔ رحم، قرض‌الحسنه','دفتر دستاوردها و بینش‌ها (نقطه‌عطف‌ها)','گزارش هفتگی و ماهانه با نمودار و نیت و خلوص کارها','نامه، قرارداد و فاکتور با سربرگ عسل رضا','چک‌ها و ترازنامه','تسویهٔ ماهانهٔ بازاریاب‌ها و سایت‌های پسر']};
+const ROADMAP={done:[['۰٫۱–۰٫۵','امروز، کارها، فرصت‌ها، افراد، حساب‌ها، تاریخ شمسی، نصب روی گوشی، پشتیبان، انبار و فروش، هدیه و نذری، زنجیرهٔ پیگیری، چک‌این عادت‌ها'],['۰٫۶','حسابداری دوطرفه: سند خودکار، روزنامه، کل، تراز، سود و زیان'],['۰٫۶٫x','جستجوی افراد و ۱۳ هزار مخاطب، شمارهٔ نسخه و به‌روزرسانی با یک لمس، ثبت پیشرفت و سابقهٔ ارتباط'],['۰٫۷','میلیون تومان، کار تکراری و زوج/فرد، کالای امانی و تهاتر، تولدها و تبریک، کارهای هر شهر، تقویم'],['۰٫۸','پرونده‌های درمانی به روش TEB، مراجعین مخاطبین، پژوهش قرآنی، پیام گروهی دسته‌ای، چند کار با هم'],['۰٫۹','بازطراحی: زبانه‌های امروز/کارها/افراد/کسب‌وکار/حساب‌ها، منوی دسته‌بندی‌شده، اصلاح مبالغ قدیمی'],['۰٫۹٫۱–۰٫۹٫۵','تاریخ آسان، کالایی در فرم طلب و بدهی، هشدار تکراری، همهٔ ثبت‌ها، مرور هفتگی، در تماس بمان'],['۰٫۹٫۶–۰٫۹٫۸','پشتیبان خودکار رمزنگاری‌شده در گیت‌هاب، تقویم گوگل با اشتراک نشانی'],['۱٫۰–۱٫۱','رسید بانک، سفرها، سرفصل‌های کامل هزینه، پیگیری و پرداخت در کارها، ارسال قیمت، حذف، تکمیل ناقص‌ها'],['۱٫۲','پرداخت‌های دوره‌ای: خودکار بانک با تأیید، دستی با یادآوری'],['۱٫۳–۱٫۴','پشتیبان روی گوشی، پرداخت روزانه و چندروزه، جهت پول (دریافتی، به جای من)، سند با بدهکار/بستانکار، سود خالص، گاوصندوق رمزدار'],['۱٫۶','فهرست‌های انتخاب راست‌چین با جستجو، حساب مبدأ و مقصد، ویرایش مبلغ با سابقه، پرسش آزاد از داده‌ها، برگشت سفر، نمایه و خوشامد، راهنمای ؟ و فهرست امکانات'],['۱٫۵','جستجوی پیشرفته، «برنامه‌ام به هم خورد»، گفتن با صدا، سرشماری کلنی، نتیجهٔ پایان درمان، اصلاح از دل گزارش‌ها، دسته‌های هم‌جهت، مقصد پول در سود خالص، ارزش بخشش به بهای خرید']],
+  next:['عبادات: نماز اول وقت و مسجد، روزه‌های مستحب با تقویم قمری، صلهٔ رحم، قرض‌الحسنه','دفتر دستاوردها و بینش‌ها (نقطه‌عطف‌ها)','گزارش هفتگی و ماهانه با نمودار و نیت و خلوص کارها','نامه، قرارداد و فاکتور با سربرگ عسل رضا','چک‌ها و ترازنامه','تسویهٔ ماهانهٔ بازاریاب‌ها و سایت‌های پسر']};
 function roadmapSheet(){openSheet(`<h3>${badge('affairs','map')} نقشهٔ راه</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">همراه هر نسخه خودش به‌روز می‌شود. نسخهٔ فعلی: ${fa(APP_VER)}</p>
   ${block('در صف (به ترتیب)',ROADMAP.next.length,`<div class="list">${ROADMAP.next.map((x,i)=>`<div class="row" style="cursor:default"><span class="pill ${i===0?'acc':''}">${fa(i+1)}</span><div class="main"><div class="ttl">${esc(x)}</div></div></div>`).join('')}</div>`)}
   ${block('انجام‌شده',ROADMAP.done.length,`<div class="list">${ROADMAP.done.slice().reverse().map(([v,t])=>`<div class="row" style="cursor:default"><span class="pill ok">${v}</span><div class="main"><div class="sub" style="margin:0"><span>${esc(t)}</span></div></div></div>`).join('')}</div>`)}
@@ -864,7 +865,7 @@ function tripCard(t){const now=Date.now(),arr=tripArr(t),dep=tripTs(t.depDate,t.
    <div class="sub"><span>${esc(t.veh||'')}${t.carrier?' '+esc(t.carrier):''}</span>${before?`<span>حرکت ${jNice(t.depDate)} ${fa(t.depTime||'')}</span>`:onWay?`<span class="pill acc">رسیدن حدود ${hm(arr)}</span>`:`<span>رسیدی ${jNice(isoOf(new Date(arr)))}</span>`}${t.ret&&t.ret.date?`<span>برگشت ${jNice(t.ret.date)}${t.ret.time?' '+fa(t.ret.time):''}</span>`:''}${cost?`<span>هزینه ${money(cost,'تومان')}</span>`:''}${ct?`<span>${fa(ct)} کار در ${esc(t.to)}</span>`:''}</div></button>
    <div class="acts" style="width:100%;margin-top:6px"><button class="btn" data-act="tripCost" data-id="${t.id}">+ هزینهٔ سفر</button>${ct?`<button class="btn" data-act="hereOn" data-v="${esc(t.to)}">کارهای ${esc(t.to)}</button>`:''}<button class="btn ghost" data-act="tripEnd" data-id="${t.id}">سفر تمام شد</button></div></div>`}
 function formTrip(t={}){const last=S.trips.filter(x=>!x.void).sort((a,b)=>(b.depDate||'').localeCompare(a.depDate||''))[0];const n=new Date();
-  openSheet(`<h3>${badge('export','truck')} ${t.id?'ویرایش سفر':'سفر تازه'}</h3><form data-form="trip" data-id="${t.id||''}">
+  openSheet(`<h3>${badge('export','truck')} ${t.id?'ویرایش سفر':'سفر تازه'}${helpBtn('trip')}</h3><form data-form="trip" data-id="${t.id||''}">
   <div class="row2"><div class="fld"><label for="f_tfrom">از</label><input id="f_tfrom" value="${esc(t.from||hereCity()||(last&&last.to)||'')}" list="cityList2"></div><div class="fld"><label for="f_tto">به</label><input id="f_tto" value="${esc(t.to||'')}" list="cityList2" placeholder="مثلاً تهران"></div></div>
   <datalist id="cityList2">${[...new Set([...cities(),...S.trips.flatMap(x=>[x.from,x.to])].filter(Boolean))].map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
   <div class="row2"><div class="fld"><label for="f_tveh">با</label><select id="f_tveh">${VEH.map(v=>opt(v,v,t.veh||'قطار')).join('')}</select></div><div class="fld"><label for="f_tcar">شرکت / نام (اختیاری)</label><input id="f_tcar" value="${esc(t.carrier||'')}" placeholder="مثلاً پردیس"></div></div>
@@ -920,7 +921,7 @@ function recurSheet(){const L=S.recurs.slice().sort((a,b)=>(a.title||'').localeC
   ${L.length?`<div class="kpis"><div class="kpi"><div class="l">جمع ماهانهٔ تقریبی</div><div class="v amt-neg">${money(mon,'تومان')}</div></div><div class="kpi"><div class="l">تعداد</div><div class="v">${fa(L.length)}</div></div></div>`:''}
   <div class="list" style="margin-top:10px">${L.length?L.map(recurRow).join(''):'<div class="empty">هنوز چیزی ثبت نشده. هر وقت فرصت کردی، یکی‌یکی اضافه کن.</div>'}</div>
   <div class="acts" style="margin-top:12px"><button class="btn pri" data-act="newRecur">+ پرداخت دوره‌ای</button><button class="btn ghost" data-act="close">بستن</button></div>`)}
-function formRecur(r={}){openSheet(`<h3>${r.id?'ویرایش':'افزودن'} پرداخت دوره‌ای</h3><form data-form="recur" data-id="${r.id||''}">
+function formRecur(r={}){openSheet(`<h3>${r.id?'ویرایش':'افزودن'} پرداخت دوره‌ای${helpBtn('recur')}</h3><form data-form="recur" data-id="${r.id||''}">
   <div class="fld"><label for="f_rt">عنوان</label><input id="f_rt" value="${esc(r.title||'')}" placeholder="مثلاً کمک ماهانه به خیریه، قبض برق، شهریهٔ جودو" data-autofocus></div>
   <div class="fld"><label for="f_ram">مبلغ (میلیون تومان؛ اگر نمی‌دانی خالی بگذار)</label><input id="f_ram" inputmode="decimal" value="${r.amount?fa(fromBase(r.amount,'تومان')):''}"></div>
   <div class="fld"><label for="f_rper">کی تکرار می‌شود؟</label><select id="f_rper">${Object.entries(RPER).map(([k,v])=>opt(k,v,r.per||'monthly')).join('')}</select></div>
@@ -936,7 +937,7 @@ function formRecur(r={}){openSheet(`<h3>${r.id?'ویرایش':'افزودن'} پ
 
 /* ---------- Net profit or income without recording the purchase and sale ---------- */
 const NET_AREAS=[['sales','فروش عسل و محصولات زنبور','سود خالص معامله (واسطه‌گری و حق‌العمل)'],['export','صادرات و بازرگانی','سود خالص معامله (واسطه‌گری و حق‌العمل)'],['marketers','پورسانت بازاریاب‌ها و سایت‌ها','پورسانت دریافتی'],['therapy','درمان و مشاوره','درمان و مشاوره'],['research','آموزش و کلاس','آموزش'],['affairs','اجاره و بهره‌برداری','اجاره و بهره‌برداری دریافتی'],['other','سایر','سایر درآمد']];
-function formNet(){openSheet(`<h3>${badge('finance','finance')} ثبت سود یا درآمد خالص</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">وقتی جزئیات خرید و فروش را ثبت نمی‌کنی و فقط نتیجه را می‌دانی، مثلاً «۸۰ میلیون سود از فروش ۲ تن عسل».</p><form data-form="net">
+function formNet(){openSheet(`<h3>${badge('finance','finance')} ثبت سود یا درآمد خالص${helpBtn('net')}</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">وقتی جزئیات خرید و فروش را ثبت نمی‌کنی و فقط نتیجه را می‌دانی، مثلاً «۸۰ میلیون سود از فروش ۲ تن عسل».</p><form data-form="net">
   <div class="fld"><label for="f_nam">مبلغ (میلیون تومان)</label><input id="f_nam" inputmode="decimal" data-autofocus></div>
   <div class="fld"><label for="f_nar">از کدام حوزه؟</label><select id="f_nar">${NET_AREAS.map(([k,l])=>opt(k,l,'sales')).join('')}</select></div>
   <div class="fld"><label for="f_nab">شرح (اختیاری)</label><input id="f_nab" placeholder="مثلاً سود فروش ۲ تن عسل کنار به فلانی"></div>
@@ -973,12 +974,47 @@ function pickOpen(sel){if(!sel)return;const lab=(document.querySelector(`label[f
   const cur=r.querySelector('.pko[aria-selected=true]');if(cur)cur.scrollIntoView({block:'center'})}
 addEventListener('popstate',()=>{const r=document.getElementById('pickRoot');if(r&&!r.hidden){r.hidden=true;r.innerHTML=''}});
 
+
+/* ---------- Profile, first-run welcome, help and catalog ---------- */
+const PROF=()=>({name:'رضا ابراهیمی',call:'',biz:'عسل رضا',phone:'',city:'',accounts:[],areas:Object.keys(AREAS),...(S.meta.find(x=>x.id==='profile')||{})});
+const hasProfile=()=>S.meta.some(x=>x.id==='profile');
+function profileSheet(first){const P=PROF();openSheet(`<h3>${badge('personal','user')} ${first?'خوش آمدی به میز کار':'نمایه و تنظیمات'}${helpBtn('profile')}</h3>${first?`<p style="font-size:14px;margin-top:0">میز کار دستیار شخصی توست: کارها، افراد، پول، انبار، درمان، پژوهش و سفرها در یک جا، روی گوشی خودت. چند سؤال کوتاه بپرسم تا برنامه به کارت بیاید؛ همه‌اش بعداً از «بیشتر ← نمایه و تنظیمات» قابل تغییر است.</p>`:''}
+  <form data-form="profile">
+  <div class="row2"><div class="fld"><label for="f_pn">نام و نام خانوادگی</label><input id="f_pn" value="${esc(P.name)}"></div><div class="fld"><label for="f_pc">دوست داری چطور صدایت کنم؟ (اختیاری)</label><input id="f_pc" value="${esc(P.call)}" placeholder="مثلاً حاج رضا"></div></div>
+  <div class="row2"><div class="fld"><label for="f_pb">نام کسب‌وکار (برای سربرگ و پیام‌ها)</label><input id="f_pb" value="${esc(P.biz)}"></div><div class="fld"><label for="f_pp">تلفن کاری (اختیاری)</label><input id="f_pp" value="${esc(P.phone)}" inputmode="tel" dir="ltr"></div></div>
+  <div class="fld"><label for="f_pcity">شهر محل زندگی</label><input id="f_pcity" value="${esc(P.city)}" list="cityList3" placeholder="مثلاً تهران"><datalist id="cityList3">${cities().map(c=>`<option value="${esc(c)}">`).join('')}</datalist><div class="hint" style="font-size:12px;color:var(--muted)">وقتی در سفر نیستی، «امروز» کارهای این شهر را جلوتر نشان می‌دهد.</div></div>
+  <div class="fld"><label for="f_pacc">حساب‌ها و کیف پول‌هایم (با «،» جدا کن)</label><input id="f_pacc" value="${esc((P.accounts||[]).join('، '))}" placeholder="مثلاً نقد، بلوبانک، سامان"><div class="hint" style="font-size:12px;color:var(--muted)">فقط نام حساب؛ <b>شمارهٔ کارت یا حساب را ننویس</b>. در هر دریافت و پرداخت همین‌ها برای انتخاب می‌آیند.</div></div>
+  <div class="fld"><label>حوزه‌هایی که با آن‌ها کار داری</label><div class="chips wrap">${Object.entries(AREAS).map(([k,v])=>`<button type="button" class="chip" data-act="pArea" data-v="${k}" aria-pressed="${(P.areas||[]).includes(k)}">${esc(v)}</button>`).join('')}</div><div class="hint" style="font-size:12px;color:var(--muted)">حوزه‌های خاموش در انتخاب حوزه پایین‌تر می‌روند؛ چیزی پاک نمی‌شود.</div></div>
+  <div class="acts"><button class="btn pri">${first?'شروع کن':'ذخیره'}</button><button type="button" class="btn ghost" data-act="${first?'onbLater':'close'}">${first?'بعداً':'انصراف'}</button></div></form>`)}
+setTimeout(()=>{try{if(mode&&!hasProfile()&&!localStorage.getItem('miz.onb')&&document.getElementById('sheetRoot').hidden)profileSheet(true)}catch(_){}},2600);
+const HELP={
+ today:['امروز','خلاصهٔ روز: کارهای امروز و عقب‌افتاده، سررسید طلب و بدهی، پرداخت‌های دوره‌ای که تأیید می‌خواهند، تولدها، سفر جاری و یادآوری‌ها. «یادداشت سریع» هر فکری را فوری می‌گیرد؛ اگر سؤال بنویسی (مثلاً «به فرید چقدر بدهکارم؟») جواب می‌دهد.'],
+ ledger:['طلب، بدهی، دریافت و پرداخت','«طلب» و «بدهی» یعنی هنوز پولی جابه‌جا نشده؛ «دریافت» و «پرداخت» یعنی پول جابه‌جا شد. اگر دریافت یا پرداخت بابت تسویهٔ طلب یا بدهی قبلی است تیک «تسویه» را بزن تا مانده کم شود. دسته‌ها فقط هم‌جهت نشان داده می‌شوند و از روی همین دسته سود و زیان ساخته می‌شود. همه‌چیز، حتی مبلغ، بعداً قابل اصلاح است و سابقه‌اش می‌ماند. حالت «کالایی» برای امانت و قرض کالا (مثلاً عسل) است.'],
+ recur:['پرداخت و دریافت دوره‌ای','برای پول‌هایی که تکرار می‌شوند: قسط، شهریه، خرجی منزل، دریافتی از پدر، حق بیمه‌ای که کسی به جای تو می‌دهد. روزهای ماه یا هفته یا هر روز را انتخاب کن. «خودکار» یعنی خودش در روزش ثبت می‌شود و تو فقط در «امروز» تأیید می‌کنی؛ «دستی» یعنی یادآوری می‌گیری.'],
+ net:['سود یا درآمد خالص','وقتی جزئیات خرید و فروش را ثبت نمی‌کنی و فقط نتیجه را می‌دانی. بگو پول کجا رفت: به حساب خودت، طلب ماند، مستقیم به طلبکارت، صرف خرید طلا و ارز (دارایی) یا به حساب شخص دیگر. هزینه‌های همین درآمد را همان‌جا یا بعداً از ردیف درآمد اضافه کن.'],
+ accounting:['دفاتر حسابداری','از هر ثبت تو خودکار سند دوطرفه ساخته می‌شود. روزنامه: همهٔ سندها به ترتیب. دفتر کل: ماندهٔ هر حساب. تراز آزمایشی: جمع بدهکار و بستانکار. سود و زیان: درآمد منهای هزینهٔ کسب‌وکار (برداشت شخصی جزوش نیست). روی هر ردیف بزن تا به ثبت اصلی برسی و اصلاحش کنی.'],
+ reports:['گزارش‌ها','درآمد و هزینه به تفکیک سال و دسته، کوچ و برداشت، سرشماری کلنی، فروش به هر مشتری، بخشش‌ها به بهای خرید، تاریخچهٔ قیمت و عادت‌ها. روی هر ردیف بزن تا ثبت‌های پشتش را ببینی و اصلاح کنی.'],
+ fm:['برنامه‌ام به هم خورد','وقتی ناگهان کاری پیش می‌آید: بازه را بگو، برای هر کار و قرار جدا تصمیم بگیر (عقب، بعد از برگشت، تاریخ دیگر، لغو، دست نزن) و برای هر نفر پیامک آماده بگیر.'],
+ vault:['گاوصندوق','رمزها، کدها، مشخصات، مختصات و تاریخ‌های انقضا با رمز خودت روی گوشی رمزنگاری می‌شود. بعد از ۵ دقیقه یا خروج قفل می‌شود. اگر رمز را فراموش کنی هیچ‌کس نمی‌تواند بازش کند. شمارهٔ کامل کارت را اینجا هم نگذار.'],
+ search:['جستجو و پرسش','کلمه بنویس تا در همه‌چیز بگردد، یا بپرس: «به فیض‌الله چقدر بدهکارم؟»، «خرج این ماه؟»، «درآمد امسال؟»، «آخرین قیمت عسل؟»، «موجودی انبار؟». دکمهٔ قیف جستجوی پیشرفته است: نوع، وضعیت، تاریخ، مبلغ، حوزه و شهر.'],
+ trip:['سفر','فقط مقصد لازم است؛ بقیه اختیاری. رفت و برگشت را جدا می‌گیرد. وقتی برسی، «امروز» کارهای شهر مقصد را نشان می‌دهد. هزینه‌های سفر را از «+ هزینهٔ سفر» بزن. آخر سفر می‌پرسد چه درسی گرفتی.'],
+ apiary:['دفتر زنبورداری','کوچ، برداشت، بازدید، درمان، تغذیه، تقسیم، تلفات و سرشماری سالانهٔ کلنی را همان روز ثبت کن تا سال‌های بعد میانگین تاریخ کوچ و روند برداشت معلوم شود. سرشماری هر پاییز در «امروز» یادآوری می‌شود.'],
+ stock:['انبار، فروش و قیمت','هر محموله با منبع و بهای خرید وارد می‌شود؛ فروش، هدیه، نذری، امانی و ضایعات از همان کم می‌شود. قیمت‌هایی که می‌گیری یا می‌دهی جدا ثبت می‌شوند تا تاریخچهٔ قیمت داشته باشی. اگر بهای یک محموله غیرعادی باشد هشدار می‌دهد.'],
+ profile:['نمایه و تنظیمات','نام، نام کسب‌وکار، شهر و حساب‌هایت. حساب‌ها در هر دریافت و پرداخت برای انتخاب می‌آیند و شهر برای نشان دادن کارهای محلی به‌کار می‌رود.'],
+ cases:['پرونده‌های درمانی','پرونده با کد (بدون نام در کارها و خروجی پژوهش)، ویزیت‌ها با شاخص‌ها، مداخله‌ها و پاسخ، نتیجهٔ نهایی در «پایان درمان» و پیگیری‌های ۱ تا ۱۲ ماهه.'],
+ backup:['پشتیبان','داده‌ها روی همین گوشی است. پشتیبان را روی گوشی ذخیره کن و اگر وصل کرده‌ای، نسخهٔ رمزنگاری‌شده در گیت‌هاب خصوصی خودت هم نگه داشته می‌شود.']};
+const helpBtn=k=>`<button type="button" class="hq" data-act="help" data-v="${k}" aria-label="راهنما">؟</button>`;
+function helpPop(k){const h=HELP[k];if(!h)return;let r=document.getElementById('pickRoot');if(!r){r=document.createElement('div');r.id='pickRoot';document.body.appendChild(r)}
+  r.innerHTML=`<div class="pk"><div class="grab"></div><div style="font-weight:800;font-size:16px">${esc(h[0])}</div><p style="font-size:14px;line-height:1.9">${esc(h[1])}</p><div class="acts"><button type="button" class="btn" data-hx="1">فهمیدم</button><button type="button" class="btn ghost" data-hall="1">همهٔ راهنماها</button></div></div>`;r.hidden=false;
+  r.onclick=e=>{if(e.target===r||e.target.dataset.hx){r.hidden=true;r.innerHTML=''}if(e.target.dataset.hall){r.hidden=true;r.innerHTML='';helpSheet()}}}
+const CATALOG=[['کار و زمان',[['today','امروز','tab','today'],['search','جستجو و پرسش','search'],['fm','برنامه‌ام به هم خورد','fmajeure'],['trip','سفر','newTrip']]],['پول',[['ledger','طلب، بدهی، دریافت و پرداخت','new','ledger'],['recur','پرداخت و دریافت دوره‌ای','recurs'],['net','سود یا درآمد خالص','netForm'],['accounting','دفاتر حسابداری','accOpen'],['reports','گزارش‌ها','reports']]],['کسب‌وکار',[['stock','انبار، فروش و قیمت','tab','biz'],['apiary','دفتر زنبورداری','apiary']]],['درمان و زندگی',[['cases','پرونده‌های درمانی','clinic'],['vault','گاوصندوق','vault'],['backup','پشتیبان','backupSheet'],['profile','نمایه و تنظیمات','profile']]]];
+function helpSheet(){openSheet(`<h3>${badge('affairs','book')} راهنما و فهرست امکانات</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">هر بخش یک خط توضیح دارد؛ «باز کن» مستقیم می‌بردت آنجا. در خود فرم‌ها هم دکمهٔ ؟ کنار عنوان هست.</p>${CATALOG.map(([g,arr])=>`<div class="grp">${g}</div><div class="list">${arr.map(([k,t,act,v])=>`<div class="row" style="flex-wrap:wrap;cursor:default"><div class="main"><div class="ttl">${esc(t)}</div><div class="sub" style="display:block;font-size:13px;line-height:1.8">${esc(HELP[k][1])}</div></div><div class="acts" style="width:100%;margin-top:6px"><button class="btn" data-act="${act}" ${v?`data-v="${v}"`:''}>باز کن</button></div></div>`).join('')}</div>`).join('')}<div class="acts" style="margin-top:12px"><button class="btn ghost" data-act="close">بستن</button></div>`)}
 /* ---------- Own accounts: where money left from or arrived to ---------- */
-function myAccts(){const c={};S.ledger.filter(l=>!l.void&&l.acct).forEach(l=>c[l.acct]=(c[l.acct]||0)+1);S.recurs.filter(r=>r.bank).forEach(r=>c[r.bank]=(c[r.bank]||0)+1);c['نقد']=c['نقد']||0;return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(x=>x[0]).slice(0,8)}
+function myAccts(){const c={};(PROF().accounts||[]).forEach(a=>c[a]=100);S.ledger.filter(l=>!l.void&&l.acct).forEach(l=>c[l.acct]=(c[l.acct]||0)+1);S.recurs.filter(r=>r.bank).forEach(r=>c[r.bank]=(c[r.bank]||0)+1);c['نقد']=c['نقد']||0;return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(x=>x[0]).slice(0,8)}
 const acctLabel=dir=>dir==='in'?'به کدام حساب یا کیف پول آمد؟':'از کدام حساب یا کیف پول دادی؟';
 function acctField(id,cur,dir){return `<div class="fld"><label for="${id}" id="${id}_l">${acctLabel(dir)}</label><input id="${id}" value="${esc(cur||'')}" placeholder="مثلاً بلوبانک، سامان، نقد"><div class="chips wrap" style="margin-top:6px">${myAccts().map(a=>`<button type="button" class="chip" data-act="setAcct" data-f="${id}" data-v="${esc(a)}" aria-pressed="${a===cur}">${esc(a)}</button>`).join('')}</div></div>`}
 /* ---------- Force majeure: postpone or cancel everything in a date range and tell the people involved ---------- */
-function fmSheet(){openSheet(`<h3>${badge('affairs','storm')} برنامه‌ام به هم خورد</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">کاری ناگهانی پیش آمده؟ بازه را بگو؛ کارها، قرارها، ویزیت‌ها و پیگیری‌های آن روزها را یک‌جا عقب می‌اندازم یا لغو می‌کنم و برای خبر دادن به افراد پیام آماده می‌کنم.</p><form data-form="fm">
+function fmSheet(){openSheet(`<h3>${badge('affairs','storm')} برنامه‌ام به هم خورد${helpBtn('fm')}</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">کاری ناگهانی پیش آمده؟ بازه را بگو؛ کارها، قرارها، ویزیت‌ها و پیگیری‌های آن روزها را یک‌جا عقب می‌اندازم یا لغو می‌کنم و برای خبر دادن به افراد پیام آماده می‌کنم.</p><form data-form="fm">
   <div class="fld"><label for="f_fmr">چه پیش آمد؟ (اختیاری)</label><input id="f_fmr" placeholder="مثلاً سفر ناگهانی به شمال"></div>
   ${dateField('f_fmfrom','از تاریخ',today())}
   <div class="fld"><label for="f_fmn">چند روز؟</label><input id="f_fmn" inputmode="numeric" value="${fa(3)}"></div>
@@ -1047,7 +1083,7 @@ function vaultSheet(){const d=vDoc();if(!VAULT){openSheet(`<div id="vaultBox"><h
   <form data-form="vunlock"><div class="fld"><input id="f_vpin" type="password" inputmode="text" autocomplete="off" placeholder="رمز گاوصندوق" data-autofocus></div>${d?'':'<div class="fld"><input id="f_vpin2" type="password" autocomplete="off" placeholder="تکرار رمز"></div>'}
   <div class="acts"><button class="btn pri">${d?'باز کن':'بساز'}</button><button type="button" class="btn ghost" data-act="close">بستن</button></div></form></div>`);return}
   vTouch();const q=(ui.vq||'').trim(),qn=nrm(q);const L=VAULT.items.filter(x=>!q||nrm([x.title,VT[x.type],...(x.f||[]).map(f=>f.k+' '+(x.type==='pass'&&/رمز|pass/i.test(f.k)?'':f.v)),x.note].join(' ')).includes(qn)).sort((a,b)=>(a.exp||'9').localeCompare(b.exp||'9')||(a.title||'').localeCompare(b.title||'','fa'));
-  openSheet(`<div id="vaultBox"><h3>${badge('personal','key')} گاوصندوق <span class="pill ok">باز</span></h3>
+  openSheet(`<div id="vaultBox"><h3>${badge('personal','key')} گاوصندوق <span class="pill ok">باز</span>${helpBtn('vault')}</h3>
   <input class="search-in" id="vq" placeholder="جستجو در گاوصندوق…" value="${esc(q)}">
   <div class="list">${L.length?L.map(x=>{const left=x.exp?diffDays(x.exp,today()):null;return `<button class="row" data-act="vOpen" data-id="${x.id}">${badge('personal',x.type==='pass'?'key':x.type==='geo'?'pin':x.type==='expiry'||x.type==='mile'?'cal':'note')}<div class="main"><div class="ttl">${esc(x.title)}</div><div class="sub"><span class="pill">${VT[x.type]||''}</span>${x.exp?`<span class="pill ${left<0?'bad':left<=30?'warn':''}">${left<0?'منقضی شد':'انقضا '+jNice(x.exp)}</span>`:''}</div></div></button>`}).join(''):'<div class="empty">چیزی نیست.</div>'}</div>
   <div class="acts" style="margin-top:12px"><button class="btn pri" data-act="vNew">+ مورد تازه</button><button class="btn" data-act="vLockNow">قفل کن</button><button class="btn ghost" data-act="close">بستن</button></div>
@@ -1198,7 +1234,7 @@ function render(){
 }
 
 /* ---------- Sheets & forms ---------- */
-function openSheet(html){const r=document.getElementById('sheetRoot');r.innerHTML=`<div class="sheet-wrap" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div></div>`;r.hidden=false;const f=r.querySelector('input,select,textarea');if(f&&f.dataset.autofocus!=null)f.focus()}
+function openSheet(html){{const pr=document.getElementById('pickRoot');if(pr&&!pr.hidden){pr.hidden=true;pr.innerHTML=''}}const r=document.getElementById('sheetRoot');r.innerHTML=`<div class="sheet-wrap" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div></div>`;r.hidden=false;const f=r.querySelector('input,select,textarea');if(f&&f.dataset.autofocus!=null)f.focus()}
 function closeSheet(){ciOpen=false;const r=document.getElementById('sheetRoot');r.hidden=true;r.innerHTML=''}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2200)}
 const opt=(v,l,cur)=>`<option value="${esc(v)}" ${String(cur??'')===String(v)?'selected':''}>${esc(l)}</option>`;
@@ -1226,7 +1262,7 @@ async function ppResolve(f){const freeNames=f.dataset.form==='ledger'&&(document
       try{await putRaw('people',doc)}catch(e){toast('ساختن شخص ممکن نشد');return false}h.value=doc.id;delete PP[fid]}
     if(h.value==='new')h.value=''}
   return true}
-const areaSelect=(id,cur)=>`<div class="fld"><label for="${id}">حوزه</label><select id="${id}">${opt('','— —',cur)}${Object.entries(AREAS).map(([k,v])=>opt(k,v,cur)).join('')}</select></div>`;
+const areaSelect=(id,cur)=>{const on=PROF().areas||[];const A=Object.entries(AREAS),a1=A.filter(([k])=>on.includes(k)),a2=A.filter(([k])=>!on.includes(k));return `<div class="fld"><label for="${id}">حوزه</label><select id="${id}">${opt('','— —',cur)}${a1.map(([k,v])=>opt(k,v,cur)).join('')}${a2.length?`<optgroup label="حوزه‌های کم‌کاربرد">${a2.map(([k,v])=>opt(k,v,cur)).join('')}</optgroup>`:''}</select></div>`};
 function dateHint(iso){if(!iso)return'بدون تاریخ';const n=jNice(iso),l=jLong(iso);return ['امروز','فردا','دیروز'].includes(n)?n+' — '+l:l}
 const PASTF=['f_mdate','f_date','f_ldate','f_adate','f_vdt','f_qdate','f_vdate'];
 function dateField(id,label,cur,hint){const past=PASTF.includes(id);const ch=past?[['امروز',0],['دیروز',-1],['پریروز',-2],['هفتهٔ پیش',-7]]:[['امروز',0],['فردا',1],['پس‌فردا',2],['هفتهٔ بعد',7],['ماه بعد',30]];
@@ -1295,7 +1331,7 @@ function formPerson(p={}){openSheet(`<h3>${p.id?'ویرایش شخص':'شخص ی
   <div class="fld"><label for="f_every">هر چند وقت خبر بگیرم؟</label><select id="f_every">${EVERY.map(([v,l])=>opt(v,l,Number(p.every)||0)).join('')}</select><div class="hint" style="font-size:12px;color:var(--muted)">اگر از موعد بگذرد، در «امروز» و مرور هفتگی یادآوری می‌شود. هر تماس، پیامک، فروش یا ویزیت ثبت‌شده، ارتباط حساب می‌شود.</div></div>
   <div class="fld"><label for="f_note">یادداشت (واقعیت را از برداشت جدا بنویس)</label><textarea id="f_note">${esc(p.note)}</textarea></div>
   <div class="acts"><button class="btn pri">ذخیره</button>${p.id?`<button type="button" class="btn ghost danger" data-act="archivePerson" data-id="${p.id}">از فهرست افراد بردار</button>`:''}<button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`)}
-function formLedger(l={},pre={}){l={...pre,...l};const kind=l.kind||'receivable';openSheet(`<h3>ثبت طلب، بدهی، دریافت یا پرداخت</h3><form data-form="ledger">
+function formLedger(l={},pre={}){l={...pre,...l};const kind=l.kind||'receivable';openSheet(`<h3>ثبت طلب، بدهی، دریافت یا پرداخت${helpBtn('ledger')}</h3><form data-form="ledger">
   <div class="seg" style="margin:0 0 12px"><button type="button" data-act="lgMode" data-v="money" aria-pressed="true">${svg('finance')} پولی</button><button type="button" data-act="lgMode" data-v="kind" aria-pressed="false">${svg('box')} کالایی (امانی)</button></div><input type="hidden" id="f_lgmode" value="money">
   <div class="fld"><label for="f_kind">نوع</label><select id="f_kind">${Object.entries(LK).map(([k,v])=>opt(k,v.n,kind)).join('')}</select></div>
   ${personSelect('f_person',l.personId,'طرف حساب (اختیاری؛ می‌توانی فقط نام بنویسی یا خالی بگذاری)')}
@@ -1384,7 +1420,7 @@ function quickAdd(){openSheet(`<h3>چه چیزی ثبت کنم؟</h3><div class=
   <button data-act="new" data-v="apiary"><svg viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>عملیات زنبورداری</button></div>
   <button class="btn ghost" data-act="close" style="width:100%;margin-top:10px">بستن</button>`)}
 const GSK={all:'همه',people:'افراد',tasks:'کارها',deals:'فرصت‌ها',ledger:'حساب‌ها',stock:'انبار، فروش و قیمت',apiary:'زنبورداری',notes:'یادداشت',quran:'قرآن',cases:'پرونده‌های درمانی',contacts:'دفترچهٔ گوشی'};
-function searchSheet(){const g=ui.gs||{};openSheet(`<h3>جستجو در همه‌چیز</h3><div style="display:flex;gap:6px"><input class="search-in" id="gq" data-autofocus placeholder="جستجو یا بپرس: به فرید چقدر بدهکارم؟" style="flex:1">${micBtn('gq')}<button class="btn ${g.on?'pri':''}" data-act="gsToggle" aria-label="جستجوی پیشرفته" title="جستجوی پیشرفته">${svg('filter')}</button></div>
+function searchSheet(){const g=ui.gs||{};openSheet(`<h3>جستجو و پرسش${helpBtn('search')}</h3><div style="display:flex;gap:6px"><input class="search-in" id="gq" data-autofocus placeholder="جستجو یا بپرس: به فرید چقدر بدهکارم؟" style="flex:1">${micBtn('gq')}<button class="btn ${g.on?'pri':''}" data-act="gsToggle" aria-label="جستجوی پیشرفته" title="جستجوی پیشرفته">${svg('filter')}</button></div>
   <div id="gsAdv" ${g.on?'':'hidden'} style="border:1px solid var(--line);border-radius:14px;padding:10px;margin-top:8px">
    <div class="row2"><div class="fld"><label for="gs_t">کجا</label><select id="gs_t">${Object.entries(GSK).map(([k,v])=>opt(k,v,g.t||'all')).join('')}</select></div><div class="fld"><label for="gs_st">وضعیت</label><select id="gs_st">${opt('','همه',g.st||'')}${opt('open','باز / انجام‌نشده',g.st||'')}${opt('done','انجام‌شده / بسته',g.st||'')}${opt('void','حذف یا باطل‌شده',g.st||'')}</select></div></div>
    <div class="row2"><div class="fld"><label for="gs_from">از تاریخ</label><input id="gs_from" data-date inputmode="numeric" placeholder="مثلاً ۱۴۰۵/۰۱/۰۱" value="${g.from?jShort(g.from):''}"></div><div class="fld"><label for="gs_to">تا تاریخ</label><input id="gs_to" data-date inputmode="numeric" placeholder="امروز" value="${g.to?jShort(g.to):''}"></div></div>
@@ -1444,7 +1480,7 @@ function menuSheet(){const T=(act,area,ic,b,sm,extra='')=>`<button class="tile" 
   <div class="grp">درمان و پژوهش</div><div class="tiles">${T('clinic','therapy','therapy','پرونده‌های درمانی',nc?fa(nc)+' پرونده در جریان':'ویزیت و نتیجهٔ درمان')}${T('clients','therapy','user','مراجعین مخاطبین','بیماری، شهر، معرف')}${T('quran','research','book','پژوهش قرآنی',nq?fa(nq)+' موضوع':'موضوع و کلیدواژه')}</div>
   <div class="grp">کسب‌وکار و مالی</div><div class="tiles">${T('apiary','sales','hive','دفتر زنبورداری','کوچ، برداشت، تیمار')}${T('accOpen','finance','book','دفاتر حسابداری','روزنامه، کل، تراز، سود')}${T('recurs','finance','bell','پرداخت‌های دوره‌ای','خودکار بانک و دستی')}${T('reports','finance','note','گزارش‌ها','فروش، قیمت، خریداران')}</div>
   <div class="grp">زندگی و ارتباط</div><div class="tiles">${T('fmajeure','affairs','storm','برنامه‌ام به هم خورد','عقب انداختن یا لغو جمعی و خبر دادن')}${T('vault','personal','key','گاوصندوق','رمزها، کدها، مشخصات، انقضاها')}${T('review','affairs','check','مرور هفتگی',lastReview()?'آخرین: '+jNice(lastReview()):'هنوز انجام نشده')}${T('habits','personal','dumbbell','عادت‌ها و چک‌این','')}${T('occSheet','personal','gift','تولدها و مناسبت‌ها',oc?fa(oc)+' مورد این هفته':'')}${T('notesList','affairs','note','یادداشت‌ها و قوانین','')}</div>
-  <div class="grp">برنامه</div><div class="tiles">${T('logSheet','affairs','note','همهٔ ثبت‌ها','پیدا کردن، اصلاح، حذف')}${mode==='cloud'?T('ask','research','research','سؤال آزاد از دستیار',''):''}${T('backupSheet','affairs','box','پشتیبان و بازیابی',lastBackup()?'آخرین: '+jNice(lastBackup()):'هنوز گرفته نشده')}${T('roadmap','affairs','map','نقشهٔ راه','کارهای بعدی برنامه')}${T('checkUpd','affairs','bell','نسخهٔ '+fa(APP_VER),'بررسی به‌روزرسانی')}</div>
+  <div class="grp">برنامه</div><div class="tiles">${T('profile','personal','user','نمایه و تنظیمات',hasProfile()?esc(PROF().name):'هنوز کامل نشده')}${T('helpAll','affairs','book','راهنما و فهرست امکانات','هر بخش چه می‌کند')}${T('logSheet','affairs','note','همهٔ ثبت‌ها','پیدا کردن، اصلاح، حذف')}${mode==='cloud'?T('ask','research','research','سؤال آزاد از دستیار',''):''}${T('backupSheet','affairs','box','پشتیبان و بازیابی',lastBackup()?'آخرین: '+jNice(lastBackup()):'هنوز گرفته نشده')}${T('roadmap','affairs','map','نقشهٔ راه','کارهای بعدی برنامه')}${T('checkUpd','affairs','bell','نسخهٔ '+fa(APP_VER),'بررسی به‌روزرسانی')}</div>
   <p class="hint" style="font-size:12px;color:var(--muted);margin-top:12px">میز کار · نسخهٔ ${fa(APP_VER)} · محل ذخیره: ${mode==='cloud'?'فضای خصوصی Claude (فقط مالک)':'حافظهٔ همین گوشی'}</p>`)}
 
 /* ---------- Apiary log, reports, ask ---------- */
@@ -1465,7 +1501,7 @@ function formApiary(a={}){const type=a.type||'move';const show=APT[type].f;
   <div class="fld"><label for="f_anote">یادداشت (مشاهده را از برداشت جدا بنویس)</label><textarea id="f_anote">${esc(a.note)}</textarea></div>
   <div class="acts"><button class="btn pri">ذخیره</button><button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`)}
 function apiarySheet(){const arr=S.apiary.filter(a=>!a.void).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  openSheet(`<h3>دفتر زنبورداری</h3><div class="acts" style="margin:0 0 10px"><button class="btn pri" data-act="new" data-v="apiary">ثبت عملیات</button><button class="btn" data-act="reports">گزارش‌ها</button></div>${listOr(arr,apiRow,'هنوز عملیاتی ثبت نشده. هر کوچ، برداشت، بازدید یا درمان را همان روز ثبت کن تا سال‌های بعد بشود میانگین و روند گرفت.')}`)}
+  openSheet(`<h3>دفتر زنبورداری${helpBtn('apiary')}</h3><div class="acts" style="margin:0 0 10px"><button class="btn pri" data-act="new" data-v="apiary">ثبت عملیات</button><button class="btn" data-act="reports">گزارش‌ها</button></div>${listOr(arr,apiRow,'هنوز عملیاتی ثبت نشده. هر کوچ، برداشت، بازدید یا درمان را همان روز ثبت کن تا سال‌های بعد بشود میانگین و روند گرفت.')}`)}
 function reportData(){
   const L=S.ledger.filter(l=>!l.void);
   const inc={},exp={},unc={n:0};
@@ -1478,7 +1514,7 @@ function reportData(){
   return{inc,exp,unc,moves,harvest}}
 function reportsSheet(){const r=reportData();const sum=o=>Object.values(o).reduce((a,b)=>a+b,0);
   const years=[...new Set([...Object.keys(r.inc),...Object.keys(r.exp)])].sort().reverse();
-  let h=`<h3>گزارش‌ها</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">روی هر ردیف بزن تا ثبت‌های پشتش را ببینی و همان‌جا اصلاح کنی. گزارش خودش چیزی نگه نمی‌دارد؛ با اصلاح ثبت اصلی، همه‌جا درست می‌شود.</p>`;
+  let h=`<h3>گزارش‌ها${helpBtn('reports')}</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">روی هر ردیف بزن تا ثبت‌های پشتش را ببینی و همان‌جا اصلاح کنی. گزارش خودش چیزی نگه نمی‌دارد؛ با اصلاح ثبت اصلی، همه‌جا درست می‌شود.</p>`;
   h+=`<div class="blk-h"><h2>درآمد و هزینه به تفکیک سال</h2></div>`;
   if(!years.length)h+=`<div class="list"><div class="empty">هنوز دریافت یا پرداختِ دسته‌بندی‌شده‌ای ثبت نشده. هر فروش را با «دریافت» و دستهٔ مثلاً «عسل» ثبت کن.</div></div>`;
   years.forEach(y=>{const curs=[...new Set([...Object.keys(r.inc[y]||{}),...Object.keys(r.exp[y]||{})])];
@@ -1936,7 +1972,7 @@ const accUnit=()=>MIL(accUI.cur)?'میلیون تومان':accUI.cur;
 function accountingSheet(v){if(v)accUI.v=v;const E=autoEntries();const curs=[...new Set(E.map(e=>e.cur))];if(!curs.includes(accUI.cur))accUI.cur=curs[0]||'تومان';
   const thisY=jOf(today()).jy;if(!accUI.y)accUI.y=thisY;const years=[...new Set([thisY,...E.map(e=>jYear(e.date)).filter(Boolean)])].sort().reverse();
   const tabs=[['journal','دفتر روزنامه'],['gl','دفتر کل'],['tb','تراز آزمایشی'],['pl','سود و زیان']];
-  let h=`<h3>${badge('finance','book')} دفاتر حسابداری</h3>
+  let h=`<h3>${badge('finance','book')} دفاتر حسابداری${helpBtn('accounting')}</h3>
    <div class="chips wrap" style="margin-bottom:6px">${tabs.map(([k,n])=>`<button class="chip" data-act="accTab" data-v="${k}" aria-pressed="${accUI.v===k}">${n}</button>`).join('')}</div>
    <div class="chips" style="margin-bottom:6px">${years.map(y=>`<button class="chip" data-act="accYear" data-v="${y}" aria-pressed="${accUI.y===y}">سال ${fa(y)}</button>`).join('')}${curs.length>1?curs.map(c=>`<button class="chip" data-act="accCur" data-v="${c}" aria-pressed="${accUI.cur===c}">${c}</button>`).join(''):''}</div>
    ${MIL(accUI.cur)?'<div class="hint" style="font-size:12px;color:var(--muted);margin-bottom:4px">همهٔ ارقام به میلیون تومان است.</div>':''}<div class="acts" style="margin:4px 0 10px"><button class="btn pri" data-act="newVoucher">سند دستی</button><button class="btn" data-act="newVoucher" data-v="open">سند افتتاحیه</button></div>`;
@@ -1999,6 +2035,13 @@ document.addEventListener('click',async e=>{
     case'setAcct':{const f=document.getElementById(b.dataset.f);f.value=b.dataset.v;b.parentNode.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',String(c===b)));break}
     case'fmHow':{const r=b.closest('.fmrow');r.dataset.how=b.dataset.v;r.dataset.touched='1';r.querySelectorAll('[data-act=fmHow]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));const d=r.querySelector('.fmd');d.hidden=b.dataset.v!=='date';if(!d.hidden)d.focus();break}
     case'micKb':{closeSheet();const el=document.getElementById(b.dataset.f||'capIn');if(el){el.focus();el.scrollIntoView({block:'center'})}break}
+    case'help':helpPop(b.dataset.v);break;
+    case'helpAll':helpSheet();break;
+    case'profile':profileSheet(false);break;
+    case'onbLater':try{localStorage.setItem('miz.onb','later')}catch(_){}closeSheet();toast('هر وقت خواستی: بیشتر ← نمایه و تنظیمات');break;
+    case'pArea':{b.setAttribute('aria-pressed',String(b.getAttribute('aria-pressed')!=='true'));break}
+    case'netForm':formNet();break;
+    case'search':searchSheet();break;
     case'pick':pickOpen(document.getElementById(b.dataset.for));break;
     case'tab':tab=b.dataset.v;if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}try{localStorage.setItem('miz.tab',tab)}catch(_){}render();scrollTo(0,0);break;
     case'filter':ui[b.dataset.k]=b.dataset.v;render();break;
@@ -2243,6 +2286,10 @@ document.addEventListener('submit',async e=>{
     if(st==='other')await putRaw('ledger',{...base,id:newId(),kind:'paid',personId:to,amount:a,about:'از محل: '+ab,category:val('f_ncat'),netOf:nid,created:nowTs(),updated:nowTs()});
     const cst=toBase(num(val('f_ncost')),'تومان');if(cst>0)await putRaw('ledger',{...base,id:newId(),kind:'paid',personId:'',amount:cst,about:'هزینهٔ: '+ab,category:val('f_ncc'),netOf:nid,created:nowTs(),updated:nowTs()});
     if(mode==='local')render();closeSheet();toast(st==='debt'?'درآمد ثبت شد و بدهی‌ات کم شد ✓':st==='asset'?'درآمد ثبت شد و دارایی‌ات اضافه شد ✓':'ثبت شد ✓ در سود و زیان می‌آید');return}
+  if(k==='profile'){const areas=[...f.querySelectorAll('[data-act=pArea][aria-pressed=true]')].map(x=>x.dataset.v);const accs=val('f_pacc').split(/[،,]/).map(x=>en(x).replace(/[\d\s-]{6,}/g,' ').trim()).filter(Boolean);
+    if(/\d{10,}/.test(en(val('f_pacc'))))toast('شماره‌ها حذف شد؛ فقط نام حساب نگه داشته شد');
+    const d={id:'profile',name:val('f_pn')||'رضا ابراهیمی',call:val('f_pc'),biz:val('f_pb'),phone:val('f_pp'),city:val('f_pcity'),accounts:accs,areas:areas.length?areas:Object.keys(AREAS),created:(S.meta.find(x=>x.id==='profile')||{}).created||nowTs(),updated:nowTs()};
+    await putRaw('meta',d);try{localStorage.setItem('miz.onb','done')}catch(_){}closeSheet();toast('ذخیره شد ✓');render();return}
   if(k==='fm'){await fmRun(f);return}
   if(k==='caseEnd'){await closeCase(id,val('f_ceo'),val('f_cen'),document.getElementById('f_cefu').checked);return}
   if(k==='vunlock'){const pin=val('f_vpin');const d=vDoc();if(pin.length<6)return toast('رمز دست‌کم ۶ نویسه باشد');
