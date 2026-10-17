@@ -55,3 +55,9 @@
 - صفحهٔ شخص: «✎ مشخصات» کنار نام؛ کاشی‌های «ثبت تازه» (`.qa.pact`)؛ `buyFrom`.
 - دفتر کارها `tbookSheet` (`ui.tb`: بازه، وضعیت، اهمیت، حوزه، شخص؛ مختصر/با جزئیات).
 - فروش: `lotChoices` به تفکیک `place` با برچسب امانی. خرید: `f_dplace` و `.di_pt` (buy|consign|loan|sample)؛ loan/sample بدون ردیف مالی و خارج از جمع (`docTotal`)؛ چاپ با `pkNote` (کارتن، انبار، نوع).
+
+## ۳٫۱۴ — دستیار هوشمند (جمینای، کلید خود کاربر)
+- تنظیم: `aiSheet` → `localStorage miz.ai {on,key,model}` (در پشتیبان نیست). `aiCall(sys,text)` به generateContent با `responseMimeType: application/json`.
+- «با یک جمله» (`aiSay/aiParse/aiApply`): فقط جمله فرستاده می‌شود؛ `matchPerson`/`matchLot` روی گوشی تطبیق می‌دهند و فرم مربوط (فروش، خرید، دریافت/پرداخت، پورسانت، کار) پر می‌شود تا کاربر ثبت کند.
+- «پرسش هوشمند» (`aiAsk/aiRun`): جمینای پرسش را به پرس‌وجوی JSON تبدیل می‌کند و محاسبه روی گوشی انجام می‌شود. در جستجو، اگر پاسخ محلی نبود دکمهٔ «از دستیار هوشمند بپرس» می‌آید.
+- آزمون با `ctx.route` روی generativelanguage.googleapis.com (این محیط به گوگل دسترسی ندارد).
