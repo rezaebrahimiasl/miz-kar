@@ -318,7 +318,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.22';
+const APP_VER='3.23';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -1480,6 +1480,7 @@ function docsSheet(){const f=ui.docF||'all';const L=S.docs.filter(d=>!d.void&&d.
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.23',[['finance','finance','«بدون حساب مشخص» کامل شد','قرض دادن و گرفتن نقدی هم حساب (بلوبانک، نقد…) می‌گیرد و در فهرست «بدون حساب» می‌آید؛ ثبت‌های منتظر تأیید دیگر در دفاتر نمی‌آیند تا تأیید شوند.','tab|money']]],
  ['3.22',[['finance','book','خلاصهٔ پول = دفاتر حسابداری','درآمد، هزینه و سود «این ماه» حالا از همان سندهای سود و زیان حساب می‌شود؛ جمع حساب‌ها با «نقد و بانک» دفتر کل برابر است و ردیف «بدون حساب مشخص» جاافتاده‌ها را نشان می‌دهد؛ زیر طلب و بدهی عدد ناخالص دفتر کل هم آمده.','tab|money']]],
  ['3.21',[['finance','finance','ادغام دو حساب','اگر یک حساب با دو نام ثبت شده (مثلاً «بلوبانک» و «بلوبانک سامان»)، روی حساب بزن ← «ادغام»؛ همهٔ ثبت‌ها، موجودی اول و پرداخت‌های دوره‌ای یکی می‌شوند و نام قدیمی بعداً هم خودکار به همان حساب می‌رود.','tab|money']]],
  ['3.20',[['finance','book','سند دوبل در «ثبت مالی»','«ثبت مالی ← سند دوبل (دستی)»: هر ردیف حساب با جستجوی نام یا کد، مبلغ، بدهکار یا بستانکار و شرح؛ جمع دو طرف را خودش کنترل می‌کند.','accVoucher'],['finance','finance','مانده با طلب و بدهی متقابل','اگر هم از کسی طلب داری و هم به او بدهکاری، یا پولی بی‌ربط به فاکتوری داده شده، مانده هر ردیف با حساب کل او یکی می‌شود.','tab|money']]],
@@ -1957,7 +1958,9 @@ const MONEY_ACTS=['recurs','netIncome','receipt','reports','accOpen','chequesShe
 function acctInfo(){return (S.meta.find(x=>x.id==='accts')||{}).a||{}}
 function acctCanon(n){if(!n)return n;const A=acctInfo();for(const [k,o] of Object.entries(A))if((o.alias||[]).includes(n))return k;return n}
 function acctSim(a,b){const z=x=>nrm(x).replace(/\s|بانک/g,'');const x=z(a),y=z(b);return x&&y&&x!==y&&(x.includes(y)||y.includes(x))}
-function acctBalances(){const m={};Object.entries(acctInfo()).forEach(([k,o])=>{m[k]=(m[k]||0)+Number(o.open||0)});S.ledger.filter(l=>!l.void&&!l.pending&&l.acct&&(l.currency||'تومان')==='تومان'&&(l.kind==='received'||l.kind==='paid')).forEach(l=>{m[l.acct]=(m[l.acct]||0)+(l.kind==='received'?1:-1)*Number(l.amount||0)});return m}
+const cashRow=l=>!l.void&&!l.pending&&(l.currency||'تومان')==='تومان'&&Number(l.amount)>0&&(l.kind==='received'||l.kind==='paid'||(l.kind==='receivable'||l.kind==='payable')&&l.category===LOAN);
+const cashSign=l=>l.kind==='received'||l.kind==='payable'?1:-1;
+function acctBalances(){const m={};Object.entries(acctInfo()).forEach(([k,o])=>{m[k]=(m[k]||0)+Number(o.open||0)});S.ledger.filter(l=>cashRow(l)&&l.acct).forEach(l=>{m[l.acct]=(m[l.acct]||0)+cashSign(l)*Number(l.amount||0)});return m}
 function upcoming(days){const t=today(),lim=addDays(t,days),out=[];
   S.ledger.filter(l=>l.pending&&!l.void).forEach(l=>out.push({d:l.date,ic:'bell',a:'finance',t:(l.kind==='received'?'دریافت دوره‌ای منتظر تأیید: ':'پرداخت دوره‌ای منتظر تأیید: ')+(l.about||''),v:l.amount,s:l.kind==='received'?1:-1,act:'tab',av:'today'}));
   S.cheques.filter(c=>!c.void&&c.status==='wait'&&c.due<=lim).forEach(c=>out.push({d:c.due,ic:'cheque',a:'finance',t:(c.dir==='in'?'چک دریافتی از ':'چک پرداختی به ')+(pname(c.personId)||''),v:c.amount,s:c.dir==='in'?1:-1,act:'chqView',id:c.id}));
@@ -1993,10 +1996,11 @@ function vMoney(){const ms=ui.ms||'sum';const pb=personBal();
     const U=upcoming(14);h+=block('پیش رو (۱۴ روز)',U.length,U.length?`<div class="list">${U.map(u=>`<button class="row" data-act="${u.act}" ${u.id?`data-id="${u.id}"`:''} ${u.av?`data-v="${u.av}"`:''}>${badge(u.a,u.ic)}<div class="main"><div class="ttl" style="font-size:14px">${esc(u.t)}</div><div class="sub">${duePill(u.d)}</div></div>${u.v?`<div class="end ${u.s>0?'amt-pos':'amt-neg'}">${money(u.v,'تومان')}</div>`:''}</button>`).join('')}</div>`:'<div class="list"><div class="empty">دو هفتهٔ آینده چیزی سررسید نمی‌شود.</div></div>');
   }
   if(ms==='tx'){const f=ui.moneyF||'all',fa2=ui.moneyA||'';let arr=S.ledger.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.created||'').localeCompare(a.created||''));
-    if(f!=='all')arr=arr.filter(l=>l.kind===f);if(fa2==='__none')arr=arr.filter(l=>!l.void&&(l.kind==='received'||l.kind==='paid')&&!l.acct&&!l.pending);else if(fa2)arr=arr.filter(l=>l.acct===fa2);
+    if(f!=='all')arr=arr.filter(l=>l.kind===f);if(fa2==='__none')arr=arr.filter(l=>cashRow(l)&&!l.acct);else if(fa2)arr=arr.filter(l=>l.acct===fa2);
     h+=chips('moneyF',[['all','همه'],['received','دریافت'],['paid','پرداخت'],['receivable','طلب'],['payable','بدهی']],f);
-    const ac=Object.keys(acctBalances());if(ac.length)h+=`<div class="chips" style="margin-top:6px"><button class="chip" data-act="mAcctF" data-v="" aria-pressed="${!fa2}">همهٔ حساب‌ها</button>${S.ledger.some(l=>!l.void&&(l.kind==='received'||l.kind==='paid')&&!l.acct)?`<button class="chip" data-act="mAcctF" data-v="__none" aria-pressed="${fa2==='__none'}">بدون حساب</button>`:''}${ac.map(a=>`<button class="chip" data-act="mAcctF" data-v="${esc(a)}" aria-pressed="${fa2===a}">${esc(a)}</button>`).join('')}</div>`;
-    h+=block('ثبت‌ها',arr.length,listOr(arr.slice(0,200),ledgerRow,'ردیفی نیست. «ثبت مالی» را بزن.'));
+    const ac=Object.keys(acctBalances());if(ac.length)h+=`<div class="chips" style="margin-top:6px"><button class="chip" data-act="mAcctF" data-v="" aria-pressed="${!fa2}">همهٔ حساب‌ها</button>${S.ledger.some(l=>cashRow(l)&&!l.acct)?`<button class="chip" data-act="mAcctF" data-v="__none" aria-pressed="${fa2==='__none'}">بدون حساب</button>`:''}${ac.map(a=>`<button class="chip" data-act="mAcctF" data-v="${esc(a)}" aria-pressed="${fa2===a}">${esc(a)}</button>`).join('')}</div>`;
+    if(fa2==='__none'){const V=S.vouchers.filter(v=>!v.void&&(v.lines||[]).some(x=>x.acc==='1101'));h+=`<div class="banner" style="margin:8px 0;flex-wrap:wrap">${svg('warn')}<span style="flex:1">این‌ها پول جابه‌جا کرده‌اند ولی حسابشان (بلوبانک، نقد…) معلوم نیست. روی هر ردیف بزن و حساب را انتخاب کن.${V.length?` ${fa(V.length)} سند دستی هم روی «نقد و بانک» زده شده.`:''}</span>${V.length?'<button class="btn" data-act="accTab" data-v="journal">سندهای دستی</button>':''}</div>`}
+    h+=block('ثبت‌ها',arr.length,listOr(arr.slice(0,200),ledgerRow,fa2==='__none'?'ردیف بی‌حسابی نیست.':'ردیفی نیست. «ثبت مالی» را بزن.'));
     if(on('cheques')){const C=S.cheques.filter(c=>!c.void).sort((a,b)=>(b.due||'').localeCompare(a.due||'')).slice(0,20);if(C.length)h+=block('چک‌ها',C.length,`<div class="list">${C.map(chequeRow).join('')}</div>`)}}
   if(ms==='ppl'){h+=`<div class="kpis"><div class="kpi"><div class="l">جمع طلب من</div><div class="v amt-pos">${fmt(tot.recv)}</div>${kindLine(kindTotals().due,'amt-pos')}${grossLine(glBal('1201'),tot.recv['تومان']||0)}</div><div class="kpi"><div class="l">جمع بدهی من</div><div class="v amt-neg">${fmt(tot.pay)}</div>${kindLine(kindTotals().owe,'amt-neg')}${grossLine(glBal('2101'),tot.pay['تومان']||0)}</div></div>`;
     const people=Object.entries(pb).filter(([,m])=>Object.values(m).some(v=>Math.abs(v)>0.0001));
@@ -2756,7 +2760,7 @@ function formMoveEdit(m){if(!m)return;const l=byId('lots',m.lotId);const locked=
 function formLedgerEdit(l){if(!l)return;openSheet(`<h3>ویرایش ${esc(LSHORT[l.kind])}</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">همه‌چیز قابل اصلاح است؛ تغییر مبلغ با تاریخ و مقدار قبلی در سابقهٔ همین ردیف می‌ماند.${(l.hist||[]).length?' '+(l.hist||[]).map(h=>`(${jShort(h.at.slice(0,10))}: ${money(h.from,l.currency)} ← ${money(h.to,l.currency)})`).join(' '):''}</p><form data-form="ledgerEdit" data-id="${l.id}">
   <div class="fld"><label for="f_amt">مبلغ${ul('f_cur',l.currency)}</label><input id="f_amt" inputmode="decimal" value="${fa(fromBase(Number(l.amount),l.currency||'تومان'))}"><input type="hidden" id="f_cur" value="${esc(l.currency||'تومان')}"></div>
   ${personSelect('f_person',l.personId,'طرف حساب')}
-  ${l.kind==='received'||l.kind==='paid'?acctField('f_acct',l.acct||'',kindDir(l.kind)):''}
+  ${l.kind==='received'||l.kind==='paid'?acctField('f_acct',l.acct||'',kindDir(l.kind)):l.category===LOAN?acctField('f_acct',l.acct||'',l.kind==='payable'?'in':'out'):''}
   <div class="fld"><label for="f_about">بابت</label><input id="f_about" list="aboutList" autocomplete="off" value="${esc(l.about)}"></div>
   <div class="fld"><label for="f_cat">دسته</label><select id="f_cat">${opt('','— —',l.category)}${catOptions(l.category,kindDir(l.kind))}</select></div>
   <div class="row2"><div class="fld"><label for="f_instr">شیوه</label><select id="f_instr">${((l.kind==='receivable'||l.kind==='payable')?['نسیه',...INSTR.filter(x=>x!=='نقد/کارت')]:INSTR).map(c=>opt(c,c,insOf(l)||'نقد/کارت')).join('')}</select></div><div class="fld"><label for="f_ref">شمارهٔ چک / فاکتور</label><input id="f_ref" dir="ltr" value="${esc(l.ref)}"></div></div>
@@ -2813,7 +2817,7 @@ const L=(acc,dr,cr,personId)=>({acc,dr:dr||0,cr:cr||0,personId:personId||''});
 function plRange(f,to){const B=balancesByAcc(autoEntries(),'تومان',f,to);let inc=0,exp=0;Object.entries(B).forEach(([c,r])=>{const t=accBy(c).type;if(t==='I')inc+=r.cr-r.dr;else if(t==='X')exp+=r.dr-r.cr});const p=B['3201'];return{inc,exp,pers:p?p.dr-p.cr:0}}
 function glBal(code){const r=balancesByAcc(autoEntries(),'تومان',null,null)[code];return r?(ATYPE[accBy(code).type].dr?r.dr-r.cr:r.cr-r.dr):0}
 function autoEntries(){const out=[];
-  S.ledger.filter(l=>!l.void&&Number(l.amount)>0).forEach(l=>{const a=Number(l.amount),p=l.personId||'',c=l.currency||'تومان';let lines;const settle=!!(l.refId||l.settles);
+  S.ledger.filter(l=>!l.void&&!l.pending&&Number(l.amount)>0).forEach(l=>{const a=Number(l.amount),p=l.personId||'',c=l.currency||'تومان';let lines;const settle=!!(l.refId||l.settles);
     if(l.kind==='received')lines=settle?[L('1101',a),L('1201',0,a,p)]:[L('1101',a),L(catAcc(l.category,'in'),0,a,p)];
     else if(l.kind==='paid')lines=settle?[L('2101',a,0,p),L('1101',0,a)]:[L(catAcc(l.category,'out'),a,0,p),L('1101',0,a)];
     else if(l.kind==='receivable')lines=l.category===LOAN?[L('1201',a,0,p),L('1101',0,a)]:[L('1201',a,0,p),L(catAcc(l.category,'in'),0,a)];
@@ -3262,7 +3266,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='f_atype'){const show=APT[e.target.value].f;document.querySelectorAll('[data-af]').forEach(el=>el.hidden=!show.includes(el.dataset.af));const hv=document.querySelector('[data-ahv]');if(hv)hv.hidden=e.target.value!=='harvest'}
   if(e.target.id==='f_restore'&&e.target.files[0])doRestore(e.target.files[0]);
   if(e.target.id==='f_vcf'&&e.target.files[0])importVcf(e.target.files[0]);
-  if(['f_kind','f_kdo'].includes(e.target.id))lgSync();if(e.target.id==='f_kind'){catSync();const k=e.target.value,w=document.querySelector('[data-acct]');if(w)w.hidden=!(k==='received'||k==='paid');const l=document.getElementById('f_acct_l');if(l)l.textContent=acctLabel(kindDir(k))}
+  if(['f_kind','f_kdo'].includes(e.target.id))lgSync();if(e.target.id==='f_kind'){catSync();}if(e.target.id==='f_kind'||e.target.id==='f_cat'){const k=val('f_kind'),w=document.querySelector('[data-acct]');const ln=val('f_cat')===LOAN&&(k==='receivable'||k==='payable');if(w)w.hidden=!(k==='received'||k==='paid'||ln);const l=document.getElementById('f_acct_l');if(l)l.textContent=acctLabel(ln?(k==='payable'?'in':'out'):kindDir(k))}
   if(e.target.id==='f_rdir'){const c=document.getElementById('f_rcat');if(c){const cur=c.value;c.innerHTML=opt('','— —',cur)+catOptions(cur,e.target.value==='in'?'in':'out')}}
   if(e.target.id==='f_tpay'||e.target.id==='f_tpcat'){}
   if(e.target.id==='f_rper')document.querySelectorAll('[data-rper]').forEach(el=>el.hidden=!el.dataset.rper.split(' ').includes(e.target.value));
@@ -3460,7 +3464,7 @@ document.addEventListener('submit',async e=>{
     if(await save('people',id,d)){closeSheet();toast('ذخیره شد')}return}
   if(k==='ledger'&&val('f_lgmode')==='kind'){await saveKindLedger(f);return}
   if(k==='ledger'){await catRuleSave();const amt=toBase(num(val('f_amt')),val('f_cur'));if(!amt||amt<=0)return toast('مبلغ را درست وارد کن');const date=readDate('f_date',true);if(date===null)return;const due=readDate('f_due');if(due===null)return;
-    const d={tripId:f.dataset.trip||'',kind:val('f_kind'),personId:val('f_person'),amount:amt,currency:val('f_cur'),about:val('f_about'),category:val('f_cat'),instrument:val('f_instr'),ref:val('f_ref'),settles:(d0=>d0&&d0.checked&&(val('f_kind')==='received'||val('f_kind')==='paid'))(document.getElementById('f_settles')),date,due,evidence:val('f_ev'),netOf:val('f_netof')||'',acct:val('f_kind')==='received'||val('f_kind')==='paid'?val('f_acct'):'',settled:false,void:false};
+    const d={tripId:f.dataset.trip||'',kind:val('f_kind'),personId:val('f_person'),amount:amt,currency:val('f_cur'),about:val('f_about'),category:val('f_cat'),instrument:val('f_instr'),ref:val('f_ref'),settles:(d0=>d0&&d0.checked&&(val('f_kind')==='received'||val('f_kind')==='paid'))(document.getElementById('f_settles')),date,due,evidence:val('f_ev'),netOf:val('f_netof')||'',acct:val('f_kind')==='received'||val('f_kind')==='paid'||val('f_cat')===LOAN?val('f_acct'):'',settled:false,void:false};
     if(!d.personId&&!d.about)return toast('طرف حساب یا «بابت» را بنویس');if(d.ref){const sr=S.ledger.find(x=>!x.void&&x.id!==val('f_fixof')&&x.ref===d.ref);if(sr&&dupGuard(f,'r'+sr.id,`همین شمارهٔ پیگیری (${fa(d.ref)}) قبلاً ثبت شده: ${esc(LSHORT[sr.kind])} ${money(sr.amount,sr.currency)}`,true))return}{const sm=S.ledger.find(x=>!x.void&&x.id!==val('f_fixof')&&!x.pending&&x.kind===d.kind&&(x.personId||'')===(d.personId||'')&&Number(x.amount)===d.amount&&near(x.date,date));if(sm&&dupGuard(f,'l'+sm.id,`${esc(LSHORT[sm.kind])} ${money(sm.amount,sm.currency)}${sm.personId?' با '+esc(pname(sm.personId)):''} در ${jNice(sm.date)}`,true))return}
     if(val('f_fixof')){const old=byId('ledger',val('f_fixof'));if(old)d.corrOf=old.id}
     const ok=await save('ledger',null,d);if(ok&&d.corrOf)await save('ledger',d.corrOf,{void:true,voidReason:'اصلاح شد',voidAt:nowTs()});if(ok){closeSheet();toast(d.corrOf?'اصلاح شد ✓ ردیف قبلی باطل و در سابقه ماند':'ثبت شد')}return}
