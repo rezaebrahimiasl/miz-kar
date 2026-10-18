@@ -323,7 +323,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.42';
+const APP_VER='3.43';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -1062,7 +1062,7 @@ async function receiptSheet(text,img){const r=parseBank(text);window._rcpt=r;win
 function rcptToForm(kind){const r=window._rcpt||{};formLedger({kind,about:[r.method||(kind==='paid'?'پرداخت':'دریافت'),r.who?(kind==='paid'?'به ':'از ')+r.who:''].filter(Boolean).join(' '),instrument:'حواله'});
   setTimeout(()=>{const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v};if(r.toman)set('f_amt',fa(fromBase(r.toman,'تومان')));set('f_ref',r.ref);set('f_ev',[r.bank,'رسید',r.ref?'پیگیری '+r.ref:''].filter(Boolean).join(' · '));
     if(r.date){set('f_date',jShort(r.date));dateSync('f_date')}if(r.who){const q=document.getElementById('f_person_q');if(q){q.value=r.who;ppSearch('f_person',r.who)}}},60)}
-async function checkShared(){if(!/[?&]share=1/.test(location.search))return;history.replaceState(null,'',location.pathname);try{const c=await caches.open('miz-share');const tr=await c.match('share-text');const ir=await c.match('share-image');const text=tr?await tr.text():'';let img=null;if(ir){img=URL.createObjectURL(await ir.blob())}await c.delete('share-text');await c.delete('share-image');receiptSheet(text,img)}catch(_){receiptSheet('',null)}}
+async function checkShared(){if(!/[?&]share=1/.test(location.search))return;history.replaceState(null,'',location.pathname);try{const c=await caches.open('miz-share');const tr=await c.match('share-text');const ir=await c.match('share-image');const text=tr?await tr.text():'';let img=null;if(ir){img=URL.createObjectURL(await ir.blob())}await c.delete('share-text');await c.delete('share-image');if(!img&&billParse(text))billSheet(text);else receiptSheet(text,img)}catch(_){receiptSheet('',null)}}
 addEventListener('load',()=>setTimeout(checkShared,900));
 
 /* ---------- Trips: on the way, arrival switches to the destination's tasks, costs and lessons stay with the trip ---------- */
@@ -1374,6 +1374,7 @@ const ACTS=[
  ['پول و کسب‌وکار','chequesSheet','finance','cheque','چک‌ها',()=>{const w=S.cheques.filter(c=>!c.void&&c.status==='wait');const d=w.filter(c=>c.due<=addDays(today(),7)).length;return w.length?fa(w.length)+' چک در جریان'+(d?' · '+fa(d)+' سررسید نزدیک':''):'دریافتی و پرداختی'},'چک صیاد سررسید برگشتی پاس وصول','cheques'],
  ['پول و کسب‌وکار','countSheet','sales','box','شمارش انبار','موجودی اول و اصلاح شمارش','شمارش انبار موجودی اول افتتاحیه کسری اضافه','stock'],
  ['پول و کسب‌وکار','marketers','marketers','marketers','بازاریاب‌ها و پورسانت',()=>{const n=S.ledger.filter(l=>!l.void&&l.ref&&!l.settled).length;return n?fa(n)+' ردیف تسویه‌نشده':'فروش معرفی و تسویهٔ ماهانه'},'بازاریاب پورسانت سایت تسویه','deals'],
+ ['پول و کسب‌وکار','syOpen','akhirat','finance','صندوق‌یار',()=>SY?fa((SY.funds||[]).length)+' صندوق · فقط خواندنی':'عضویت‌ها، پس‌انداز و وام‌ها','صندوق یار صندوقیار قرض الحسنه وام قسط پس انداز عضو',''],
  ['پول و کسب‌وکار','recurs','finance','bell','پرداخت و دریافت دوره‌ای','قسط، شهریه، خرجی، حق بیمه','قسط شهریه خرجی ماهانه دوره ای بانک خودکار','recurs'],
  ['پول و کسب‌وکار','netIncome','finance','finance','ثبت سود یا درآمد خالص','بدون ثبت خرید و فروش','سود خالص درآمد','',],
  ['پول و کسب‌وکار','receipt','finance','finance','رسید یا پیام بانک','از پیامک یا اعلان بانک','رسید بانک پیامک اعلان واریز',''],
@@ -1595,6 +1596,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.43',[['akhirat','finance','صندوق‌یار در میز کار','در صفحهٔ هر شخص عضویت، پس‌انداز و ماندهٔ وامش در صندوق‌یار؛ و خلاصهٔ صندوق‌ها از منو. فقط خواندنی.','syOpen'],['finance','bell','قبض از جیمیل و پیامک','پیامک یا ایمیل قبض را «اشتراک‌گذاری» کن و میز کار را بزن؛ مبلغ و شناسه‌ها خوانده می‌شود و قبض همان ملک پیدا می‌شود.','billPaste'],['affairs','home','انتقال از گاوصندوق','موردهای گاوصندوق با یک فرم به دارایی‌ها و مدارک می‌روند؛ خانه‌های حساس رمزنگاری‌شده می‌مانند.','v2a']]],
  ['3.42',[['affairs','home','دارایی‌ها و مدارک','ملک و واحد و مستأجر، قبض و اشتراک، خودرو، تلفن، حساب و کارت، مدرک، مجوز، بیمه، هتل… هر کدام مشخصات مناسب خودش؛ ردیف‌ها قابل اضافه و حذف؛ خانه‌های 🔒 با رمز گاوصندوق رمزنگاری می‌شوند.','assets'],['affairs','cal','انقضا و تمدید','کارت ماشین، بیمه، گذرنامه، مجوز… یک ماه قبل در «امروز»؛ با یک دکمه کار یادآوری یا تقویم گوگل.','assets'],['affairs','note','بپرس: «شمارهٔ پرونده تلفن خانه؟»','در جستجو بنویس؛ جواب از همین گوشی با دکمهٔ کپی می‌آید.','search']]],
  ['3.41',[['personal','key','اثر انگشت گاوصندوق','اگر فعال باشد، با باز کردن گاوصندوق خودش اثر انگشت می‌خواهد؛ رمز فقط برای وقتی است که اثر انگشت جواب ندهد. پیشنهاد فعال‌سازی هم بالای گاوصندوق آمد و اشکالی که گاهی فعال‌سازی را خراب می‌کرد رفع شد.','vault']]],
  ['3.40',[['therapy','therapy','ورود سوابق درمانی از متن','در پرونده ← «ورود سوابق از متن»: خلاصهٔ سوابق (مثلاً از هوش مصنوعی دیگر) را بچسبان؛ شکایت، شرح حال، مزاج، احتیاط‌ها، اهداف و شاخص‌ها در خانهٔ خودشان می‌نشینند و هر جلسه با تاریخش یک ویزیت می‌شود؛ اول پیش‌نمایش می‌بینی و تأیید می‌کنی. متن درخواست آماده هم با یک دکمه کپی می‌شود.','clinic']]],
@@ -1916,7 +1918,7 @@ function assetsSheet(f){f=f||ui.asF||'all';ui.asF=f;const q=(ui.asQ||'').trim();
   <input class="search-in" id="asQ" placeholder="جستجو در دارایی‌ها و مدارک…" value="${esc(q)}">
   <div class="chips" style="margin:8px 0">${[['all','همه'],['exp','انقضاها'],...kinds.map(k=>[k,AK[k].n])].map(([k,l])=>`<button class="chip" data-act="asF" data-v="${k}" aria-pressed="${f===k}">${esc(l)}</button>`).join('')}</div>
   <div class="list" id="asList">${f==='exp'?aExp().filter(x=>x.left<=60).map(x=>`<button class="row" data-act="viewAsset" data-id="${x.a.id}">${badge(AK[x.a.kind].c,'cal')}<div class="main"><div class="ttl">${esc(x.f.k)} · ${esc(x.a.title)}</div><div class="sub"><span class="pill ${x.left<0?'bad':x.left<=30?'warn':''}">${jNice(x.f.v)} · ${x.left<0?fa(-x.left)+' روز گذشته':fa(x.left)+' روز دیگر'}</span></div></div></button>`).join('')||'<div class="empty">تا دو ماه دیگر انقضایی نیست.</div>':(top.map(a=>assetRow(a)+(f==='all'&&!q?aKids(a.id).map(k=>`<div style="padding-inline-start:22px">${assetRow(k)}</div>`).join(''):'')).join('')||'<div class="empty">هنوز چیزی ثبت نشده. با «+ مورد تازه» شروع کن.</div>')}</div>
-  <div class="acts" style="margin-top:12px"><button class="btn pri" data-act="assetNew">+ مورد تازه</button><button class="btn ghost" data-act="close">بستن</button></div>`)}
+  <div class="acts" style="margin-top:12px"><button class="btn pri" data-act="assetNew">+ مورد تازه</button><button class="btn" data-act="billPaste">${svg('bell')} قبض از پیامک یا ایمیل</button>${vDoc()?'<button class="btn ghost" data-act="v2a">انتقال از گاوصندوق</button>':''}<button class="btn ghost" data-act="close">بستن</button></div>`)}
 function assetKindPick(parentId){const P=parentId&&byId('assets',parentId);const ks=Object.entries(AK).filter(([k,v])=>P?v.parent===P.kind:!v.parent||true);
   openSheet(`<h3>${P?'زیرمجموعهٔ '+esc(P.title):'مورد تازه'}: چه چیزی؟</h3><div class="tiles">${ks.map(([k,v])=>`<button class="tile" data-act="assetKind" data-v="${k}" data-p="${parentId||''}">${badge(v.c,v.i)}<span><b>${esc(v.n)}</b>${v.parent&&!P?'<small>زیر یک ملک</small>':''}</span></button>`).join('')}</div><div class="acts" style="margin-top:12px"><button class="btn ghost" data-act="assets">بازگشت</button></div>`)}
 const aRow=(x,i)=>`<div class="afr" style="border:1px solid var(--line);border-radius:12px;padding:8px;margin-bottom:6px" data-i="${i}" data-ct="${esc(x.ct||'')}" data-iv="${esc(x.iv||'')}"><div class="afl" style="font-size:12.5px;color:var(--muted)">${esc(x.k||'ردیف تازه')}${x.sec?' 🔒':''}</div><div class="afx" style="display:flex;gap:6px;align-items:center"><input class="af_k" value="${esc(x.k||'')}" placeholder="عنوان (مثلاً شمارهٔ پرونده)" style="flex:1;min-width:0;font-size:13px">
@@ -1980,6 +1982,60 @@ async function afPhoto(file){const f=document.querySelector('form[data-form=asse
   try{const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(file)});
     const js=await aiCall(`از روی عکس (${AK[kind].n}) مقدار این خانه‌ها را دربیاور و فقط JSON بده با همین کلیدها: ${JSON.stringify(labels)}. تاریخ‌ها شمسی به شکل ۱۴۰۵/۰۷/۰۴. اگر نبود خالی بگذار. یک کلید "عنوان" هم با یک عنوان کوتاه پیشنهادی بده.`,'عکس پیوست',{img:{mime:file.type||'image/jpeg',data:b64}});let n=0;
     rows.forEach(r=>{const k=r.querySelector('.af_k').value.trim();const v=js[k];const ve=r.querySelector('.af_v');if(v&&ve&&!ve.value){ve.value=String(v);n++}});if(js['عنوان']&&!val('f_atitle'))document.getElementById('f_atitle').value=js['عنوان'];toast(n?fa(n)+' خانه پر شد؛ بررسی کن و ذخیره بزن':'چیزی خوانده نشد')}catch(e){toast(aiErr(e))}}
+
+/* ---------- SandooghYar (same site): read-only view of fund memberships, savings and loans ---------- */
+let SY=null;
+function syLoad(){return new Promise(res=>{let raw=null;try{raw=localStorage.getItem('sandooghyar.v2')}catch(_){}
+  const done=j=>{try{const o=j?JSON.parse(j):null;SY=o&&o.mems&&o.persons?o:null}catch(_){SY=null}res(SY)};
+  try{const q=indexedDB.open('sandooghyar');q.onupgradeneeded=()=>{q.transaction.abort()};q.onerror=()=>done(raw);q.onblocked=()=>done(raw);
+    q.onsuccess=()=>{const db=q.result;try{if(!db.objectStoreNames.contains('kv')){db.close();return done(raw)}const g=db.transaction('kv','readonly').objectStore('kv').get('sandooghyar.v2');g.onsuccess=()=>{db.close();done(g.result||raw)};g.onerror=()=>{db.close();done(raw)}}catch(_){db.close();done(raw)}}}catch(_){done(raw)}})}
+function syBal(mid){const m=SY.mems.find(x=>x.id==mid)||{};let s=m.os||0,l=m.ol||0,c=0;const ap=(k,x)=>{if(k==='sav')s+=x;else if(k==='inst')l-=x;else if(k==='loan')l+=x;else if(k==='credit')c+=x};
+  (SY.tx||[]).forEach(t=>{if(t.mid!=mid)return;const a=t.amt||0;if(t.type==='rcl'){ap(t.from,-a);ap(t.to,a)}else if(t.type==='ref')s-=a;else if(t.type==='refc')c-=a;else if(t.type==='lrev')l-=a;else if(t.type==='xout')ap(t.bk,-a);else if(t.type==='xin')ap(t.bk,a);else if(t.type==='inj'||t.type==='injret'){}else ap(t.type,a)});return{s,l,c}}
+const syMoney=v=>money(Math.round(v*1e7)/10,'تومان')+' میلیون';
+function syMatch(p){if(!SY||!p)return[];const pn=nrm(String(p.name||'').replace(/^(آقای|خانم|حاج|حاجی)\s+/,''));const tel=String(p.phone||'').split(/[،,\s]+/).map(x=>normDigits(x).slice(-10)).filter(x=>x.length===10);
+  const P=SY.persons.filter(x=>{const xn=nrm(String(x.name||''));if(pn&&xn&&(xn===pn))return true;const xt=en(JSON.stringify(x)).match(/09\d{9}|9\d{9}/g)||[];return tel.length&&xt.some(t=>tel.includes(normDigits(t).slice(-10)))});
+  return P.flatMap(x=>SY.mems.filter(m=>m.pid==x.id).map(m=>({m,f:(SY.funds||[]).find(f=>f.id==m.fid)||{},b:syBal(m.id)})))}
+function syPersonHtml(p){const L=syMatch(p);if(!L.length)return'';
+  return `<div class="blk-h" style="margin-top:12px"><h2>${svg('finance')} صندوق‌یار</h2><span class="sp"></span><a class="link" href="../sandooghyar/">باز کردن</a></div><div class="list">${L.map(x=>`<div class="row" style="cursor:default">${badge('akhirat','finance')}<div class="main"><div class="ttl">${esc(x.f.name||'صندوق')}${x.m.status&&x.m.status!=='فعال'?` <span class="pill">${esc(x.m.status)}</span>`:''}</div><div class="sub"><span>پس‌انداز ${syMoney(x.b.s)}</span>${Math.abs(x.b.l)>1e-6?`<span class="${x.b.l>0?'amt-neg':''}">مانده وام ${syMoney(x.b.l)}</span>`:''}${Math.abs(x.b.c)>1e-6?`<span>طلب ${syMoney(x.b.c)}</span>`:''}</div></div></div>`).join('')}</div><div class="hint" style="font-size:11.5px;color:var(--muted)">فقط خواندنی؛ ثبت و اصلاح در خود صندوق‌یار.</div>`}
+function sySheet(){if(!SY){openSheet(`<h3>${badge('akhirat','finance')} صندوق‌یار</h3><p style="font-size:13.5px">داده‌ای از صندوق‌یار روی این گوشی پیدا نشد. صندوق‌یار و میز کار باید هر دو از همان نشانی گیت‌هاب نصب شده باشند و صندوق‌یار یک بار باز شده باشد.</p><div class="acts"><a class="btn pri" href="../sandooghyar/">باز کردن صندوق‌یار</a><button class="btn ghost" data-act="close">بستن</button></div>`);return}
+  const me=PROF().name;const mine=syMatch({name:me,phone:PROF().phone});
+  const F=(SY.funds||[]).map(f=>{const M=SY.mems.filter(m=>m.fid==f.id);let s=0,l=0;M.forEach(m=>{const b=syBal(m.id);s+=b.s;l+=b.l});return{f,n:M.length,s,l}});
+  openSheet(`<h3>${badge('akhirat','finance')} صندوق‌یار</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">خلاصه از روی داده‌های صندوق‌یار همین گوشی؛ فقط خواندنی. در صفحهٔ هر شخص هم عضویت و ماندهٔ او دیده می‌شود.</p>
+  ${mine.length?`<div class="grp">عضویت‌های خودم</div><div class="list">${mine.map(x=>`<div class="row" style="cursor:default"><div class="main"><div class="ttl">${esc(x.f.name||'')}</div><div class="sub"><span>پس‌انداز ${syMoney(x.b.s)}</span>${Math.abs(x.b.l)>1e-6?`<span class="amt-neg">مانده وام ${syMoney(x.b.l)}</span>`:''}</div></div></div>`).join('')}</div>`:''}
+  <div class="grp">صندوق‌ها</div><div class="list">${F.map(x=>`<div class="row" style="cursor:default">${badge('akhirat','finance')}<div class="main"><div class="ttl">${esc(x.f.name||'')}</div><div class="sub"><span>${fa(x.n)} عضویت</span><span>جمع پس‌انداز ${syMoney(x.s)}</span><span>وام‌های باز ${syMoney(x.l)}</span></div></div></div>`).join('')}</div>
+  <div class="acts" style="margin-top:12px"><a class="btn pri" href="../sandooghyar/">باز کردن صندوق‌یار</a><button class="btn ghost" data-act="close">بستن</button></div>`)}
+addEventListener('load',()=>setTimeout(syLoad,1500));document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syLoad()});
+
+/* ---------- Vault → assets ---------- */
+const SECRX=/رمز|pass|pin|puk|cvv|شبا|حساب|کارت|گذرنامه|پاسپورت|ملی|iban/i;
+function aGuessKind(t){const s=String(t||'');return /قبض|برق|گاز|آب |اینترنت|شارژ/.test(s)?'util':/بیمه/.test(s)?'ins':/ماشین|خودرو|پلاک|پژو|پراید|سمند|تیبا/.test(s)?'car':/گذرنامه|پاسپورت|گواهینامه|شناسنامه|مدرک/.test(s)?'doc':/مجوز|پروانه|جواز/.test(s)?'lic':/حساب|شبا|بانک|کارت بانک/.test(s)?'bank':/سیم|موبایل|تلفن|گوشی/.test(s)?'phone':/هتل|اقامت/.test(s)?'hotel':/کارت/.test(s)?'card':/خانه|ملک|آپارتمان|زمین|مغازه/.test(s)?'prop':'other'}
+function v2aSheet(){if(!(VAULT&&vKey))return withVault(v2aSheet);const L=VAULT.items.slice().sort((a,b)=>(a.type==='pass')-(b.type==='pass'));
+  openSheet(`<h3>${badge('affairs','home')} انتقال از گاوصندوق</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">هر کدام را می‌خواهی تیک بزن و نوعش را ببین. رمزها و هر خانه‌ای مثل شماره حساب، کارت و گذرنامه در دارایی‌ها هم 🔒 و رمزنگاری‌شده می‌مانند. رمزهای ورود به سایت‌ها بهتر است در گاوصندوق بمانند.</p>
+  <form data-form="v2a">${L.map(x=>`<div class="row" style="cursor:default;flex-wrap:wrap;gap:6px"><label style="display:flex;gap:8px;align-items:center;flex:1;min-width:0"><input type="checkbox" class="v2_on" data-id="${x.id}" ${x.type==='pass'?'':'checked'}><span><b>${esc(x.title)}</b><br><small style="color:var(--muted)">${esc(VT[x.type]||'')} · ${fa((x.f||[]).length)} خانه${x.exp?' · انقضا '+jNice(x.exp):''}</small></span></label><select class="v2_k" data-id="${x.id}" style="width:auto">${Object.entries(AK).map(([k,v])=>opt(k,v.n,aGuessKind(x.title+' '+(x.f||[]).map(f=>f.k).join(' ')))).join('')}</select></div>`).join('')||'<div class="empty">گاوصندوق خالی است.</div>'}
+  <label style="display:flex;gap:6px;align-items:center;margin:10px 0;font-size:13.5px"><input type="checkbox" id="f_v2rm" checked> بعد از انتقال از گاوصندوق برداشته شود (تکراری نماند)</label>
+  <div class="acts"><button class="btn pri">انتقال</button><button type="button" class="btn ghost" data-act="assets">انصراف</button></div></form>`)}
+async function v2aRun(f){if(!(VAULT&&vKey))return withVault(v2aSheet);const ids=[...f.querySelectorAll('.v2_on:checked')].map(x=>x.dataset.id);if(!ids.length)return toast('چیزی انتخاب نشده');let n=0;
+  for(const vid of ids){const x=VAULT.items.find(i=>i.id===vid);if(!x)continue;const kind=f.querySelector(`.v2_k[data-id="${vid}"]`).value;const fields=[];
+    for(const it of (x.f||[])){if(!it.k&&!it.v)continue;const sec=x.type==='pass'||SECRX.test(it.k||'');const o={k:it.k||'بی‌عنوان',t:'text',sec,exp:false,v:''};if(sec){if(it.v)Object.assign(o,await secEnc(String(it.v)))}else o.v=String(it.v||'');fields.push(o)}
+    if(x.exp)fields.push({k:'تاریخ انقضا',t:'date',v:x.exp,exp:true,sec:false});
+    await putRaw('assets',{id:newId(),kind,title:x.title||'بی‌نام',parentId:'',personId:'',fields,note:x.note||'',from:'vault',archived:false,created:nowTs(),updated:nowTs()});n++}
+  if(document.getElementById('f_v2rm').checked){VAULT.items=VAULT.items.filter(i=>!ids.includes(i.id));await vSave()}
+  if(mode==='local')render();toast(fa(n)+' مورد منتقل شد ✓');assetsSheet()}
+
+/* ---------- Bills from SMS, email or any shared text (Gmail → share → میز کار) ---------- */
+function billParse(t){t=en(String(t||''));const id=(t.match(/شناسه\s*(?:ی\s*)?قبض[^0-9]{0,15}(\d{6,13})/)||[])[1];const pid=(t.match(/شناسه\s*(?:ی\s*)?پرداخت[^0-9]{0,15}(\d{5,13})/)||[])[1];if(!id&&!pid)return null;
+  let rial=0;if(pid&&pid.length>=6)rial=Number(pid.slice(0,-5))*1000;const m=t.match(/مبلغ[^0-9]{0,25}([\d,٬]+)\s*(ریال|تومان)?/);if(m){const v=Number(m[1].replace(/[,٬]/g,''));if(v)rial=m[2]==='تومان'?v*10:v}
+  const per=pid&&pid.length>=6?pid.slice(-4,-2):'';const typ=(t.match(/برق|گاز|آب|تلفن|اینترنت|موبایل|همراه/)||[])[0]||'';return{id:id||'',pid:pid||'',rial,per,typ}}
+function billFind(b){if(!b||!b.id)return null;return aLive().find(a=>a.kind==='util'&&(a.fields||[]).some(f=>!f.sec&&normDigits(f.v||'').replace(/\D/g,'')===b.id))||null}
+function billSheet(text){const b=billParse(text);if(!b)return receiptSheet(text,null);const a=billFind(b);const amt=b.rial/10;
+  openSheet(`<h3>${badge('finance','bell')} قبض ${esc(b.typ)}</h3>
+  <div class="list"><div class="row" style="cursor:default"><div class="main"><div class="sub"><span>${a?'مال':'قبض تازه'}</span></div><div class="ttl">${a?esc(aPath(a)+a.title):'در دارایی‌ها پیدا نشد'}</div></div>${a?`<button class="pill" data-act="viewAsset" data-id="${a.id}">باز کن</button>`:''}</div>
+   ${amt?`<div class="row" style="cursor:default"><div class="main"><div class="sub"><span>مبلغ</span></div><div class="ttl">${money(amt,'تومان')} میلیون تومان <small style="color:var(--muted)">(${fa(b.rial.toLocaleString('en'))} ریال)</small></div></div></div>`:''}
+   ${b.id?`<div class="row" style="cursor:default"><div class="main"><div class="sub"><span>شناسهٔ قبض</span></div><div class="ttl" dir="ltr" style="text-align:right">${b.id}</div></div><button class="pill" data-act="cpTxt" data-v="${b.id}">کپی</button></div>`:''}
+   ${b.pid?`<div class="row" style="cursor:default"><div class="main"><div class="sub"><span>شناسهٔ پرداخت${b.per?' · دورهٔ '+fa(Number(b.per)):''}</span></div><div class="ttl" dir="ltr" style="text-align:right">${b.pid}</div></div><button class="pill" data-act="cpTxt" data-v="${b.pid}">کپی</button></div>`:''}</div>
+  <div class="acts" style="margin-top:12px">${a?`<button class="btn pri" data-act="billPay" data-id="${a.id}" data-v="${amt}">ثبت پرداخت</button>`:`<button class="btn pri" data-act="billNew" data-v="${esc(JSON.stringify(b))}">ذخیره در دارایی‌ها</button>`}<button class="btn ghost" data-act="close">بستن</button></div>
+  <p class="hint" style="font-size:12px;color:var(--muted)">پیامک یا ایمیل قبض را در جیمیل یا پیامک‌ها «اشتراک‌گذاری» کن و میز کار را انتخاب کن؛ یا متنش را در «دارایی‌ها ← قبض از پیامک یا ایمیل» بچسبان.</p>`)}
+function billPasteSheet(){openSheet(`<h3>${badge('finance','bell')} قبض از پیامک یا ایمیل</h3><form data-form="billPaste"><div class="fld"><textarea id="f_bpt" rows="6" placeholder="متن پیامک یا ایمیل قبض را این‌جا بچسبان (شناسهٔ قبض و پرداخت کافی است)" data-autofocus></textarea></div><div class="acts"><button class="btn pri">بخوان</button><button type="button" class="btn ghost" data-act="assets">بازگشت</button></div></form>`)}
 
 /* ---------- Own accounts: where money left from or arrived to ---------- */
 function myAccts(){const pa=(PROF().accounts||[]).filter(Boolean);const c={};S.ledger.filter(l=>!l.void&&l.acct).forEach(l=>{const k=acctCanon(l.acct);c[k]=(c[k]||0)+1});const used=Object.keys(c).sort((a,b)=>c[b]-c[a]);return [...new Set([...used,...Object.keys(acctInfo()),...(pa.length||used.length?pa:['بلوبانک']),'نقد'].map(acctCanon).filter(Boolean))].slice(0,8)}
@@ -2083,7 +2139,7 @@ function vaultSheet(){const d=vDoc();if(!VAULT){openSheet(`<div id="vaultBox"><h
   openSheet(`<div id="vaultBox"><h3>${badge('personal','key')} گاوصندوق <span class="pill ok">باز</span>${helpBtn('vault')}</h3>
   ${!vBio()&&window.PublicKeyCredential?`<button class="banner" data-act="vBioOn" style="width:100%;text-align:start;margin:0 0 10px">${svg('key')} <span>دفعهٔ بعد با اثر انگشت باز شود؟ <b>بزن تا فعال شود</b></span></button>`:''}<input class="search-in" id="vq" placeholder="جستجو در گاوصندوق…" value="${esc(q)}">
   <div class="list">${L.length?L.map(x=>{const left=x.exp?diffDays(x.exp,today()):null;return `<button class="row" data-act="vOpen" data-id="${x.id}">${badge('personal',x.type==='pass'?'key':x.type==='geo'?'pin':x.type==='expiry'||x.type==='mile'?'cal':'note')}<div class="main"><div class="ttl">${esc(x.title)}</div><div class="sub"><span class="pill">${VT[x.type]||''}</span>${x.exp?`<span class="pill ${left<0?'bad':left<=30?'warn':''}">${left<0?'منقضی شد':'انقضا '+jNice(x.exp)}</span>`:''}</div></div></button>`}).join(''):'<div class="empty">چیزی نیست.</div>'}</div>
-  <div class="acts" style="margin-top:12px"><button class="btn pri" data-act="vNew">+ مورد تازه</button><button class="btn" data-act="vLockNow">قفل کن</button>${vBio()?'<button class="btn ghost" data-act="vBioOff">خاموش کردن اثر انگشت</button>':''}<button class="btn ghost" data-act="close">بستن</button></div>
+  <div class="acts" style="margin-top:12px"><button class="btn pri" data-act="vNew">+ مورد تازه</button><button class="btn" data-act="vLockNow">قفل کن</button>${VAULT.items.length?'<button class="btn ghost" data-act="v2a">انتقال به دارایی‌ها</button>':''}${vBio()?'<button class="btn ghost" data-act="vBioOff">خاموش کردن اثر انگشت</button>':''}<button class="btn ghost" data-act="close">بستن</button></div>
   <p class="hint" style="font-size:12px;color:var(--muted)">بعد از ۵ دقیقه بی‌کاری یا رفتن از برنامه، خودش قفل می‌شود. تاریخ انقضاها (بدون عنوان) بیرون می‌مانند تا یک ماه قبل در «امروز» یادآوری شود.</p></div>`)}
 function vForm(x={type:'pass',f:[]}){vTouch();const fl=x.f&&x.f.length?x.f:(x.type==='pass'?[{k:'نام کاربری',v:''},{k:'رمز',v:''}]:[{k:'',v:''}]);
   openSheet(`<div id="vaultBox"><h3>${x.id?'ویرایش':'مورد تازه'} در گاوصندوق</h3><form data-form="vitem" data-id="${x.id||''}">
@@ -2493,6 +2549,7 @@ function viewPerson(id){const p=byId('people',id);if(!p){toast('شخص پیدا 
    <dt>آخرین ارتباط</dt><dd>${(()=>{const lt=lastTouch(p);return (lt?jNice(lt)+' ('+fa(diffDays(today(),lt))+' روز پیش)':'ثبت نشده')+(Number(p.every)?' · '+esc((EVERY.find(e=>e[0]===Number(p.every))||[,''])[1]):'')})()} <button class="link" data-act="touched" data-id="${id}">خبر گرفتم ✓</button></dd>
    <dt>مانده</dt><dd>${bs.length?bs.map(([c,v])=>`<span class="${v>0?'amt-pos':'amt-neg'}">${v>0?'طلب من ':'بدهی من '}${money(v,c)}</span>`).join('<br>'):'بی‌حساب'}</dd></dl>
    ${p.note?`<div class="prose">${esc(p.note)}</div>`:''}
+   ${(()=>{try{return syPersonHtml(p)}catch(_){return ''}})()}
    ${led.length?stmtHtml(id):''}
    ${(()=>{const kr=kindRows(id);return kr?`<div class="blk-h" style="margin-top:12px"><h2>طلب و بدهی کالایی</h2></div><div class="list">${kr.replace(/data-act="viewPerson"/g,'data-act="kindHelp"')}</div>`:''})()}
    ${(()=>{const C=S.cheques.filter(c=>!c.void&&c.personId===id).sort((a,b)=>(b.due||'').localeCompare(a.due||''));return C.length?`<div class="blk-h" style="margin-top:12px"><h2>چک‌ها</h2></div><div class="list">${C.map(chequeRow).join('')}</div>`:''})()}
@@ -3317,6 +3374,12 @@ document.addEventListener('click',async e=>{
     case'cntAdd':document.getElementById('cnew').insertAdjacentHTML('beforeend',countRow());break;
     case'pkAdd':document.getElementById('pkList').insertAdjacentHTML('beforeend',`<div class="pkr" style="display:flex;gap:6px;margin-bottom:6px"><input class="pk_n" placeholder="نام" style="flex:1.4;min-width:0"><input class="pk_w" inputmode="decimal" placeholder="وزن (کیلو)" style="width:76px"><input class="pk_c" inputmode="numeric" placeholder="در کارتن" style="width:70px"><input type="hidden" class="pk_id" value="p${Date.now().toString(36)}"></div>`);break;
     case'assets':assetsSheet(b.dataset.v);break;
+    case'syOpen':await syLoad();sySheet();break;
+    case'v2a':v2aSheet();break;
+    case'billPaste':billPasteSheet();break;
+    case'billPay':{const v=Number(b.dataset.v)||0;asPayForm(id);setTimeout(()=>{const i=document.getElementById('f_apa');if(i&&v)i.value=fa(fromBase(v,'تومان'))},60);break}
+    case'billNew':{let x={};try{x=JSON.parse(b.dataset.v)}catch(_){}const F=aFields('util');const set=(k,v)=>{const f=F.find(y=>y.k===k);if(f&&v)f.v=v};set('نوع',{'همراه':'موبایل','تلفن':'تلفن ثابت'}[x.typ]||x.typ);set('شناسهٔ قبض',x.id);formAsset({kind:'util',title:x.typ?'قبض '+x.typ:'',fields:F},'util');break}
+    case'cpTxt':try{await navigator.clipboard.writeText(b.dataset.v);toast('کپی شد')}catch(_){toast(b.dataset.v)}break;
     case'asF':assetsSheet(b.dataset.v);break;
     case'assetNew':assetKindPick();break;
     case'assetKind':formAsset(null,b.dataset.v,b.dataset.p);break;
@@ -3776,6 +3839,8 @@ document.addEventListener('submit',async e=>{
     if(pcst)await save('ledger',null,{pack:true,lotId:cid,acct:val('f_acct'),kind:'paid',personId:'',amount:pcst*n,currency:'تومان',about:`بسته‌بندی ${fa(n)} عدد ${l.product} ${l.variety||''} ${p.n}`,category:'خرید و تأمین کالا',instrument:'نقد/کارت',date,settled:false,void:false});
     closeSheet();toast('بسته‌بندی ثبت شد ✓');viewLot(cid);return}
   if(k==='asset'){await saveAsset(f,id);return}
+  if(k==='v2a'){await v2aRun(f);return}
+  if(k==='billPaste'){const t=val('f_bpt');if(!billParse(t))return toast('شناسهٔ قبض یا پرداخت در متن پیدا نشد');billSheet(t);return}
   if(k==='asPay'){await saveAsPay(f,id);return}
   if(k==='fm'){await fmRun(f);return}
   if(k==='caseEnd'){await closeCase(id,val('f_ceo'),val('f_cen'),document.getElementById('f_cefu').checked);return}
