@@ -323,7 +323,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.38';
+const APP_VER='3.39';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -1566,6 +1566,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.39',[['finance','finance','زنجیره‌های طلب و بدهی باز','در «امروز ← زنجیره‌های در جریان» زدن روی طلب‌ها یا بدهی‌های باز حالا خودشان را نشان می‌دهد: جمع مانده، سررسیدگذشته‌ها، بیشترین طرف حساب‌ها و ردیف‌ها به ترتیب سررسید؛ تسویه‌شده‌ها هم دیگر شمرده نمی‌شوند.','tab|today']]],
  ['3.38',[['finance','finance','دقت تا ریال','مبالغ همچنان به میلیون تومان است، ولی اعشار تا جایی که لازم است (تا یک ریال) نگه داشته و نشان داده می‌شود؛ مبلغ‌های خیلی کوچک و اختلاف‌ها (تطبیق بانک، سند نامتوازن) به ریال هم نوشته می‌شوند.','tab|money'],['sales','truck','شیوهٔ پرداخت کرایه و خدمات','برای ردیف‌های خدمت: حواله، کارت به کارت، نقد از صندوق، چک، پایا یا ساتنا یا نسیه، و از کدام حساب.','docsSheet']]],
  ['3.37',[['sales','note','عنوان طرف حساب و کرایهٔ فاکتور خرید','کنار «نام روی سند» عنوان (آقای، خانم، حاج آقای…) انتخاب می‌شود و برای همان شخص به خاطر سپرده می‌شود؛ چاپ: «خریدار: آقای …» و «خرید از: آقای …». کرایه و خدمات فاکتور خرید هم حالا می‌پرسد: با فاکتور، جدا پرداخت شد، به عهدهٔ فروشنده (فقط اطلاع) یا به باربری دادم؛ و روی بهای کالاها می‌نشیند.','docsSheet']]],
  ['3.36',[['sales','note','طرف حساب و مانده با زبان درست','در چاپ: «خرید از»، «فروش به»، «برگشت از خریدار»، «امانی به»…؛ در فاکتور خرید مانده‌ها از زبان خودت: «مانده طلب/بدهی قبلی ما» و «جمع بدهی ما با این فاکتور»؛ امضاها هم بر اساس نقش.','docsSheet']]],
@@ -2005,7 +2006,7 @@ function vToday(){
   {const L=logItems(1).slice(0,4);if(L.length)h+=block('آخرین ثبت‌ها',null,`<div class="list">${L.map(logRow).join('')}</div>`,`<button class="link" data-act="logSheet">همه</button>`)}
   const fs=flowSummary();
     if(fs.short.length)h+=block('هشدار انبار',fs.short.length,listOr(fs.short,l=>`<button class="row" data-act="viewLot" data-id="${l.id}">${badge('therapy','warn')}<div class="main"><div class="ttl">کسری در ${esc(lotName(l))} ${fa(l.code||'')}</div><div class="sub"><span>${fmtQ(-lotStat(l).rem,l.unit)} بیش از موجودی ثبت شده؛ ورود جاافتاده یا مقدار را اصلاح کن</span></div></div></button>`,''));
-  if(fs.rows.length)h+=block('زنجیره‌های در جریان',null,`<div class="list">${fs.rows.map(([k,n,c,a,ic])=>`<button class="row" data-act="${k==='recv'||k==='pay'?'tab':'chain'}" data-v="${k==='recv'||k==='pay'?'money':k}">${badge(a,ic)}<div class="main"><div class="ttl">${n}</div></div><div class="end"><b>${fa(c)}</b></div></button>`).join('')}</div>`);
+  if(fs.rows.length)h+=block('زنجیره‌های در جریان',null,`<div class="list">${fs.rows.map(([k,n,c,a,ic])=>`<button class="row" data-act="${k==='recv'||k==='pay'?'chainMoney':'chain'}" data-v="${k}">${badge(a,ic)}<div class="main"><div class="ttl">${n}</div></div><div class="end"><b>${fa(c)}</b></div></button>`).join('')}</div>`);
   h+=block('پیگیری‌های سررسیده',follow.length,listOr(follow,dealRow,'پیگیری سررسیده‌ای نداری.'));
   if(money7.length)h+=block('سررسید مالی ۷ روز آینده',money7.length,listOr(money7,ledgerRow,''));
   if(noNext.length)h+=block('فرصت بدون قدم بعدی',noNext.length,listOr(noNext,dealRow,''));
@@ -2801,9 +2802,9 @@ async function openFlow(flow,title,days,area){const dup=S.tasks.find(t=>t.status
   await save('tasks',null,{title,due:addDays(today(),days),priority:2,area,personId:flow.personId||'',dealId:'',note:'ساخته‌شده خودکار برای پیگیری تا نتیجه',status:'open',flow})}
 async function closeFlows(pred,why){for(const t of S.tasks.filter(t=>t.status==='open'&&pred(t)))await save('tasks',t.id,{status:'done',doneAt:nowTs(),note:(t.note?t.note+' · ':'')+'بسته شد خودکار: '+why})}
 function flowSummary(){const ot=openTasks().filter(t=>t.flow);const c=k=>ot.filter(t=>t.flow.kind===k).length;
-  const recv=S.ledger.filter(l=>!l.void&&!l.settled&&l.kind==='receivable').length,pay=S.ledger.filter(l=>!l.void&&!l.settled&&l.kind==='payable').length;
+  const openK=k=>S.ledger.filter(l=>!l.void&&!l.settled&&l.kind===k&&remOf(l)>0.5);const recv=openK('receivable').length,pay=openK('payable').length;
   const short=S.lots.filter(l=>!l.void&&lotStat(l).rem<-1e-9);
-  return{rows:[['quote_gave','قیمت داده‌شده، منتظر جواب',c('quote_gave'),'marketers','tag'],['quote_got','قیمت گرفته‌شده، منتظر تصمیم',c('quote_got'),'export','tag'],['sample','نمونهٔ داده‌شده، منتظر نظر',c('sample'),'sales','box'],['recv','فروش نسیه، منتظر دریافت',recv,'finance','finance'],['pay','خرید نسیه، منتظر پرداخت',pay,'finance','finance']].filter(r=>r[2]>0),short}}
+  return{rows:[['quote_gave','قیمت داده‌شده، منتظر جواب',c('quote_gave'),'marketers','tag'],['quote_got','قیمت گرفته‌شده، منتظر تصمیم',c('quote_got'),'export','tag'],['sample','نمونهٔ داده‌شده، منتظر نظر',c('sample'),'sales','box'],['recv','طلب‌های باز، منتظر دریافت',recv,'finance','finance'],['pay','بدهی‌های باز، منتظر پرداخت',pay,'finance','finance']].filter(r=>r[2]>0),short}}
 
 /* ---------- Habits & persistent check-in ---------- */
 const HTYPE={yesno:'بله / نه',sleep:'ساعت خواب و بیداری',number:'عدد (مثلاً صفحه، دقیقه)'};
@@ -3358,6 +3359,15 @@ document.addEventListener('click',async e=>{
     case'vSide':{b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));vSum();break}
     case'vDel':{b.closest('.vline').remove();vSum();break}
     case'voidVoucher':if(await save('vouchers',id,{void:true,voidAt:nowTs()})){toast('سند باطل شد');accountingSheet('journal')}break;
+    case'chainMoney':{const K=b.dataset.v==='recv'?'receivable':'payable';const L=S.ledger.filter(l=>!l.void&&!l.settled&&l.kind===K&&remOf(l)>0.5).sort((a,c)=>(a.due||'9999').localeCompare(c.due||'9999')||(a.date||'').localeCompare(c.date||''));
+      const tot=L.reduce((a,l)=>a+remOf(l),0),late=L.filter(l=>l.due&&l.due<today());const byP={};L.forEach(l=>{const k=l.personId||'_';byP[k]=(byP[k]||0)+remOf(l)});const top=Object.entries(byP).sort((a,c)=>c[1]-a[1]).slice(0,5);
+      openSheet(`<h3>${badge('finance','finance')} ${K==='receivable'?'طلب‌های باز':'بدهی‌های باز'}</h3>
+       <div class="kpis"><div class="kpi"><div class="l">جمع مانده (میلیون تومان)</div><div class="v ${K==='receivable'?'amt-pos':'amt-neg'}">${money(tot,'تومان')}</div></div><div class="kpi"><div class="l">سررسید گذشته</div><div class="v ${late.length?'amt-neg':''}">${fa(late.length)} ردیف</div>${late.length?`<div class="l">${money(late.reduce((a,l)=>a+remOf(l),0),'تومان')}</div>`:''}</div></div>
+       ${top.length>1?`<div class="grp">بیشترین ${K==='receivable'?'طلب از':'بدهی به'}</div><div class="list">${top.map(([p,v])=>`<button class="row" data-act="${p==='_'?'close':'viewPerson'}" data-id="${p}">${badge('people','people')}<div class="main"><div class="ttl">${esc(p==='_'?'بدون طرف حساب':pname(p))}</div></div><div class="end ${K==='receivable'?'amt-pos':'amt-neg'}">${money(v,'تومان')}</div></button>`).join('')}</div>`:''}
+       <div class="grp">ردیف‌ها (اول سررسیدهای نزدیک)</div><div class="list">${L.map(ledgerRow).join('')||'<div class="empty">موردی نیست.</div>'}</div>
+       <p class="hint" style="font-size:12px;color:var(--muted)">روی هر ردیف بزن تا جزئیات، تسویه یا اصلاحش را ببینی.</p>
+       <div class="acts"><button class="btn" data-act="mPpl">جدول طلب و بدهی همه</button><button class="btn ghost" data-act="close">بستن</button></div>`);break}
+    case'mPpl':closeSheet();ui.ms='ppl';goTab('money');break;
     case'chain':{const ts=openTasks().filter(t=>t.flow&&t.flow.kind===b.dataset.v);openSheet(`<h3>زنجیرهٔ در جریان</h3>${listOr(ts,taskRow,'موردی نیست.')}<p class="hint" style="font-size:12px;color:var(--muted)">با ثبت فروش، خرید یا تسویه، این موارد خودکار بسته می‌شوند. اگر نتیجهٔ دیگری داشت، تیکش را بزن.</p><div class="acts"><button class="btn ghost" data-act="close">بستن</button></div>`);break}
     case'checkin':openCheckin(true);break;
     case'ciAns':await answerCheckin(b.dataset.h,b.dataset.d,b.dataset.v);break;
