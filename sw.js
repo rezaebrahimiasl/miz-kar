@@ -1,4 +1,4 @@
-const V='miz-kar-v3.29';const KEEP=[V,'miz-shell','miz-share'];const SHELL=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'];
+const V='miz-kar-v3.30';const KEEP=[V,'miz-shell','miz-share'];const SHELL=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'];
 // Install: cache the app shell fresh from the network (bypassing the HTTP cache)
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>Promise.all(SHELL.map(u=>fetch(u,{cache:'reload'}).then(r=>{if(r.ok)return c.put(u,r)}).catch(()=>{})))).then(()=>self.skipWaiting()))});
 // Activate: remove only old versioned caches; the shell copy and shared items are kept so the app always opens offline
