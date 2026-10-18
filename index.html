@@ -318,7 +318,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.27';
+const APP_VER='3.28';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -473,6 +473,40 @@ async function restoreJson(j){
 
 /* ---------- Derived ---------- */
 const openTasks=()=>S.tasks.filter(t=>t.status!=='done'&&t.status!=='archived');
+/* ---------- Day planner check: where I am, what else is on, what may block this ---------- */
+function whereOn(d){const home=PROF().city||hereCity()||'';const T=S.trips.filter(t=>!t.void&&t.depDate&&t.depDate<=d).sort((a,b)=>a.depDate.localeCompare(b.depDate));const t=T[T.length-1];
+  const tr=S.trips.filter(x=>!x.void&&(x.depDate===d||(x.ret&&x.ret.date===d)));const travel=tr.map(x=>x.depDate===d?`رفت ${x.from||''} ← ${x.to}${x.depTime?' ساعت '+fa(x.depTime):''}`:`برگشت ${x.to} ← ${x.from||''}${x.ret.time?' ساعت '+fa(x.ret.time):''}`);
+  if(!t)return{city:home,travel};const back=t.ret&&t.ret.date&&t.ret.date<=d;return{city:back?(t.from||home):t.to,travel,trip:t}}
+const tTime=s=>{const m=String(s||'').match(/ساعت\s*([0-9۰-۹]{1,2})(?:[:٫.]([0-9۰-۹]{2}))?/);return m?Number(en(m[1]))*60+(m[2]?Number(en(m[2])):0):null};
+const MEDQ=/دکتر|ویزیت|پزشک|مطب|آزمایش|سونو|عکس|ام‌آر|MRI|جراحی|عمل |دندان|بیمارستان|کلینیک/i,OFFQ=/بانک|اداره|دفترخانه|ثبت|دادگاه|شهرداری|بیمه|مالیات|گمرک|پست|مطب|دکتر|آزمایش|کلینیک/;
+function dayCheck(d,o={}){if(!d)return null;const out=[];const same=c=>!c||!o.city||nrm(c)===nrm(o.city);const W=whereOn(d);const city=o.city||W.city;
+  const T=k=>openTasks().filter(t=>t.id!==o.id&&t.due===addDays(d,k));const t0=T(0),tm=tTime(o.title);
+  if(o.city&&W.city&&nrm(o.city)!==nrm(W.city))out.push(['bad',`طبق سفرها این روز در «${W.city}» هستی، نه «${o.city}».`]);
+  W.travel.forEach(x=>out.push(['warn',`این روز روز سفر است: ${x}.`]));
+  t0.filter(t=>t.city&&!same(t.city)).forEach(t=>out.push(['bad',`همین روز «${t.title}» در «${t.city}» است.`]));
+  if(tm!=null)t0.forEach(t=>{const x=tTime(t.title);if(x!=null&&Math.abs(x-tm)<90)out.push(['bad',`هم‌زمان با «${t.title}».`])});
+  for(const k of [1,2]){const w=whereOn(addDays(d,k));const lb=k===1?'روز بعدش':'دو روز بعدش';
+    if(w.travel.length)out.push([k===1?'warn':'info',`${lb} سفر داری: ${w.travel[0]}.`]);else if(city&&w.city&&nrm(w.city)!==nrm(city))out.push(['warn',`${lb} باید در «${w.city}» باشی.`]);
+    T(k).filter(t=>t.city&&city&&nrm(t.city)!==nrm(city)).slice(0,2).forEach(t=>out.push(['warn',`${lb} «${t.title}» در «${t.city}» است؛ رفت‌وآمد را حساب کن.`]))}
+  if(MEDQ.test(o.title||'')&&out.some(x=>/سفر|باید در|است؛ رفت/.test(x[1])))out.push(['info','ویزیت و آزمایش معمولاً پیگیری دارد (جواب، نوبت بعد، دارو)؛ ببین با برنامهٔ روزهای بعد جور است.']);
+  if(new Date(d+'T12:00:00').getDay()===5&&OFFQ.test(o.title||''))out.push(['warn','جمعه است؛ بیشتر ادارات، بانک‌ها و مطب‌ها تعطیل‌اند.']);
+  if(t0.length>=4)out.push(['warn',`همین روز ${fa(t0.length)} کار دیگر هم داری${t0.some(t=>Number(t.priority)===1)?' (چندتا فوری)':''}.`]);
+  const lv=out.some(x=>x[0]==='bad')?'bad':out.some(x=>x[0]==='warn')?'warn':out.length?'info':'';
+  const R={out,lv,W,t0,t1:T(1),t2:T(2),near:[],sug:''};if(o.lite)return R;
+  // similar work close by: do them together, or avoid doing twice
+  const sim=t=>(o.title&&simTitle(t.title,o.title))||(o.personId&&t.personId===o.personId);
+  R.near=openTasks().filter(t=>t.id!==o.id&&t.due&&t.due!==d&&Math.abs(diffDays(t.due,d))<=10&&sim(t)).sort((a,b)=>Math.abs(diffDays(a.due,d))-Math.abs(diffDays(b.due,d))).slice(0,3).map(t=>({t,d:t.due,done:0}))
+    .concat(S.tasks.filter(t=>t.id!==o.id&&t.status==='done'&&t.doneAt&&o.title&&simTitle(t.title,o.title)&&diffDays(d,isoOf(new Date(t.doneAt)))<=14&&diffDays(d,isoOf(new Date(t.doneAt)))>=0).slice(0,1).map(t=>({t,d:isoOf(new Date(t.doneAt)),done:1})));
+  // nearest calmer day
+  if(lv==='bad'||lv==='warn'){for(const k of [1,-1,2,-2,3,-3,4,5,6,7]){const d2=addDays(d,k);if(d2<today())continue;const r2=dayCheck(d2,{...o,lite:1});if(!r2.lv||r2.lv==='info'){R.sug=d2;break}}}
+  return R}
+function dayChkHtml(r){if(!r)return'';const C={bad:'var(--bad)',warn:'var(--warn, #c98a00)',info:'var(--muted)'};const ln=(k,a)=>a.length?`<span>${k}: ${a.slice(0,3).map(t=>esc(t.title)).join('، ')}${a.length>3?' …':''}</span>`:'';
+  const ctx=[ln('همان روز',r.t0),ln('روز بعد',r.t1),ln('دو روز بعد',r.t2)].filter(Boolean);const nr=r.near.map(x=>`<div style="font-size:13px;line-height:1.8;color:var(--a-affairs,var(--ink))">• ${x.done?'انجام شد':'کار مشابه'}: «${esc(x.t.title)}» ${jNice(x.d)}${x.done?'؛ تکراری نیست؟':'؛ شاید با هم انجام شود'}</div>`).join('');const sg=r.sug?`<div class="chips wrap" style="margin-top:6px"><button type="button" class="chip" data-act="setDate" data-f="f_due" data-v="${r.sug}">${svg('cal')} روز خلوت‌تر: ${jNice(r.sug)}</button></div>`:'';if(!r.out.length&&!ctx.length&&!nr)return `<div class="hint" style="font-size:12px;color:var(--muted);margin:-4px 2px 8px">${svg('pin')} ${r.W.city?'در «'+esc(r.W.city)+'»؛ ':''}این روز و دو روز بعدش کار دیگری نداری.</div>`;
+  return `<div class="list" style="padding:10px;margin:-2px 0 10px;border-color:${r.lv?C[r.lv]:'var(--line)'}"><div class="ttl" style="font-size:13.5px;margin-bottom:4px">${r.lv==='bad'?svg('warn')+' احتمال انجام نشدن: زیاد':r.lv==='warn'?svg('warn')+' احتمال انجام نشدن: متوسط':svg('pin')+' بررسی روز'}${r.W.city?` <span class="pill">${svg('pin')} ${esc(r.W.city)}</span>`:''}</div>
+   ${r.out.map(([l,t])=>`<div style="font-size:13px;line-height:1.8;color:${C[l]}">• ${esc(t)}</div>`).join('')}
+   ${nr}${ctx.length?`<div class="sub" style="display:block;font-size:12px;margin-top:4px;line-height:1.9">${ctx.join('<br>')}</div>`:''}${sg}</div>`}
+let dayChkT=0;function dayChkRefresh(){clearTimeout(dayChkT);dayChkT=setTimeout(()=>{const el=document.getElementById('dayChk');if(!el)return;const f=el.closest('form');const d=parseJ(val(el.dataset.f||'f_due'));el.innerHTML=d?dayChkHtml(dayCheck(d,{id:f&&f.dataset.id,title:val('f_title'),city:val('f_city'),personId:val('f_person')})):''},120)}
+['input','change','click'].forEach(ev=>document.addEventListener(ev,()=>{if(document.getElementById('dayChk'))dayChkRefresh()}));
 const openDeals=()=>S.deals.filter(d=>(d.status||'open')==='open');
 const affects=l=>!l.void&&(l.kind==='receivable'||l.kind==='payable'||!!l.refId||!!l.settles);
 function balances(personId){const m={};S.ledger.filter(l=>affects(l)&&(!personId||l.personId===personId)).forEach(l=>{const c=l.currency||'تومان';m[c]=(m[c]||0)+LK[l.kind].s*(Number(l.amount)||0)});return m}
@@ -1480,6 +1514,7 @@ function docsSheet(){const f=ui.docF||'all';const L=S.docs.filter(d=>!d.void&&d.
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.28',[['affairs','pin','بررسی روز در ثبت کار','وقتی برای روزی کار می‌گذاری، زیر تاریخ نشان می‌دهد آن روز کجایی (از سفرها)، چه کارهای دیگری همان روز و دو روز بعد داری، و تداخل‌ها را می‌گوید: شهر دیگر، هم‌ساعت، روز سفر، جمعه برای اداره و مطب، و ویزیتی که پیگیری‌اش با سفر بعدی جور نیست؛ با «احتمال انجام نشدن» زیاد یا متوسط. کارهای مشابه یا با همان شخص در ۱۰ روز اطراف را هم می‌گوید تا با هم انجام شوند، و اگر روز شلوغ است نزدیک‌ترین روز خلوت را پیشنهاد می‌دهد.','tab|tasks']]],
  ['3.27',[['finance','lock','هشدار قبل از ثبت در دورهٔ تأییدشده','اگر حسابی موجودی اول یا تطبیق بانک خورده، یا کالایی شمارش شده، هر ثبت، اصلاح یا ابطال با تاریخ قبل از آن اول هشدار می‌دهد؛ ثبت‌های داخل دورهٔ تأییدشده برچسب قفل دارند و حسابِ دست‌خورده «دوباره تطبیق کن» می‌گیرد. شمارشی که با برنامه یکی بوده هم حالا تأیید ثبت می‌شود.','tab|money']]],
  ['3.26',[['finance','finance','موجودی اول با تاریخ درست','«موجودی اول» یعنی موجودی در آن روز؛ ثبت‌های قبل از آن دیگر دوباره حساب نمی‌شوند و دفتر کل هم همین را نشان می‌دهد.','tab|money']]],
  ['3.25',[['finance','book','حساب در سند دستی','سند دستی که ردیف «نقد و بانک» دارد حالا می‌گوید از کدام حساب (بلوبانک، نقد…) بوده؛ سندهای بی‌حساب هم در «بدون حساب مشخص» فهرست می‌شوند.','tab|money']]],
@@ -2126,6 +2161,7 @@ function taskProgress(t){const log=(t.log||[]).slice().reverse();const per=t.per
 function formTask(t={},pre={}){t={...pre,...t};openSheet(`${t.id?taskProgress(t):'<h3>کار جدید</h3>'}<form data-form="task" data-id="${t.id||''}">
   <div class="fld"><label for="f_title">چه کاری؟</label><input id="f_title" data-autofocus value="${esc(t.title)}" required></div>
   ${dateField('f_due','تاریخ انجام',t.due||today())}
+  <div id="dayChk" data-f="f_due">${t.status==='done'?'':dayChkHtml(dayCheck(t.due||today(),{id:t.id,title:t.title,city:t.city,personId:t.personId}))}</div>
   <details class="more" ${t.id?'open':''}><summary>جزئیات بیشتر: اولویت، حوزه، شخص، تکرار، دسته، شهر، یادداشت</summary>
   <div class="fld"><label for="f_rep">تکرار</label><select id="f_rep">${Object.entries(REP).map(([k,v])=>opt(k,v,t.repeat||'')).join('')}</select><div class="hint" style="font-size:12px;color:var(--muted)">کار تکراری با «انجام شد» خودش نوبت بعدی را می‌سازد.</div></div>
   <div class="row2"><div class="fld"><label for="f_pri">اولویت</label><select id="f_pri">${Object.entries(PRI).map(([k,v])=>opt(k,v,t.priority||3)).join('')}</select></div>${areaSelect('f_area',t.area)}</div>
@@ -3479,7 +3515,7 @@ document.addEventListener('submit',async e=>{
     const nx=(f.querySelector('[data-g=nx][aria-pressed=true]')||{dataset:{v:'again'}}).dataset.v;let nextDue='';if(nx==='again'){nextDue=readDate('f_ln');if(nextDue===null)return}
     const e={ts:nowTs(),d:today(),type,text,next:nx,nextDue};const d={log:[...(t.log||[]),e],lastLog:e};if(nx==='done'){d.status='done';d.doneAt=nowTs()}else if(nextDue)d.due=nextDue;
     if(await save('tasks',id,d)){closeSheet();toast(nx==='done'?'ثبت شد و کار بسته شد ✓':'ثبت شد · پیگیری بعدی '+jNice(nextDue||t.due))}return}
-  if(k==='task'){let due=readDate('f_due');if(due===null)return;if(!id){const tt=val('f_title');const sm=openTasks().find(t=>simTitle(t.title,tt));if(sm&&dupGuard(f,'t'+sm.id,`کار باز «${esc(sm.title)}»${sm.due?' برای '+jNice(sm.due):''}`,false))return}if(!id&&due===today()){const g=guessDate(val('f_title'));if(g)due=g}let pr=Number(val('f_pri'))||3;if(!id&&pr===3&&/(^|\s)!+(\s|$)|فوری/.test(val('f_title')))pr=1;const st0=readDate('f_start');if(st0===null)return;const d={start:st0,fup:Number(val('f_fup'))||0,payAmt:toBase(num(val('f_tpay'))||0,'تومان'),payCat:val('f_tpcat'),title:val('f_title').replace(/(^|\s)!+(?=\s|$)/g,' ').trim(),due,repeat:val('f_rep'),city:val('f_city'),tag:val('f_tag'),priority:pr,area:val('f_area')||(!id?guessArea(val('f_title')):''),personId:val('f_person'),dealId:val('f_dealT'),note:val('f_note'),loc:readLoc()};
+  if(k==='task'){let due=readDate('f_due');if(due===null)return;{const r=due?dayCheck(due,{id,title:val('f_title'),city:val('f_city')}):null;if(r&&r.lv==='bad'&&f.dataset.cx!=='1'){f.dataset.cx='1';dayChkRefresh();return toast('این روز تداخل دارد (بالای فرم)؛ اگر مطمئنی دوباره «ذخیره» را بزن')}}if(!id){const tt=val('f_title');const sm=openTasks().find(t=>simTitle(t.title,tt));if(sm&&dupGuard(f,'t'+sm.id,`کار باز «${esc(sm.title)}»${sm.due?' برای '+jNice(sm.due):''}`,false))return}if(!id&&due===today()){const g=guessDate(val('f_title'));if(g)due=g}let pr=Number(val('f_pri'))||3;if(!id&&pr===3&&/(^|\s)!+(\s|$)|فوری/.test(val('f_title')))pr=1;const st0=readDate('f_start');if(st0===null)return;const d={start:st0,fup:Number(val('f_fup'))||0,payAmt:toBase(num(val('f_tpay'))||0,'تومان'),payCat:val('f_tpcat'),title:val('f_title').replace(/(^|\s)!+(?=\s|$)/g,' ').trim(),due,repeat:val('f_rep'),city:val('f_city'),tag:val('f_tag'),priority:pr,area:val('f_area')||(!id?guessArea(val('f_title')):''),personId:val('f_person'),dealId:val('f_dealT'),note:val('f_note'),loc:readLoc()};
     if(!d.title)return toast('عنوان کار لازم است');if(!id)d.status='open';
     if(await save('tasks',id,d)){if(f.dataset.inbox)await save('inbox',f.dataset.inbox,{processed:true});closeSheet();toast('ذخیره شد')}return}
   if(k==='deal'){const nd=readDate('f_nd',true);if(nd===null)return;const pipe=val('f_pipe');
