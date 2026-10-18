@@ -322,7 +322,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.34';
+const APP_VER='3.35';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -1552,6 +1552,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.35',[['sales','box','وزن دقیق تا گرم در همه‌جا','مانده و مقدار کالاهای کیلویی همه‌جا به شکل «۱۰ کیلو و ۹۵ گرم» نشان داده می‌شود؛ قبلاً تا دو رقم اعشار گرد می‌شد و گرم‌ها دیده نمی‌شد.','docsSheet']]],
  ['3.34',[['sales','box','وزن با کیلو و گرم','«۱۰٫۹۵» یعنی ۱۰ کیلو و ۹۵۰ گرم؛ برای ۱۰ کیلو و ۹۵ گرم بنویس «۱۰ک۹۵» یا «۱۰ کیلو ۹۵ گرم» (یا ۱۰٫۰۹۵). زیر مقدار هم همیشه نوشته می‌شود چند کیلو و چند گرم فهمیده شده.','docsSheet']]],
  ['3.33',[['sales','truck','تسویهٔ جدای کرایه و خدمات','هر ردیف خدمت در فاکتور فروش می‌پرسد: با خود فاکتور، جدا دریافت شد (با مبلغ واقعی و حساب)، پس‌کرایه (خریدار مستقیم به باربری می‌دهد؛ در جمع نمی‌آید) یا هزینهٔ من (به باربری دادم یا بدهکارم؛ روی فاکتور مشتری نمی‌آید).','docsSheet']]],
  ['3.32',[['apiary','box','برگهٔ تولید','«فاکتورها و اسناد ← تولید»: مثلاً سرکه‌انگبین؛ بگو از کدام عسل و انبار چقدر، و هزینه‌های دیگر (سرکه، شیشه، دستمزد)؛ مواد از انبار کم و محصول با بهای تمام‌شدهٔ هر واحد وارد انبار می‌شود.','docsSheet'],['sales','note','تخفیف فقط روی ردیف‌های مشمول','هر ردیف فاکتور تیک «مشمول تخفیف» دارد؛ کرایه و خدمات خودکار بیرون می‌مانند. هزینه‌های خرید و نوع پرداخت هم در اصلاح فاکتور برمی‌گردند.','docsSheet']]],
@@ -2647,7 +2648,7 @@ const lotMoves=id=>S.moves.filter(m=>m.lotId===id&&!m.void);
 function lotStat(l){const mv=lotMoves(l.id);let out=0,sold=0,rev=0;const people=new Set();
   mv.forEach(m=>{const q=Number(m.qty)||0;out-=MOVE[m.kind].s*q;if(m.kind==='sale'){sold+=q;rev+=q*(Number(m.price)||0)}if(m.personId&&!['loss','ret','payback','getback'].includes(m.kind))people.add(m.personId)});
   const rem=(Number(l.qty)||0)-out;return{rem,out,sold,rev,people:people.size,avg:sold?rev/sold:0,age:diffDays(today(),l.date)}}
-const fmtQ=(q,u)=>fa(Math.round(q*100)/100)+' '+(u||'');
+const fmtQ=(q,u)=>{const a=Math.abs(Number(q)||0);if(KGU(u)&&Math.abs(a-Math.round(a))>0.0005){const t=kgTxt(a);return (q<0?'−':'')+t}return fa(Math.round(q*1000)/1000)+' '+(u||'')};
 function ageTxt(d){if(d<31)return fa(d)+' روز';if(d<365)return fa(Math.round(d/30))+' ماه';return fa(Math.round(d/36.5)/10).replace('.','٫')+' سال'}
 const lotSrc=l=>l.consign?'امانی برای فروش از '+(pname(l.supplierId)||'—'):l.source==='pack'?'بسته‌بندی از '+((byId('lots',l.parentId)||{}).code||'فله'):l.source==='prod'?'تولید خودم ('+((byId('docs',l.docId)||{}).no||'برگهٔ تولید')+')':l.source==='xfer'?'جابه‌جا شده از '+((byId('lots',l.parentId)||{}).place||'انبار اصلی'):l.source==='open'?'موجودی اول (شمارش)':l.source==='buy'?pname(l.supplierId):l.source==='loan'?'امانی از '+(pname(l.supplierId)||l.supplierName||'—'):'تولید خودم';
 function lotRow(l){const st=lotStat(l);const sup=lotSrc(l);
