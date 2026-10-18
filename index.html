@@ -318,7 +318,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.23';
+const APP_VER='3.24';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -429,8 +429,8 @@ function catManual(){const c=document.getElementById('f_cat');if(!c)return;c.dat
   w.innerHTML=`<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="f_catr" data-kw="${esc(kw)}" style="width:auto"> از این به بعد هر «${esc(kw)}» در «${esc(c.value)}» ثبت شود</label>`}
 async function catRuleSave(){const x=document.getElementById('f_catr');if(!x||!x.checked||!val('f_cat'))return;const R={...CATR()};R[x.dataset.kw]={cat:val('f_cat'),dir:catDir()};await putRaw('meta',{id:'catrules',r:R,created:nowTs(),updated:nowTs()})}
 function aboutList(){let d=document.getElementById('aboutList');if(!d){d=document.createElement('datalist');d.id='aboutList';document.body.appendChild(d)}const seen=new Set(),L=[];S.ledger.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).forEach(l=>{const a=(l.about||'').trim();if(a&&!seen.has(a)&&L.length<60){seen.add(a);L.push(a)}});d.innerHTML=L.map(a=>`<option value="${esc(a)}">`).join('')}
-const insOf=l=>(l.kind==='receivable'||l.kind==='payable')&&(!l.instrument||l.instrument==='نقد/کارت')?'نسیه':(l.instrument||'');
-async function save0(col,id,data){ghDirty=true;if(data&&col==='ledger'&&data.acct)data.acct=acctCanon(data.acct);if(data&&col==='recurs'&&data.bank)data.bank=acctCanon(data.bank);if(col==='ledger'&&data){const k=data.kind||(id&&(byId('ledger',id)||{}).kind);if((k==='receivable'||k==='payable')&&(data.instrument==='نقد/کارت'||(!id&&!data.instrument)))data.instrument='نسیه'}
+const insOf=l=>(l.kind==='receivable'||l.kind==='payable')&&l.category!==LOAN&&(!l.instrument||l.instrument==='نقد/کارت')?'نسیه':(l.instrument||'');
+async function save0(col,id,data){ghDirty=true;if(data&&col==='ledger'&&data.acct)data.acct=acctCanon(data.acct);if(data&&col==='recurs'&&data.bank)data.bank=acctCanon(data.bank);if(col==='ledger'&&data){const k=data.kind||(id&&(byId('ledger',id)||{}).kind);const cat=data.category!==undefined?data.category:(id&&(byId('ledger',id)||{}).category);if((k==='receivable'||k==='payable')&&cat!==LOAN&&(data.instrument==='نقد/کارت'||(!id&&!data.instrument)))data.instrument='نسیه'}
   try{
     if(mode==='cloud'){
       if(id){await db.collection(col).doc(id).update({...data,updated:nowTs()})}
@@ -1480,6 +1480,7 @@ function docsSheet(){const f=ui.docF||'all';const L=S.docs.filter(d=>!d.void&&d.
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.24',[['finance','finance','حساب در قرض نقدی','در «قرض و جابه‌جایی» جای «از کدام حساب» همه‌جا هست و چیپ حساب‌ها از حساب‌هایی که واقعاً به کار برده‌ای ساخته می‌شود.','tab|money']]],
  ['3.23',[['finance','finance','«بدون حساب مشخص» کامل شد','قرض دادن و گرفتن نقدی هم حساب (بلوبانک، نقد…) می‌گیرد و در فهرست «بدون حساب» می‌آید؛ ثبت‌های منتظر تأیید دیگر در دفاتر نمی‌آیند تا تأیید شوند.','tab|money']]],
  ['3.22',[['finance','book','خلاصهٔ پول = دفاتر حسابداری','درآمد، هزینه و سود «این ماه» حالا از همان سندهای سود و زیان حساب می‌شود؛ جمع حساب‌ها با «نقد و بانک» دفتر کل برابر است و ردیف «بدون حساب مشخص» جاافتاده‌ها را نشان می‌دهد؛ زیر طلب و بدهی عدد ناخالص دفتر کل هم آمده.','tab|money']]],
  ['3.21',[['finance','finance','ادغام دو حساب','اگر یک حساب با دو نام ثبت شده (مثلاً «بلوبانک» و «بلوبانک سامان»)، روی حساب بزن ← «ادغام»؛ همهٔ ثبت‌ها، موجودی اول و پرداخت‌های دوره‌ای یکی می‌شوند و نام قدیمی بعداً هم خودکار به همان حساب می‌رود.','tab|money']]],
@@ -1717,7 +1718,7 @@ function rpCalc(){const cb=document.getElementById('rpCost');if(cb){const U=rpUs
   box.innerHTML=n?`<div class="banner" style="margin:0 0 10px;${out>rem+1e-6?'':'background:var(--card)'}">${svg(out>rem+1e-6?'warn':'box')} ${fa(n)} عدد${cartonTxt(n,{pc})?' ('+cartonTxt(n,{pc})+')':''} = ${fmtQ(out,l.unit)} از فله کم می‌شود؛ ${out>rem+1e-6?'بیشتر از مانده است!':'فلهٔ مانده '+fmtQ(rem-out,l.unit)}${lo>=pc?' · عدد تکی از یک کارتن بیشتر است':''}</div>`:''}
 function mvPk(){const l=byId('lots',val('f_mlot'));const pc=lotPc(l);document.querySelectorAll('[data-mpk]').forEach(x=>x.hidden=!pc);if(pc){const u=document.getElementById('mpkU');if(u)u.textContent='کارتن '+fa(pc)+'تایی · مانده '+(cartonTxt(lotStat(l).rem,l)||'۰')}}
 /* ---------- Own accounts: where money left from or arrived to ---------- */
-function myAccts(){const pa=(PROF().accounts||[]).filter(Boolean);return [...new Set([...(pa.length?pa:['بلوبانک']),'نقد'])]}
+function myAccts(){const pa=(PROF().accounts||[]).filter(Boolean);const c={};S.ledger.filter(l=>!l.void&&l.acct).forEach(l=>{const k=acctCanon(l.acct);c[k]=(c[k]||0)+1});const used=Object.keys(c).sort((a,b)=>c[b]-c[a]);return [...new Set([...used,...Object.keys(acctInfo()),...(pa.length||used.length?pa:['بلوبانک']),'نقد'].map(acctCanon).filter(Boolean))].slice(0,8)}
 function myAcctsOld(){const c={};(PROF().accounts||[]).forEach(a=>c[a]=100);Object.keys(acctInfo()).forEach(a=>c[a]=(c[a]||0)+90);S.ledger.filter(l=>!l.void&&l.acct).forEach(l=>c[l.acct]=(c[l.acct]||0)+1);S.recurs.filter(r=>r.bank).forEach(r=>c[r.bank]=(c[r.bank]||0)+1);c['نقد']=c['نقد']||0;return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(x=>x[0]).slice(0,8)}
 const acctLabel=dir=>dir==='in'?'به کدام حساب یا کیف پول آمد؟':'از کدام حساب یا کیف پول دادی؟';
 function acctField(id,cur,dir){if(cur==null||cur==='')cur=myAccts()[0]||'';return `<div class="fld"><label for="${id}" id="${id}_l">${acctLabel(dir)}</label><input id="${id}" value="${esc(cur||'')}" placeholder="مثلاً بلوبانک، نقد"><div class="chips wrap" style="margin-top:6px">${myAccts().map(a=>`<button type="button" class="chip" data-act="setAcct" data-f="${id}" data-v="${esc(a)}" aria-pressed="${a===cur}">${esc(a)}</button>`).join('')}</div></div>`}
@@ -2156,7 +2157,7 @@ function formLedger(l={},pre={}){l={...pre,...l};const kind=l.kind||'receivable'
   <div class="fld"><label for="f_about">بابت</label><input id="f_about" list="aboutList" autocomplete="off" value="${esc(l.about)}" placeholder="مثلاً: پورسانت مهر، فروش ۱۰ کیلو عسل"></div>
   <div class="fld"><label for="f_cat">دستهٔ درآمد یا هزینه</label><select id="f_cat">${opt('','— انتخاب کن —',l.category)}${catOptions(l.category,kindDir(kind))}</select><div class="hint" id="f_cat_h">فقط دسته‌های مربوط به همین نوع نشان داده می‌شود. گزارش «درآمد پارسال از عسل» از همین دسته ساخته می‌شود.</div></div>${l.netOf?`<input type="hidden" id="f_netof" value="${esc(l.netOf)}">`:''}
   <div class="row2"><div class="fld"><label for="f_instr">شیوه</label><select id="f_instr">${INSTR.map(c=>opt(c,c,l.instrument||'نقد/کارت')).join('')}</select></div><div class="fld"><label for="f_ref">شمارهٔ چک / فاکتور</label><input id="f_ref" dir="ltr"></div></div>
-  <div data-acct ${kind==='received'||kind==='paid'?'':'hidden'}>${acctField('f_acct',l.acct||'',kindDir(kind))}</div>
+  <div data-acct ${kind==='received'||kind==='paid'||l.category===LOAN&&(kind==='receivable'||kind==='payable')?'':'hidden'}>${acctField('f_acct',l.acct||'',kindDir(kind))}</div>
   <label style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin-bottom:11px"><input type="checkbox" id="f_settles" style="margin-top:5px"> <span>این دریافت یا پرداخت بابت <b>تسویهٔ طلب یا بدهی قبلی</b> است (مانده را کم می‌کند). برای فروش یا خرید نقدی تیک نزن.</span></label>
   </div>
   ${dateField('f_date','تاریخ ثبت',today())}
@@ -2763,8 +2764,8 @@ function formLedgerEdit(l){if(!l)return;openSheet(`<h3>ویرایش ${esc(LSHORT
   ${l.kind==='received'||l.kind==='paid'?acctField('f_acct',l.acct||'',kindDir(l.kind)):l.category===LOAN?acctField('f_acct',l.acct||'',l.kind==='payable'?'in':'out'):''}
   <div class="fld"><label for="f_about">بابت</label><input id="f_about" list="aboutList" autocomplete="off" value="${esc(l.about)}"></div>
   <div class="fld"><label for="f_cat">دسته</label><select id="f_cat">${opt('','— —',l.category)}${catOptions(l.category,kindDir(l.kind))}</select></div>
-  <div class="row2"><div class="fld"><label for="f_instr">شیوه</label><select id="f_instr">${((l.kind==='receivable'||l.kind==='payable')?['نسیه',...INSTR.filter(x=>x!=='نقد/کارت')]:INSTR).map(c=>opt(c,c,insOf(l)||'نقد/کارت')).join('')}</select></div><div class="fld"><label for="f_ref">شمارهٔ چک / فاکتور</label><input id="f_ref" dir="ltr" value="${esc(l.ref)}"></div></div>
-  <div class="hint" style="font-size:12px;color:var(--muted);margin:-4px 2px 8px">${l.kind==='receivable'||l.kind==='payable'?'نسیه است. اگر در واقع نقد بوده، «تغییر نوع» را بزن.':'نقد است. اگر در واقع نسیه بوده، «تغییر نوع» را بزن.'}${l.docId?' کالا و مقدار از «سند منبع» اصلاح می‌شود.':''}</div>
+  <div class="row2"><div class="fld"><label for="f_instr">شیوه</label><select id="f_instr">${((l.kind==='receivable'||l.kind==='payable')&&l.category!==LOAN?['نسیه',...INSTR.filter(x=>x!=='نقد/کارت')]:INSTR).map(c=>opt(c,c,insOf(l)||'نقد/کارت')).join('')}</select></div><div class="fld"><label for="f_ref">شمارهٔ چک / فاکتور</label><input id="f_ref" dir="ltr" value="${esc(l.ref)}"></div></div>
+  <div class="hint" style="font-size:12px;color:var(--muted);margin:-4px 2px 8px">${l.category===LOAN&&(l.kind==='receivable'||l.kind==='payable')?(l.kind==='receivable'?'قرضی که دادی':'قرضی که گرفتی')+'؛ شیوه و حسابِ پرداخت را بگذار.':l.kind==='receivable'||l.kind==='payable'?'نسیه است. اگر در واقع نقد بوده، «تغییر نوع» را بزن.':'نقد است. اگر در واقع نسیه بوده، «تغییر نوع» را بزن.'}${l.docId?' کالا و مقدار از «سند منبع» اصلاح می‌شود.':''}</div>
   ${dateField('f_due','سررسید',l.due||'')}
   <div class="fld"><label for="f_ev">مدرک</label><input id="f_ev" value="${esc(l.evidence)}"></div>
   ${(()=>{const rel=S.ledger.filter(x=>!x.void&&(x.netOf===l.id||(l.netOf&&(x.id===l.netOf||x.netOf===l.netOf)&&x.id!==l.id)));return rel.length?`<div class="blk-h"><h2>ردیف‌های مرتبط</h2></div><div class="list">${rel.map(ledgerRow).join('')}</div>`:''})()}
