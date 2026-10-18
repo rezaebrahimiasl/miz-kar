@@ -318,7 +318,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.19';
+const APP_VER='3.20';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -482,8 +482,11 @@ let _remK='',_remC={};
 function remMap(){const k=S.ledger.length+'|'+S.ledger.reduce((a,l)=>a+(l.updated||'').length+(l.void?1:0),0);if(k===_remK)return _remC;const R={},G={};
   S.ledger.filter(l=>!l.void&&l.personId).forEach(l=>{const g=G[l.personId+'|'+(l.currency||'تومان')]=G[l.personId+'|'+(l.currency||'تومان')]||[];g.push(l)});
   Object.values(G).forEach(L=>{const open={receivable:[],payable:[]};let pool={receivable:0,payable:0};
-    L.forEach(l=>{if((l.kind==='receivable'||l.kind==='payable')){const linked=L.filter(x=>x.refId===l.id).reduce((a,x)=>a+Number(x.amount||0),0);R[l.id]=l.settled?0:Math.max(0,Number(l.amount)-linked);if(R[l.id]>0)open[l.kind].push(l)}else if(l.settles&&!l.refId){pool[l.kind==='received'?'receivable':'payable']+=Number(l.amount||0)}});
-    for(const kd of ['receivable','payable']){let p=pool[kd];open[kd].sort((a,b)=>(a.due||a.date||'').localeCompare(b.due||b.date||''));for(const l of open[kd]){if(p<=0)break;const t=Math.min(p,R[l.id]);R[l.id]-=t;p-=t}}});
+    const ids=new Set(L.filter(l=>l.kind==='receivable'||l.kind==='payable').map(l=>l.id));
+    L.forEach(l=>{if((l.kind==='receivable'||l.kind==='payable')){const linked=L.filter(x=>x.refId===l.id).reduce((a,x)=>a+Number(x.amount||0),0);R[l.id]=l.settled?0:Math.max(0,Number(l.amount)-linked);if(R[l.id]>0)open[l.kind].push(l)}else if((l.settles&&!l.refId)||(l.refId&&!ids.has(l.refId))){pool[l.kind==='received'?'receivable':'payable']+=Number(l.amount||0)}});
+    const take=(kd,p)=>{open[kd].sort((a,b)=>(a.due||a.date||'').localeCompare(b.due||b.date||''));for(const l of open[kd]){if(p<=0.5)break;const t=Math.min(p,R[l.id]);R[l.id]-=t;p-=t}};
+    take('receivable',pool.receivable);take('payable',pool.payable);
+    const sR=open.receivable.reduce((a,l)=>a+R[l.id],0),sP=open.payable.reduce((a,l)=>a+R[l.id],0),net=Math.min(sR,sP);if(net>0.5){take('receivable',net);take('payable',net)}});
   _remK=k;_remC=R;return R}
 const remOf=l=>{const r=remMap()[l.id];return r==null?Number(l.amount)||0:r};
 function dueLedger(days){const t=today(),lim=addDays(t,days);return S.ledger.filter(l=>!l.void&&!l.settled&&(l.kind==='receivable'||l.kind==='payable')&&l.due&&l.due<=lim&&remOf(l)>0.5).sort((a,b)=>a.due.localeCompare(b.due))}
@@ -1476,6 +1479,7 @@ function docsSheet(){const f=ui.docF||'all';const L=S.docs.filter(d=>!d.void&&d.
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.20',[['finance','book','سند دوبل در «ثبت مالی»','«ثبت مالی ← سند دوبل (دستی)»: هر ردیف حساب با جستجوی نام یا کد، مبلغ، بدهکار یا بستانکار و شرح؛ جمع دو طرف را خودش کنترل می‌کند.','accVoucher'],['finance','finance','مانده با طلب و بدهی متقابل','اگر هم از کسی طلب داری و هم به او بدهکاری، یا پولی بی‌ربط به فاکتوری داده شده، مانده هر ردیف با حساب کل او یکی می‌شود.','tab|money']]],
  ['3.19',[['finance','finance','مانده درست با پرداخت‌های کلی','پرداختی که به فاکتور خاصی وصل نشده (مثلاً «تسویهٔ حساب با فرید») هم از قدیمی‌ترین بدهی یا طلب همان شخص کم می‌شود.','tab|money']]],
  ['3.18',[['finance','finance','مانده در سررسیدها','طلب یا بدهی‌ای که بخشی‌اش پرداخت شده، در فهرست‌ها با «مانده» نشان داده می‌شود و مبلغ اصلی کوچک زیرش.','tab|money']]],
  ['3.17',[['sales','box','کسری امانی خودکار','اگر از کالای امانی (مثلاً پدر) بیشتر از ثبت‌شده بفروشی، مقدار امانی خودش زیاد می‌شود. در صفحهٔ محموله هم «… بیشتر گرفته بودم» یا «اصلاح کسری» با یک لمس.','tab|biz']]],
@@ -1967,8 +1971,8 @@ function acctSheet(name){const A=acctInfo();const o=A[name]||{};const bal=name?(
 function moneyAdd(){const B=(act,v,ic,area,t,sm)=>`<button class="tile" data-act="${act}" ${v?`data-v="${v}"`:''}>${badge(area,ic)}<span><b>${t}</b>${sm?`<small>${sm}</small>`:''}</span></button>`;
   openSheet(`<h3>${badge('finance','finance')} ثبت مالی</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">هر چه ثبت کنی، سند حسابداری (روزنامه، معین، کل) و انبار خودکار ساخته می‌شود.</p>
   <div class="grp">سندهای خرید و فروش</div><div class="tiles">${on('docs')?B('saleNew','','truck','sales','فروش / ارسال','نقد، نسیه، هدیه؛ فاکتور اختیاری')+B('buyNew','','box','export','خرید کالا','چند قلم، بسته‌بندی، حمل؛ فاکتور اختیاری')+B('docNew','proforma','note','marketers','پیش‌فاکتور','بعداً به فاکتور تبدیل می‌شود')+B('docRet','','note','therapy','برگشت از فروش یا خرید',''):''}</div>
-  <div class="grp">پول</div><div class="tiles">${B('mAdd','paid','finance','finance','دریافت یا پرداخت','نقد، کارت، حواله')}${B('mAdd','receivable','finance','affairs','طلب یا بدهی','هنوز پولی جابه‌جا نشده')}${on('cheques')?B('chqNew','in','cheque','finance','چک','دریافتی یا پرداختی'):''}${B('receipt','','finance','export','رسید یا پیام بانک','متن را بچسبان')}</div>
-  <details style="margin-top:8px"><summary style="font-size:13.5px;color:var(--muted);padding:6px 2px">بیشتر: دوره‌ای و قسط، سود خالص، سند دستی</summary><div class="tiles" style="margin-top:6px">${on('recurs')?B('recurNew','','bell','finance','دوره‌ای یا قسط',''):''}${B('netIncome','','finance','sales','سود یا درآمد خالص','')}${on('acc')?B('accVoucher','','book','affairs','سند دستی','فقط اصلاحات حسابداری'):''}</div></details>
+  <div class="grp">پول</div><div class="tiles">${B('mAdd','paid','finance','finance','دریافت یا پرداخت','نقد، کارت، حواله')}${B('mAdd','receivable','finance','affairs','طلب یا بدهی','هنوز پولی جابه‌جا نشده')}${on('cheques')?B('chqNew','in','cheque','finance','چک','دریافتی یا پرداختی'):''}${B('receipt','','finance','export','رسید یا پیام بانک','متن را بچسبان')}${B('accVoucher','','book','affairs','سند دوبل (دستی)','بدهکار، بستانکار، کد حساب')}</div>
+  <details style="margin-top:8px"><summary style="font-size:13.5px;color:var(--muted);padding:6px 2px">بیشتر: دوره‌ای و قسط، سود خالص، سند دستی</summary><div class="tiles" style="margin-top:6px">${on('recurs')?B('recurNew','','bell','finance','دوره‌ای یا قسط',''):''}${B('netIncome','','finance','sales','سود یا درآمد خالص','')}</div></details>
   <button class="btn ghost" data-act="close" style="width:100%;margin-top:10px">بستن</button>`)}
 function vMoney(){const ms=ui.ms||'sum';const pb=personBal();
   const tot={recv:{},pay:{}};Object.values(pb).forEach(m=>Object.entries(m).forEach(([c,v])=>{if(v>0)tot.recv[c]=(tot.recv[c]||0)+v;else if(v<0)tot.pay[c]=(tot.pay[c]||0)-v}));
