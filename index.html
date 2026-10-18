@@ -318,7 +318,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.17';
+const APP_VER='3.18';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -499,7 +499,7 @@ function dealRow(d){const p=PIPES[d.pipe]||{n:''};const st=d.status||'open';cons
 function ledgerRow(l){const s=(l.kind==='receivable'||l.kind==='received')?1:-1;return `<button class="row ${l.void?'void':''}" data-act="viewLedger" data-id="${l.id}">${badge('finance')}<div class="main">
   <div class="ttl">${esc(LSHORT[l.kind])} · ${esc(pname(l.personId)||'بدون طرف حساب')}</div>
   <div class="sub">${l.category?`<span class="pill acc">${esc(l.category)}</span>`:''}<span>${esc(l.about||'')}</span><span>${jShort(l.date)}</span>${l.instrument&&l.instrument!=='نقد/کارت'?`<span class="pill">${esc(l.instrument)}</span>`:''}${l.acct?`<span class="pill">${l.kind==='received'?'به ':'از '}${esc(l.acct)}</span>`:''}${(l.kind==='receivable'||l.kind==='payable')&&l.due&&!l.settled&&!l.void?duePill(l.due):''}${l.settled?'<span class="pill ok">تسویه شد</span>':''}${l.void?'<span class="pill">باطل</span>':''}</div></div>
-  <div class="end ${s>0?'amt-pos':'amt-neg'}"><span class="sg ${s>0?'p':'n'}" aria-label="${s>0?'به سود من':'به زیان من'}">${s>0?'+':'−'}</span>${money(l.amount,l.currency)}</div></button>`}
+  <div class="end ${s>0?'amt-pos':'amt-neg'}"><span class="sg ${s>0?'p':'n'}" aria-label="${s>0?'به سود من':'به زیان من'}">${s>0?'+':'−'}</span>${(()=>{const op=(l.kind==='receivable'||l.kind==='payable')&&!l.void;const pd=op?paidOn(l):0;return pd>0.5&&!l.settled?`${money(Math.max(0,Number(l.amount)-pd),l.currency)}<div class="sub" style="font-size:11px;color:var(--muted)">مانده از ${money(l.amount,l.currency)}</div>`:money(l.amount,l.currency)})()}</div></button>`}
 const block=(title,n,body,more)=>`<section class="blk"><div class="blk-h"><h2>${title}</h2>${n!=null?`<span class="n">${fa(n)}</span>`:''}<span class="sp"></span>${more||''}</div>${body}</section>`;
 const listOr=(arr,fn,emptyMsg)=>`<div class="list">${arr.length?arr.map(fn).join(''):`<div class="empty">${emptyMsg}</div>`}</div>`;
 
@@ -1467,6 +1467,7 @@ function docsSheet(){const f=ui.docF||'all';const L=S.docs.filter(d=>!d.void&&d.
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.18',[['finance','finance','مانده در سررسیدها','طلب یا بدهی‌ای که بخشی‌اش پرداخت شده، در فهرست‌ها با «مانده» نشان داده می‌شود و مبلغ اصلی کوچک زیرش.','tab|money']]],
  ['3.17',[['sales','box','کسری امانی خودکار','اگر از کالای امانی (مثلاً پدر) بیشتر از ثبت‌شده بفروشی، مقدار امانی خودش زیاد می‌شود. در صفحهٔ محموله هم «… بیشتر گرفته بودم» یا «اصلاح کسری» با یک لمس.','tab|biz']]],
  ['3.16',[['sales','note','فرم فاکتور مثل فاکتور','طرف حساب و تاریخ، ردیف‌ها با شماره و مبلغ هر ردیف، جمع و تخفیف و قابل پرداخت، بعد پرداخت و تسویه؛ بقیه در «جزئیات بیشتر». فروش‌های قدیمی هم در همین فرم اصلاح می‌شوند.','saleNew'],['sales','box','کالای امانی در فروش','ردیف «در انبار ثبت نشده» حالا «امانی از کسی» (مثلاً پدر؛ همان کالا را پس می‌دهی) و «امانی برای فروش» (پولش را به او می‌دهی) هم دارد.','saleNew'],['affairs','book','جستجو در دفتر کارها','یک جستجو برای کار، شخص، شهر و برچسب؛ و «فقط فلانی» برای کارهای یک نفر.','tbook'],['affairs','check','چند کار با هم، ساده','هر کار یک خط با تاریخ و «!» فوری؛ حوزه و شخص یک بار برای همه.','bulk']]],
  ['3.15',[['research','star','دستیار هوشمند در «بیشتر»','بالای صفحهٔ «بیشتر»: با یک جمله ثبت کن، پرسش هوشمند، و تنظیم کلید جمینای.','aiCfg']]],
