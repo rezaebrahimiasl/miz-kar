@@ -318,7 +318,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.25';
+const APP_VER='3.26';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -1480,6 +1480,7 @@ function docsSheet(){const f=ui.docF||'all';const L=S.docs.filter(d=>!d.void&&d.
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.26',[['finance','finance','موجودی اول با تاریخ درست','«موجودی اول» یعنی موجودی در آن روز؛ ثبت‌های قبل از آن دیگر دوباره حساب نمی‌شوند و دفتر کل هم همین را نشان می‌دهد.','tab|money']]],
  ['3.25',[['finance','book','حساب در سند دستی','سند دستی که ردیف «نقد و بانک» دارد حالا می‌گوید از کدام حساب (بلوبانک، نقد…) بوده؛ سندهای بی‌حساب هم در «بدون حساب مشخص» فهرست می‌شوند.','tab|money']]],
  ['3.24',[['finance','finance','حساب در قرض نقدی','در «قرض و جابه‌جایی» جای «از کدام حساب» همه‌جا هست و چیپ حساب‌ها از حساب‌هایی که واقعاً به کار برده‌ای ساخته می‌شود.','tab|money']]],
  ['3.23',[['finance','finance','«بدون حساب مشخص» کامل شد','قرض دادن و گرفتن نقدی هم حساب (بلوبانک، نقد…) می‌گیرد و در فهرست «بدون حساب» می‌آید؛ ثبت‌های منتظر تأیید دیگر در دفاتر نمی‌آیند تا تأیید شوند.','tab|money']]],
@@ -1962,7 +1963,12 @@ function acctCanon(n){if(!n)return n;const A=acctInfo();for(const [k,o] of Objec
 function acctSim(a,b){const z=x=>nrm(x).replace(/\s|بانک/g,'');const x=z(a),y=z(b);return x&&y&&x!==y&&(x.includes(y)||y.includes(x))}
 const cashRow=l=>!l.void&&!l.pending&&(l.currency||'تومان')==='تومان'&&Number(l.amount)>0&&(l.kind==='received'||l.kind==='paid'||(l.kind==='receivable'||l.kind==='payable')&&l.category===LOAN);
 const cashSign=l=>l.kind==='received'||l.kind==='payable'?1:-1;
-function acctBalances(){const m={};Object.entries(acctInfo()).forEach(([k,o])=>{m[k]=(m[k]||0)+Number(o.open||0)});S.ledger.filter(l=>cashRow(l)&&l.acct).forEach(l=>{m[l.acct]=(m[l.acct]||0)+cashSign(l)*Number(l.amount||0)});S.vouchers.filter(v=>!v.void&&v.acct&&(v.currency||'تومان')==='تومان').forEach(v=>(v.lines||[]).filter(x=>x.acc==='1101').forEach(x=>{m[v.acct]=(m[v.acct]||0)+Number(x.dr||0)-Number(x.cr||0)}));return m}
+// every cash movement tied to an own account: {acct,date,created,v}
+function acctMoves(){const r=[];S.ledger.filter(l=>cashRow(l)&&l.acct).forEach(l=>r.push({a:l.acct,d:l.date||'',c:l.created||'',v:cashSign(l)*Number(l.amount||0)}));S.vouchers.filter(v=>!v.void&&v.acct&&(v.currency||'تومان')==='تومان').forEach(v=>(v.lines||[]).filter(x=>x.acc==='1101').forEach(x=>r.push({a:v.acct,d:v.date||'',c:v.created||'',v:Number(x.dr||0)-Number(x.cr||0)})));return r}
+// «موجودی اول» at a date already contains everything before it (and on that day, before it was set)
+const preOpen=(x,o)=>!!(o&&Number(o.open)&&o.openDate)&&(x.d<o.openDate||(x.d===o.openDate&&!!o.setAt&&x.c&&x.c<=o.setAt));
+function acctPre(k){const o=acctInfo()[k];return acctMoves().filter(x=>x.a===k&&preOpen(x,o)).reduce((a,x)=>a+x.v,0)}
+function acctBalances(){const m={};const A=acctInfo();Object.entries(A).forEach(([k,o])=>{m[k]=(m[k]||0)+Number(o.open||0)});acctMoves().forEach(x=>{if(preOpen(x,A[x.a]))return;m[x.a]=(m[x.a]||0)+x.v});return m}
 function upcoming(days){const t=today(),lim=addDays(t,days),out=[];
   S.ledger.filter(l=>l.pending&&!l.void).forEach(l=>out.push({d:l.date,ic:'bell',a:'finance',t:(l.kind==='received'?'دریافت دوره‌ای منتظر تأیید: ':'پرداخت دوره‌ای منتظر تأیید: ')+(l.about||''),v:l.amount,s:l.kind==='received'?1:-1,act:'tab',av:'today'}));
   S.cheques.filter(c=>!c.void&&c.status==='wait'&&c.due<=lim).forEach(c=>out.push({d:c.due,ic:'cheque',a:'finance',t:(c.dir==='in'?'چک دریافتی از ':'چک پرداختی به ')+(pname(c.personId)||''),v:c.amount,s:c.dir==='in'?1:-1,act:'chqView',id:c.id}));
@@ -2835,7 +2841,7 @@ function autoEntries(){const out=[];
     const exp=m.kind==='sale'?'5001':m.kind==='khums'?'3201':MOVE[m.kind]&&MOVE[m.kind].give?'5301':m.kind==='loss'?'5302':m.kind==='sample'?'5301':null;
     let lines=null;if(m.kind==='ret')lines=[L('1301',v),L('5001',0,v)];else if(m.kind==='adj')lines=[L('1301',v),L('5302',0,v)];else if(m.kind==='lend')lines=[L('1202',v,0,m.personId),L('1301',0,v)];else if(m.kind==='getback')lines=[L('1301',v),L('1202',0,v,m.personId)];else if(exp)lines=[L(exp,v),L('1301',0,v)];
     if(lines)out.push({date:m.date,created:m.created||'',cur:c,desc:`${(MOVE[m.kind]||{}).n} ${fmtQ(Number(m.qty),l.unit)} ${lotName(l)} به بهای خرید${m.personId||m.toName?' · '+whoOf(m):''}`,src:{col:'moves',id:m.id},lines})});
-  Object.entries(acctInfo()).forEach(([k,o])=>{const v=Number(o.open||0);if(v)out.push({date:o.openDate||today(),created:'0',cur:'تومان',desc:'موجودی اول «'+k+'»',src:{col:'meta',id:'accts'},lines:v>0?[L('1101',v),L('3101',0,v)]:[L('3101',-v),L('1101',0,-v)]})});
+  Object.entries(acctInfo()).forEach(([k,o])=>{const v=Number(o.open||0)?Number(o.open)-acctPre(k):0;if(Math.abs(v)>0.5)out.push({date:o.openDate||today(),created:o.setAt||'0',cur:'تومان',desc:'موجودی اول «'+k+'»'+(acctPre(k)?' (تعدیل ثبت‌های قبل از آن)':''),src:{col:'meta',id:'accts'},lines:v>0?[L('1101',v),L('3101',0,v)]:[L('3101',-v),L('1101',0,-v)]})});
   S.vouchers.filter(v=>!v.void).forEach(v=>out.push({date:v.date,created:v.created||'',cur:v.currency||'تومان',desc:v.desc||'سند دستی',src:{col:'vouchers',id:v.id},lines:(v.lines||[]).map(x=>L(x.acc,Number(x.dr)||0,Number(x.cr)||0,x.personId)),manual:1}));
   out.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.created||'').localeCompare(b.created||''));
   const seq={};out.forEach(e=>{const y=jYear(e.date)||0;seq[y]=(seq[y]||0)+1;e.no=fa(y)+'/'+fa(String(seq[y]).padStart(3,'0'));const d=e.lines.reduce((s,x)=>s+x.dr-x.cr,0);if(Math.abs(d)>0.0001)e.unbal=d});
@@ -3367,7 +3373,7 @@ document.addEventListener('submit',async e=>{
     await putRaw('ledger',{id:newId(),kind:'paid',personId:to,amount:c.amount,currency:'تومان',about:'پرداخت با چک واگذاری '+(c.no?'#'+c.no:''),instrument:'چک',refId:link||'',category:link?'':LOANC,date,settled:false,void:false,created:nowTs(),updated:nowTs()});
     if(link){const l=byId('ledger',link);const paid=S.ledger.filter(x=>!x.void&&x.refId===link).reduce((s2,x)=>s2+Number(x.amount||0),0);if(l&&paid>=Number(l.amount)-0.5)await save('ledger',link,{settled:true,settledAt:nowTs()})}
     await chqSet(c,'endorsed',{endorseTo:to,ledgerId:r1});closeSheet();toast('واگذاری چک ثبت شد');return}
-  if(k==='acct'){const name=f.dataset.name||val('f_an').replace(/[\d۰-۹\s-]{6,}/g,' ').trim();if(!name)return toast('نام حساب را بنویس');const od=readDate('f_aod');if(od===null)return;const A={...acctInfo()};A[name]={...(A[name]||{}),open:toBase(num(val('f_aop'))||0,'تومان'),openDate:od||today()};
+  if(k==='acct'){const name=f.dataset.name||val('f_an').replace(/[\d۰-۹\s-]{6,}/g,' ').trim();if(!name)return toast('نام حساب را بنویس');const od=readDate('f_aod');if(od===null)return;const A={...acctInfo()};{const o0=A[name]||{},op=toBase(num(val('f_aop'))||0,'تومان'),odt=od||today();A[name]={...o0,open:op,openDate:odt,setAt:(o0.open===op&&o0.openDate===odt&&o0.setAt)?o0.setAt:nowTs()}}
     const real=val('f_areal');if(real){const rv=toBase(num(real),'تومان');await putRaw('meta',{id:'accts',a:A,updated:nowTs()});const bal=acctBalances()[name]||0;const d=rv-bal;if(Math.abs(d)<1000){A[name].rec=today();await putRaw('meta',{id:'accts',a:A,updated:nowTs()});closeSheet();toast('تطبیق کامل است ✓');render();return}
       document.getElementById('aDiff').innerHTML=`<div class="banner" style="margin:0 0 10px;flex-wrap:wrap">${svg('warn')}<span style="flex:1">اختلاف ${moneyFull(Math.abs(d),'تومان')}: موجودی واقعی ${d>0?'بیشتر':'کمتر'} از برنامه است. اول ثبت‌های جاافتادهٔ این حساب را بررسی کن.</span><button type="button" class="btn" data-act="mAcct" data-v="${esc(name)}">ثبت‌ها</button><button type="button" class="btn" data-act="acctFix" data-v="${esc(name)}" data-d="${d}">ثبت «اختلاف تطبیق»</button></div>`;return}
     await putRaw('meta',{id:'accts',a:A,updated:nowTs()});closeSheet();toast('ذخیره شد ✓');render();return}
