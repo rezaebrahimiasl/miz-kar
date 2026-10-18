@@ -318,7 +318,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.18';
+const APP_VER='3.19';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -477,7 +477,16 @@ const openDeals=()=>S.deals.filter(d=>(d.status||'open')==='open');
 const affects=l=>!l.void&&(l.kind==='receivable'||l.kind==='payable'||!!l.refId||!!l.settles);
 function balances(personId){const m={};S.ledger.filter(l=>affects(l)&&(!personId||l.personId===personId)).forEach(l=>{const c=l.currency||'تومان';m[c]=(m[c]||0)+LK[l.kind].s*(Number(l.amount)||0)});return m}
 function personBal(){const r={};S.ledger.filter(l=>affects(l)&&l.personId).forEach(l=>{const k=l.personId;const c=l.currency||'تومان';r[k]=r[k]||{};r[k][c]=(r[k][c]||0)+LK[l.kind].s*(Number(l.amount)||0)});return r}
-function dueLedger(days){const t=today(),lim=addDays(t,days);return S.ledger.filter(l=>!l.void&&!l.settled&&(l.kind==='receivable'||l.kind==='payable')&&l.due&&l.due<=lim).sort((a,b)=>a.due.localeCompare(b.due))}
+/* What is really left on each credit row: linked settlements (refId) first, then general payments to/from the same person (settles) oldest-due first */
+let _remK='',_remC={};
+function remMap(){const k=S.ledger.length+'|'+S.ledger.reduce((a,l)=>a+(l.updated||'').length+(l.void?1:0),0);if(k===_remK)return _remC;const R={},G={};
+  S.ledger.filter(l=>!l.void&&l.personId).forEach(l=>{const g=G[l.personId+'|'+(l.currency||'تومان')]=G[l.personId+'|'+(l.currency||'تومان')]||[];g.push(l)});
+  Object.values(G).forEach(L=>{const open={receivable:[],payable:[]};let pool={receivable:0,payable:0};
+    L.forEach(l=>{if((l.kind==='receivable'||l.kind==='payable')){const linked=L.filter(x=>x.refId===l.id).reduce((a,x)=>a+Number(x.amount||0),0);R[l.id]=l.settled?0:Math.max(0,Number(l.amount)-linked);if(R[l.id]>0)open[l.kind].push(l)}else if(l.settles&&!l.refId){pool[l.kind==='received'?'receivable':'payable']+=Number(l.amount||0)}});
+    for(const kd of ['receivable','payable']){let p=pool[kd];open[kd].sort((a,b)=>(a.due||a.date||'').localeCompare(b.due||b.date||''));for(const l of open[kd]){if(p<=0)break;const t=Math.min(p,R[l.id]);R[l.id]-=t;p-=t}}});
+  _remK=k;_remC=R;return R}
+const remOf=l=>{const r=remMap()[l.id];return r==null?Number(l.amount)||0:r};
+function dueLedger(days){const t=today(),lim=addDays(t,days);return S.ledger.filter(l=>!l.void&&!l.settled&&(l.kind==='receivable'||l.kind==='payable')&&l.due&&l.due<=lim&&remOf(l)>0.5).sort((a,b)=>a.due.localeCompare(b.due))}
 
 /* ---------- Render helpers ---------- */
 const ICON={check:'<svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>'};
@@ -499,7 +508,7 @@ function dealRow(d){const p=PIPES[d.pipe]||{n:''};const st=d.status||'open';cons
 function ledgerRow(l){const s=(l.kind==='receivable'||l.kind==='received')?1:-1;return `<button class="row ${l.void?'void':''}" data-act="viewLedger" data-id="${l.id}">${badge('finance')}<div class="main">
   <div class="ttl">${esc(LSHORT[l.kind])} · ${esc(pname(l.personId)||'بدون طرف حساب')}</div>
   <div class="sub">${l.category?`<span class="pill acc">${esc(l.category)}</span>`:''}<span>${esc(l.about||'')}</span><span>${jShort(l.date)}</span>${l.instrument&&l.instrument!=='نقد/کارت'?`<span class="pill">${esc(l.instrument)}</span>`:''}${l.acct?`<span class="pill">${l.kind==='received'?'به ':'از '}${esc(l.acct)}</span>`:''}${(l.kind==='receivable'||l.kind==='payable')&&l.due&&!l.settled&&!l.void?duePill(l.due):''}${l.settled?'<span class="pill ok">تسویه شد</span>':''}${l.void?'<span class="pill">باطل</span>':''}</div></div>
-  <div class="end ${s>0?'amt-pos':'amt-neg'}"><span class="sg ${s>0?'p':'n'}" aria-label="${s>0?'به سود من':'به زیان من'}">${s>0?'+':'−'}</span>${(()=>{const op=(l.kind==='receivable'||l.kind==='payable')&&!l.void;const pd=op?paidOn(l):0;return pd>0.5&&!l.settled?`${money(Math.max(0,Number(l.amount)-pd),l.currency)}<div class="sub" style="font-size:11px;color:var(--muted)">مانده از ${money(l.amount,l.currency)}</div>`:money(l.amount,l.currency)})()}</div></button>`}
+  <div class="end ${s>0?'amt-pos':'amt-neg'}"><span class="sg ${s>0?'p':'n'}" aria-label="${s>0?'به سود من':'به زیان من'}">${s>0?'+':'−'}</span>${(()=>{const op=(l.kind==='receivable'||l.kind==='payable')&&!l.void;const pd=op?Number(l.amount)-remOf(l):0;return pd>0.5&&!l.settled?`${money(Math.max(0,Number(l.amount)-pd),l.currency)}<div class="sub" style="font-size:11px;color:var(--muted)">مانده از ${money(l.amount,l.currency)}</div>`:money(l.amount,l.currency)})()}</div></button>`}
 const block=(title,n,body,more)=>`<section class="blk"><div class="blk-h"><h2>${title}</h2>${n!=null?`<span class="n">${fa(n)}</span>`:''}<span class="sp"></span>${more||''}</div>${body}</section>`;
 const listOr=(arr,fn,emptyMsg)=>`<div class="list">${arr.length?arr.map(fn).join(''):`<div class="empty">${emptyMsg}</div>`}</div>`;
 
@@ -1467,6 +1476,7 @@ function docsSheet(){const f=ui.docF||'all';const L=S.docs.filter(d=>!d.void&&d.
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.19',[['finance','finance','مانده درست با پرداخت‌های کلی','پرداختی که به فاکتور خاصی وصل نشده (مثلاً «تسویهٔ حساب با فرید») هم از قدیمی‌ترین بدهی یا طلب همان شخص کم می‌شود.','tab|money']]],
  ['3.18',[['finance','finance','مانده در سررسیدها','طلب یا بدهی‌ای که بخشی‌اش پرداخت شده، در فهرست‌ها با «مانده» نشان داده می‌شود و مبلغ اصلی کوچک زیرش.','tab|money']]],
  ['3.17',[['sales','box','کسری امانی خودکار','اگر از کالای امانی (مثلاً پدر) بیشتر از ثبت‌شده بفروشی، مقدار امانی خودش زیاد می‌شود. در صفحهٔ محموله هم «… بیشتر گرفته بودم» یا «اصلاح کسری» با یک لمس.','tab|biz']]],
  ['3.16',[['sales','note','فرم فاکتور مثل فاکتور','طرف حساب و تاریخ، ردیف‌ها با شماره و مبلغ هر ردیف، جمع و تخفیف و قابل پرداخت، بعد پرداخت و تسویه؛ بقیه در «جزئیات بیشتر». فروش‌های قدیمی هم در همین فرم اصلاح می‌شوند.','saleNew'],['sales','box','کالای امانی در فروش','ردیف «در انبار ثبت نشده» حالا «امانی از کسی» (مثلاً پدر؛ همان کالا را پس می‌دهی) و «امانی برای فروش» (پولش را به او می‌دهی) هم دارد.','saleNew'],['affairs','book','جستجو در دفتر کارها','یک جستجو برای کار، شخص، شهر و برچسب؛ و «فقط فلانی» برای کارهای یک نفر.','tbook'],['affairs','check','چند کار با هم، ساده','هر کار یک خط با تاریخ و «!» فوری؛ حوزه و شخص یک بار برای همه.','bulk']]],
@@ -2199,7 +2209,7 @@ function viewPerson(id){const p=byId('people',id);if(!p){toast('شخص پیدا 
 function viewLedger(id){const l=byId('ledger',id);if(!l)return;const open=(l.kind==='receivable'||l.kind==='payable')&&!l.settled&&!l.void;
   openSheet(`<div class="det"><h3>${esc(LK[l.kind].n)}</h3><dl>
    <dt>طرف حساب</dt><dd>${esc(pname(l.personId)||'—')}</dd><dt>مبلغ</dt><dd>${moneyFull(l.amount,l.currency)}</dd><dt>بابت</dt><dd>${esc(l.about||'—')}</dd>
-   <dt>تاریخ</dt><dd>${jShort(l.date)}</dd>${l.due?`<dt>سررسید</dt><dd>${jShort(l.due)}</dd>`:''}<dt>شیوه</dt><dd>${esc(insOf(l))}${l.ref?' · '+esc(l.ref):''}${(l.kind==='receivable'||l.kind==='payable')?(l.settled?' · <span class="pill ok">تسویه شد</span>':' · <span class="pill warn">تسویه نشده</span>'):''}</dd>
+   <dt>تاریخ</dt><dd>${jShort(l.date)}</dd>${l.due?`<dt>سررسید</dt><dd>${jShort(l.due)}</dd>`:''}<dt>شیوه</dt><dd>${esc(insOf(l))}${l.ref?' · '+esc(l.ref):''}${(l.kind==='receivable'||l.kind==='payable')?(l.settled||remOf(l)<0.5?' · <span class="pill ok">تسویه شد</span>':remOf(l)<Number(l.amount)-0.5?` · <span class="pill warn">مانده ${money(remOf(l),l.currency)}</span>`:' · <span class="pill warn">تسویه نشده</span>'):''}</dd>
    ${l.ref?`<dt>فروش معرفی</dt><dd><button class="link" data-act="refView" data-id="${l.ref.id}">مشتری ${esc(pname(l.ref.cust)||'—')} · ${money(l.ref.sale,'تومان')} ›</button></dd>`:''}
    ${(()=>{const dd=l.docId&&byId('docs',l.docId);const lo=l.lotId&&byId('lots',l.lotId);return (dd?`<dt>سند منبع</dt><dd><button class="link" data-act="docEdit" data-id="${dd.id}">${esc(docTitle(dd))}${dd.no?' '+esc(dd.no):''} ›</button></dd>`:'')+(lo&&!dd?`<dt>محموله</dt><dd><button class="link" data-act="viewLot" data-id="${lo.id}">${esc(lotName(lo))} ›</button></dd>`:'')})()}
    ${l.evidence?`<dt>مدرک</dt><dd>${esc(l.evidence)}</dd>`:''}${l.void?`<dt>باطل‌شده</dt><dd>${esc(l.voidReason||'')}</dd>`:''}</dl>
@@ -2998,7 +3008,7 @@ document.addEventListener('click',async e=>{
     case'archivePerson':if(await save('people',id,{status:'archived'})){closeSheet();toast('از فهرست برداشته شد؛ سابقه‌اش محفوظ است')}break;
     case'viewLedger':viewLedger(id);break;
     case'viewNote':viewNote(id);break;
-    case'settle':{const l=byId('ledger',id);const k=l.kind==='receivable'?'received':'paid';const paid=S.ledger.filter(x=>!x.void&&x.refId===id).reduce((a,x)=>a+Number(x.amount||0),0);const rem=Math.max(0,Number(l.amount)-paid);
+    case'settle':{const l=byId('ledger',id);const k=l.kind==='receivable'?'received':'paid';const rem=remOf(l);
       openSheet(`<h3>${k==='received'?'دریافت طلب':'پرداخت بدهی'}${l.personId?' · '+esc(pname(l.personId)):''}</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">${esc(l.about||'')} · کل ${moneyFull(l.amount,l.currency)}${paid?' · قبلاً '+moneyFull(paid,l.currency)+' تسویه شده':''}. اگر بخشی را ${k==='received'?'گرفتی':'دادی'}، فقط همان مبلغ را بزن.</p><form data-form="settle" data-id="${id}">
        <div class="fld"><label for="f_samt">مبلغ${ul('f_scur',l.currency)}</label><input id="f_samt" inputmode="decimal" value="${fa(fromBase(rem,l.currency||'تومان'))}"><input type="hidden" id="f_scur" value="${esc(l.currency||'تومان')}"></div>
        ${acctField('f_acct','',k==='received'?'in':'out')}${dateField('f_date','تاریخ',today())}
