@@ -318,7 +318,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.24';
+const APP_VER='3.25';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -1480,6 +1480,7 @@ function docsSheet(){const f=ui.docF||'all';const L=S.docs.filter(d=>!d.void&&d.
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.25',[['finance','book','حساب در سند دستی','سند دستی که ردیف «نقد و بانک» دارد حالا می‌گوید از کدام حساب (بلوبانک، نقد…) بوده؛ سندهای بی‌حساب هم در «بدون حساب مشخص» فهرست می‌شوند.','tab|money']]],
  ['3.24',[['finance','finance','حساب در قرض نقدی','در «قرض و جابه‌جایی» جای «از کدام حساب» همه‌جا هست و چیپ حساب‌ها از حساب‌هایی که واقعاً به کار برده‌ای ساخته می‌شود.','tab|money']]],
  ['3.23',[['finance','finance','«بدون حساب مشخص» کامل شد','قرض دادن و گرفتن نقدی هم حساب (بلوبانک، نقد…) می‌گیرد و در فهرست «بدون حساب» می‌آید؛ ثبت‌های منتظر تأیید دیگر در دفاتر نمی‌آیند تا تأیید شوند.','tab|money']]],
  ['3.22',[['finance','book','خلاصهٔ پول = دفاتر حسابداری','درآمد، هزینه و سود «این ماه» حالا از همان سندهای سود و زیان حساب می‌شود؛ جمع حساب‌ها با «نقد و بانک» دفتر کل برابر است و ردیف «بدون حساب مشخص» جاافتاده‌ها را نشان می‌دهد؛ زیر طلب و بدهی عدد ناخالص دفتر کل هم آمده.','tab|money']]],
@@ -1961,7 +1962,7 @@ function acctCanon(n){if(!n)return n;const A=acctInfo();for(const [k,o] of Objec
 function acctSim(a,b){const z=x=>nrm(x).replace(/\s|بانک/g,'');const x=z(a),y=z(b);return x&&y&&x!==y&&(x.includes(y)||y.includes(x))}
 const cashRow=l=>!l.void&&!l.pending&&(l.currency||'تومان')==='تومان'&&Number(l.amount)>0&&(l.kind==='received'||l.kind==='paid'||(l.kind==='receivable'||l.kind==='payable')&&l.category===LOAN);
 const cashSign=l=>l.kind==='received'||l.kind==='payable'?1:-1;
-function acctBalances(){const m={};Object.entries(acctInfo()).forEach(([k,o])=>{m[k]=(m[k]||0)+Number(o.open||0)});S.ledger.filter(l=>cashRow(l)&&l.acct).forEach(l=>{m[l.acct]=(m[l.acct]||0)+cashSign(l)*Number(l.amount||0)});return m}
+function acctBalances(){const m={};Object.entries(acctInfo()).forEach(([k,o])=>{m[k]=(m[k]||0)+Number(o.open||0)});S.ledger.filter(l=>cashRow(l)&&l.acct).forEach(l=>{m[l.acct]=(m[l.acct]||0)+cashSign(l)*Number(l.amount||0)});S.vouchers.filter(v=>!v.void&&v.acct&&(v.currency||'تومان')==='تومان').forEach(v=>(v.lines||[]).filter(x=>x.acc==='1101').forEach(x=>{m[v.acct]=(m[v.acct]||0)+Number(x.dr||0)-Number(x.cr||0)}));return m}
 function upcoming(days){const t=today(),lim=addDays(t,days),out=[];
   S.ledger.filter(l=>l.pending&&!l.void).forEach(l=>out.push({d:l.date,ic:'bell',a:'finance',t:(l.kind==='received'?'دریافت دوره‌ای منتظر تأیید: ':'پرداخت دوره‌ای منتظر تأیید: ')+(l.about||''),v:l.amount,s:l.kind==='received'?1:-1,act:'tab',av:'today'}));
   S.cheques.filter(c=>!c.void&&c.status==='wait'&&c.due<=lim).forEach(c=>out.push({d:c.due,ic:'cheque',a:'finance',t:(c.dir==='in'?'چک دریافتی از ':'چک پرداختی به ')+(pname(c.personId)||''),v:c.amount,s:c.dir==='in'?1:-1,act:'chqView',id:c.id}));
@@ -2000,7 +2001,7 @@ function vMoney(){const ms=ui.ms||'sum';const pb=personBal();
     if(f!=='all')arr=arr.filter(l=>l.kind===f);if(fa2==='__none')arr=arr.filter(l=>cashRow(l)&&!l.acct);else if(fa2)arr=arr.filter(l=>l.acct===fa2);
     h+=chips('moneyF',[['all','همه'],['received','دریافت'],['paid','پرداخت'],['receivable','طلب'],['payable','بدهی']],f);
     const ac=Object.keys(acctBalances());if(ac.length)h+=`<div class="chips" style="margin-top:6px"><button class="chip" data-act="mAcctF" data-v="" aria-pressed="${!fa2}">همهٔ حساب‌ها</button>${S.ledger.some(l=>cashRow(l)&&!l.acct)?`<button class="chip" data-act="mAcctF" data-v="__none" aria-pressed="${fa2==='__none'}">بدون حساب</button>`:''}${ac.map(a=>`<button class="chip" data-act="mAcctF" data-v="${esc(a)}" aria-pressed="${fa2===a}">${esc(a)}</button>`).join('')}</div>`;
-    if(fa2==='__none'){const V=S.vouchers.filter(v=>!v.void&&(v.lines||[]).some(x=>x.acc==='1101'));h+=`<div class="banner" style="margin:8px 0;flex-wrap:wrap">${svg('warn')}<span style="flex:1">این‌ها پول جابه‌جا کرده‌اند ولی حسابشان (بلوبانک، نقد…) معلوم نیست. روی هر ردیف بزن و حساب را انتخاب کن.${V.length?` ${fa(V.length)} سند دستی هم روی «نقد و بانک» زده شده.`:''}</span>${V.length?'<button class="btn" data-act="accTab" data-v="journal">سندهای دستی</button>':''}</div>`}
+    if(fa2==='__none'){const V=S.vouchers.filter(v=>!v.void&&!v.acct&&(v.currency||'تومان')==='تومان'&&(v.lines||[]).some(x=>x.acc==='1101'));h+=`<div class="banner" style="margin:8px 0;flex-wrap:wrap">${svg('warn')}<span style="flex:1">این‌ها پول جابه‌جا کرده‌اند ولی حسابشان (بلوبانک، نقد…) معلوم نیست. روی هر ردیف بزن و حساب را انتخاب کن.</span></div>`;if(V.length)h+=block('سندهای دستی بی‌حساب',V.length,`<div class="list">${V.map(v=>{const n=(v.lines||[]).filter(x=>x.acc==='1101').reduce((a,x)=>a+Number(x.dr||0)-Number(x.cr||0),0);return `<button class="row" data-act="accSrc" data-c="vouchers" data-id="${v.id}">${badge('affairs','book')}<div class="main"><div class="ttl">${esc(v.desc||'سند دستی')}</div><div class="sub"><span>${jShort(v.date)}</span><span class="pill">بزن و «کدام حساب» را بگذار</span></div></div><div class="end ${n<0?'amt-neg':'amt-pos'}">${money(Math.abs(n),'تومان')}</div></button>`}).join('')}</div>`)}
     h+=block('ثبت‌ها',arr.length,listOr(arr.slice(0,200),ledgerRow,fa2==='__none'?'ردیف بی‌حسابی نیست.':'ردیفی نیست. «ثبت مالی» را بزن.'));
     if(on('cheques')){const C=S.cheques.filter(c=>!c.void).sort((a,b)=>(b.due||'').localeCompare(a.due||'')).slice(0,20);if(C.length)h+=block('چک‌ها',C.length,`<div class="list">${C.map(chequeRow).join('')}</div>`)}}
   if(ms==='ppl'){h+=`<div class="kpis"><div class="kpi"><div class="l">جمع طلب من</div><div class="v amt-pos">${fmt(tot.recv)}</div>${kindLine(kindTotals().due,'amt-pos')}${grossLine(glBal('1201'),tot.recv['تومان']||0)}</div><div class="kpi"><div class="l">جمع بدهی من</div><div class="v amt-neg">${fmt(tot.pay)}</div>${kindLine(kindTotals().owe,'amt-neg')}${grossLine(glBal('2101'),tot.pay['تومان']||0)}</div></div>`;
@@ -2912,6 +2913,7 @@ function formVoucher(v={},tpl){const lines=v.lines&&v.lines.length?v.lines:tpl==
   <div class="row2">${dateField('f_vdate','تاریخ سند',v.date||today())}<div class="fld"><label for="f_vcur">ارز</label><select id="f_vcur">${CUR.map(c=>opt(c,c,v.currency||'تومان')).join('')}</select></div></div>
   <div class="fld"><label for="f_vdesc">شرح سند</label><input id="f_vdesc" value="${esc(v.desc||(tpl==='open'?'سند افتتاحیه':''))}"></div>
   <div id="vlines">${lines.map((x,i)=>vLine(i,x,v.currency||'تومان')).join('')}</div>
+  ${acctField('f_vacct',v.acct||'','out').replace('<label for="f_vacct" id="f_vacct_l">'+acctLabel('out')+'</label>','<label for="f_vacct">اگر ردیف «۱۱۰۱ نقد و بانک» دارد: کدام حساب؟</label>')}
   <button type="button" class="btn" data-act="vAddLine">+ ردیف (مانده را خودش پیشنهاد می‌کند)</button>
   <div id="vsum" class="banner" style="margin-top:10px">جمع بدهکار ۰ · جمع بستانکار ۰</div>
   <div class="acts" style="margin-top:10px"><button class="btn pri">ذخیره</button>${v.id&&!v.void?`<button type="button" class="btn ghost danger" data-act="voidVoucher" data-id="${v.id}">باطل کردن سند</button>`:''}<button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`);vSum()}
@@ -3480,7 +3482,7 @@ document.addEventListener('submit',async e=>{
   if(k==='voucher'){const date=readDate('f_vdate',true);if(date===null)return;const lines=readVLines();if(lines.length<2)return toast('هر سند دست‌کم دو ردیف (بدهکار و بستانکار) لازم دارد');
     const d=lines.reduce((s,x)=>s+x.dr,0),c=lines.reduce((s,x)=>s+x.cr,0),unb=Math.abs(d-c)>=0.01;
     if(unb&&f.dataset.force!=='1'){f.dataset.force='1';const b2=document.getElementById('vsum');b2.innerHTML=`${svg('warn')} سند تراز نیست (اختلاف ${amt(Math.abs(d-c))}). اصلاحش کن، یا اگر عمداً موقت ثبت می‌کنی دوباره «ذخیره» را بزن؛ در دفاتر با برچسب «نامتوازن» می‌ماند تا درستش کنی.`;return}
-    if(await save('vouchers',id,{date,currency:val('f_vcur'),desc:val('f_vdesc'),lines,unbalanced:unb,void:false})){toast(unb?'ذخیره شد (نامتوازن)':'سند ثبت شد ✓');accountingSheet('journal')}return}
+    if(await save('vouchers',id,{date,currency:val('f_vcur'),desc:val('f_vdesc'),acct:lines.some(x=>x.acc==='1101')?acctCanon(val('f_vacct')):'',lines,unbalanced:unb,void:false})){toast(unb?'ذخیره شد (نامتوازن)':'سند ثبت شد ✓');accountingSheet('journal')}return}
   if(k==='inboxEdit'){const t=val('f_it');if(!t)return toast('متن خالی است');if(await save('inbox',id,{text:t})){closeSheet();toast('ذخیره شد')}return}
   if(k==='note'){const d={title:val('f_nt'),version:val('f_nv'),status:val('f_ns'),body:document.getElementById('f_nb').value};if(!d.title)return toast('عنوان لازم است');if(await save('notes',id,d)){closeSheet();toast('ذخیره شد')}return}
   if(k==='moveEdit'){const m=byId('moves',id);const date=readDate('f_mdate',true);if(date===null)return;const d={personId:val('f_person'),toName:val('f_person')?'':val('f_mto'),date,note:val('f_mnote'),loc:readLoc()};
