@@ -160,6 +160,14 @@
 - `insights()`: موجودی رو به اتمام (پوشش فروش ۹۰ روز < ۳۰ روز)، کالای مانده (۶۰ روز بی‌فروش و انبار > ۹۰ روز)، مشتری بی‌خرید، مشتری برتر، سن طلب‌ها (۴ دسته)، خلاصهٔ ماه در برابر ماه قبل. `insightsSheet` (act `insights`)، `insightStrip` در «امروز» (بخش `insights` در TSEC)، `insTask` برای ساخت پیگیری، `smsLink` برای پیام.
 - `changesSheet(area)`: همهٔ WHATS_NEW با چیپ بخش (act `chgA`)، نشان «تازه» از `miz.chgSeen`، کاشی بخش‌های هنوز نرفته. `whatsNew` به آن می‌رود.
 
+## ۳٫۵۱ — مشاوره و ویزیت از نو
+- `CMOD` (نام `MODS` قبلاً برای منو گرفته شده): ۱۱ رویکرد (itm, tcm, api, cup, man, nut, psy, spr, exr, mod, hol) هر کدام با شاخص‌ها `v`، مداخله‌ها `iv` (با لایهٔ CLAYER) و احتیاط `w`. پرونده: `c.mods`، `c.plan={proto,n,every}`، `c.goalsDone`، `c.contact=[{d,k,note}]`، `c.noShow`، `c.ai`. پرونده‌های قدیمی: `caseMods` از `type` حدس می‌زند. `type` پروندهٔ تازه از رویکردها ساخته می‌شود.
+- `PROTO` برنامه‌های آماده، `MIZ` چیپ مزاج، `modVars` شاخص پیشنهادی (تا وقتی کاربر متن شاخص‌ها را دست نزده، `cModSync`).
+- `caseProgress` (٪ بهبود وزنی نسبت به پایه، شاخص اول وزن ۲)، `caseStage` (ارزیابی/فعال/تثبیت/بازنگری/پیگیری/بسته)، `progBar`.
+- `clinicFollow(only)`: miss (نوبت گذشته بی‌ویزیت)، lost، adv (۱۴ روز)، worse (≥۲ نمره)، risk، chk (۲–۵ روز بعد از جلسه، SM clinicChk). رفع با `cContact` بعد از تاریخ رویداد. `cfRow`، `clinicCard` در بلوک توجه «امروز». acts: cMsg (پیامک آماده `cMsgTxt`)، cFuDone، cNoShow، cBook (`cBookSheet`، فرم `cbook`، هشدار ساعت تکراری، پیام تأیید).
+- ویزیت: چیپ نوع، حال کلی `glob`، چیپ مداخله‌ها (`ivPick`/`ivPut`)، `ivSame`، یادداشت آزاد `free`، SOAP در `#vSoap`، تاریخ بعدی از `plan.every`، مبلغ «مثل قبل» (`vFee`، بدون پرکردن خودکار). عارضه ← کار احوال‌پرسی فردا.
+- هوش مصنوعی: `cAiNote` (تفکیک یادداشت)، `cAiSum` (خلاصه/پیشنهاد، در `c.ai`). متن با `deid` (نام مراجع، شماره‌ها، ایمیل) پاک می‌شود. SMART: clinicFu، clinicChk، clinicAI.
+
 ## در انتظار
 - جواب کاربر دربارهٔ محمولهٔ ۰۰۱ پدر (adj +۱۶۹).
 - تنظیم واقعی پله‌های پورسانت (درون برنامه پرسیده می‌شود).
