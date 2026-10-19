@@ -151,6 +151,11 @@
 - + و ثبت مالی: `useCount` شمارش کلیدها داخل `[data-addsheet]` (localStorage `miz.use`)، `favHtml()` «پرکاربردهای تو» (n≥۳، چهار تا).
 - کلیدهای SMART تازه: buyTips، payTips، lotPrev، fabOrder.
 
+## ۳٫۴۹ — مرحلهٔ ۳: کیفیت داده
+- `softWarn(f,key,msg)` (مثل dupGuard بدون عنوان «تکراری»). `dateWarn` (آینده یا بیش از یک سال پیش) در ledger و doc؛ `amtWarn` (≥۱۰ برابر یا ≤۰٫۱ میانهٔ ۱۰ ثبت اخیر همان شخص یا دسته) در ledger.
+- `peopleDups()` (نام پاک‌شده از عنوان‌ها یا تلفن ۱۰ رقم آخر، union-find)، `refCount`، `mergePeople(keep,src)`: هر رشتهٔ برابر id در همهٔ مجموعه‌ها (تا عمق ۳) جایگزین، تلفن/نقش/یادداشت جمع، منبع archived با `mergedInto`، `hist` روی نگه‌داشته.
+- `healthIssues()/healthSheet()` (act `health`): بدون دسته، بدون حساب، تاریخ آینده، موجودی منفی، طلب سررسیدگذشته بی‌پیگیری (`odTasks`)، افراد تکراری (`mergeAsk` → فرم `merge`)، سند نامتوازن، pending بیش از ۷ روز، کار بیش از ۳۰ روز عقب (`staleArch`). `healthCard()` در «نیاز به توجه» (هفتگی `hSnooze`). SMART `health`.
+
 ## در انتظار
 - جواب کاربر دربارهٔ محمولهٔ ۰۰۱ پدر (adj +۱۶۹).
 - تنظیم واقعی پله‌های پورسانت (درون برنامه پرسیده می‌شود).
