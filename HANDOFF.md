@@ -198,6 +198,11 @@
 - `PAYRX`، `taskPayV(t)` (سند آماده: هزینه/درآمد `catAcc` + بانک 1101 از recur یا اولین حساب)، `taskToRecur(t)` (فرم recur پرشده؛ بعد از ذخیره کار `archived` با save0). بنر در فرم کار (با setTimeout قبل از `details` ویرایش، چون `taskProgress` یک details باز می‌کند). acts: taskPayV، taskToRecur.
 - `save` برای کار انجام‌شده با payAmt (یا PAYRX با SMART `payDone`) حالا فرم سند (`taskPayV`) باز می‌کند، نه formLedger.
 
+## ۳٫۵۷ — معین بانک
+- `bankRows(name)`/`bankLedger(name)`: موجودی اول + ledger (`cashRow`، `acctCanon(l.acct)`) + خطوط 1101 سندها (`x.bank||v.acct`)، با `preOpen`؛ جدول تاریخ/شرح/بدهکار/بستانکار/مانده، ردیف → `accSrc`. acts: bankLedger، bankJV، bankPrint.
+- لمس حساب در «پول ← حساب‌ها» حالا معین را باز می‌کند (تطبیق از داخل آن)؛ در `accAccSheet('1101')` «ریز حساب‌های بانکی»؛ در نمایش سند، نام بانک/شخص لینک است.
+- «پرکاربردهای تو» دیگر خودِ «ثبت مالی» را نشان نمی‌دهد (`useCount`/`favHtml` بازکننده‌های برگهٔ افزودن را حساب نمی‌کنند).
+
 ## در انتظار
 - تنظیم واقعی پله‌های پورسانت (درون برنامه پرسیده می‌شود).
 - تست اتصال جمینای روی گوشی کاربر.
