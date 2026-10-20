@@ -329,7 +329,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.61';
+const APP_VER='3.62';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -1044,7 +1044,7 @@ const LOGT2={
   deals:{n:'فرصت',g:'work',del:1,a:x=>(PIPES[x.pipe]||{}).area||'sales',i:()=>'marketers',t:x=>x.title,open:x=>viewDeal(x.id),st:x=>x.status&&x.status!=='open'?[x.status==='won'?'موفق':'بسته',x.status==='won'?'ok':'']:null},
   people:{n:'شخص',g:'people',del:x=>!S.ledger.some(l=>l.personId===x.id)&&!S.moves.some(m=>m.personId===x.id)&&!S.lots.some(l=>l.supplierId===x.id)&&!S.cases.some(c=>c.personId===x.id),a:x=>x.area||'affairs',i:()=>'user',t:x=>x.name,open:x=>viewPerson(x.id),st:x=>x.status==='archived'?['برداشته شد','']:null,restore:x=>({status:'active'})},
   ledger:{n:'حساب',g:'money',a:()=>'finance',i:()=>'finance',t:x=>`${LSHORT[x.kind]||''} ${money(x.amount,x.currency)}${x.personId?' · '+pname(x.personId):''}${x.about?' · '+x.about:''}`,open:x=>viewLedger(x.id),st:x=>x.void?['باطل','bad']:x.settled?['تسویه','ok']:null,restore:x=>({void:false})},
-  vouchers:{n:'سند دستی',g:'money',a:()=>'finance',i:()=>'book',t:x=>x.desc||'سند دستی',open:x=>viewVoucher(x.id),st:x=>x.void?['باطل','bad']:x.unbalanced?['نامتوازن','warn']:null,restore:x=>({void:false})},
+  vouchers:{n:'سند حسابداری',g:'money',a:()=>'finance',i:()=>'book',t:x=>x.desc||'سند دستی',open:x=>viewVoucher(x.id),st:x=>x.void?['باطل','bad']:x.unbalanced?['نامتوازن','warn']:null,restore:x=>({void:false})},
   lots:{n:'ورود کالا',g:'goods',a:()=>'sales',i:()=>'box',t:x=>`${lotName(x)} ${fmtQ(Number(x.qty)||0,x.unit)} · ${lotSrc(x)}`,open:x=>viewLot(x.id),st:x=>x.void?['باطل','bad']:null,restore:x=>({void:false})},
   moves:{n:'فروش/ارسال',g:'goods',a:x=>MOVE[x.kind]&&MOVE[x.kind].give?'personal':'sales',i:x=>MOVE[x.kind]&&MOVE[x.kind].give?'gift':'truck',t:x=>{const l=byId('lots',x.lotId);return `${(MOVE[x.kind]||{}).n||''} ${fmtQ(Number(x.qty)||0,l?l.unit:'')} ${lotName(l)} · ${whoOf(x)}`},open:x=>viewMove(x.id),st:x=>x.void?['باطل','bad']:null,restore:x=>({void:false})},
   quotes:{n:'قیمت',g:'goods',a:()=>'marketers',i:()=>'tag',t:x=>`${x.dir==='got'?'گرفتم از':'دادم به'} ${pname(x.personId)||'—'} · ${x.product} ${money(x.price,x.currency)}`,open:x=>viewQuote(x.id),del:1},
@@ -1069,7 +1069,7 @@ function logItems(all){const g=all?'all':(ui.logG||'all'),q=all?'':(ui.logQ||'')
 function logRow(e,k){const st=e.T.st?e.T.st(e.x):null;const tm=e.ts?new Date(e.ts):null;const hm=tm?fa(String(tm.getHours()).padStart(2,'0')+':'+String(tm.getMinutes()).padStart(2,'0')):'';const edited=e.x.updated&&e.x.created&&(new Date(e.x.updated)-new Date(e.x.created))>60000;
   return `<div class="row ${st&&st[1]==='bad'?'void':''}">${badge(e.T.a(e.x),e.T.i(e.x))}<button class="main" style="border:0;background:none;text-align:right;padding:0" data-act="logOpen" data-c="${e.col}" data-id="${e.x.id}"><div class="ttl">${esc(String(e.t).slice(0,90))}</div>
    <div class="sub"><span class="pill">${esc(e.T.n)}</span><span>${hm}</span>${edited?`<span>ویرایش ${jNice(e.x.updated.slice(0,10))}</span>`:''}${st?`<span class="pill ${st[1]}">${st[0]}</span>`:''}</div></button>
-   <div class="end" style="display:flex;flex-direction:column;gap:4px">${st&&e.T.restore?`<button class="pill acc" data-act="logRestore" data-c="${e.col}" data-id="${e.x.id}">برگردان</button>`:''}${(e.T.del&&(typeof e.T.del!=='function'||e.T.del(e.x)))?`<button class="pill" data-act="logDel" data-c="${e.col}" data-id="${e.x.id}">حذف</button>`:''}</div></div>`}
+   ${k==='lite'?'':`<div class="end" style="display:flex;flex-direction:column;gap:4px">`}${k==='lite'?'':''}${k!=='lite'&&st&&e.T.restore?`<button class="pill acc" data-act="logRestore" data-c="${e.col}" data-id="${e.x.id}">برگردان</button>`:''}${k!=='lite'&&(e.T.del&&(typeof e.T.del!=='function'||e.T.del(e.x)))?`<button class="pill" data-act="logDel" data-c="${e.col}" data-id="${e.x.id}">حذف</button>`:''}${k==='lite'?'':'</div>'}</div>`}
 function logList(){const L=logItems();const n=ui.logN||80;let h='',day='';
   L.slice(0,n).forEach((e,k)=>{const d=(e.ts||'').slice(0,10);const dl=d?jNice(isoOf(new Date(e.ts))):'بی‌تاریخ';if(dl!==day){if(day)h+='</div>';day=dl;h+=`<div class="grp">${esc(dl)}${d?' · '+jLong(isoOf(new Date(e.ts))).split(' ')[0]:''}</div><div class="list">`}h+=logRow(e,k)});if(day)h+='</div>';
   return (h||'<div class="empty">چیزی پیدا نشد.</div>')+(L.length>n?`<button class="btn" style="width:100%;margin-top:10px" data-act="logMore">${fa(L.length-n)} مورد قدیمی‌تر</button>`:'')}
@@ -1786,6 +1786,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.62',[['affairs','filter','«امروز» خلوت‌تر','بخش‌های خالی (پیگیری سررسیده، یادداشت سریع) دیگر جا نمی‌گیرند؛ «آخرین ثبت‌ها» سه ردیف و بدون دکمهٔ حذف (حذف و برگرداندن در «همهٔ ثبت‌ها»).','']]],
  ['3.61',[['finance','book','سندها همه‌جا','سندهای حسابداری در «پول ← ثبت‌ها» کنار بقیه می‌آیند (چیپ «سند» و فیلتر هر بانک)؛ در صفحهٔ هر شخص «سند با او».','accVoucher'],['finance','bell','فرم پرداخت ثابت کوتاه شد','جهت پول و تکرار با دکمه؛ فقط عنوان، مبلغ، روز، طرف و حساب؛ خودکار/دستی، قسط، شروع و دسته در «جزئیات».','recurs']]],
  ['3.60',[['affairs','filter','نمای صفحه‌ها از هر جا','دکمهٔ تازهٔ بالای همهٔ صفحه‌ها (کنار جستجو): مبالغ خلاصه یا دقیق، پنهان کردن مبالغ، بدهکار و بستانکار یک یا دو ستون، فشرده، اندازهٔ نوشته و پوستهٔ روشن یا تیره. میان‌بر: لمس طولانی روی عنوان صفحه مبالغ را پنهان یا آشکار می‌کند؛ دو بار زدن روی عنوان همین پنجره را باز می‌کند.','viewPanel']]],
  ['3.59',[['affairs','filter','بازبینی کلی: ساده‌تر و یکدست','فرم دریافت/پرداخت/طلب/بدهی با چهار دکمهٔ نوع و فقط موارد لازم (سررسید، شیوه، چک، ارز و مدرک در «جزئیات بیشتر»؛ دسته در تسویه پنهان؛ تیک تسویه فقط با طرف حساب)؛ «+» بدون تکرار: سند حسابداری، خرید کالا و «ورود کالای خودم» جدا؛ «نیاز به توجه» با سه مورد اول و بقیه با یک لمس؛ نقطهٔ «امتحان‌نشده» فقط برای بخش‌های تازه.','']]],
@@ -2600,15 +2601,15 @@ function vToday(){
   try{if(TS('insights'))h+=insightStrip()}catch(_){}
   if(TS('top3'))h+=block('سه کار مهم امروز',null,listOr(top,taskRow,'کاری برای امروز نیست. از دکمهٔ + یک کار اضافه کن.'),`<button class="link" data-act="tab" data-v="tasks">همهٔ کارها${due.length>3?' ('+fa(due.length-3)+' کار دیگر امروز)':''}</button>`);
   if(TS('habits'))h+=habitsStrip();
-  {const L=TS('recent')?logItems(1).slice(0,4):[];if(L.length)h+=block('آخرین ثبت‌ها',null,`<div class="list">${L.map(logRow).join('')}</div>`,`<button class="link" data-act="logSheet">همه</button>`)}
+  {const L=TS('recent')?logItems(1).slice(0,4):[];if(L.length)h+=block('آخرین ثبت‌ها',null,`<div class="list">${L.slice(0,3).map(e=>logRow(e,'lite')).join('')}</div>`,`<button class="link" data-act="logSheet">همه</button>`)}
   const fs=flowSummary();
     if(fs.short.length&&TS('chains'))h+=block('هشدار انبار',fs.short.length,listOr(fs.short,l=>`<button class="row" data-act="viewLot" data-id="${l.id}">${badge('therapy','warn')}<div class="main"><div class="ttl">کسری در ${esc(lotName(l))} ${fa(l.code||'')}</div><div class="sub"><span>${fmtQ(-lotStat(l).rem,l.unit)} بیش از موجودی ثبت شده؛ ورود جاافتاده یا مقدار را اصلاح کن</span></div></div></button>`,''));
   if(fs.rows.length&&TS('chains'))h+=block('زنجیره‌های در جریان',null,`<div class="list">${fs.rows.map(([k,n,c,a,ic])=>`<button class="row" data-act="${k==='recv'||k==='pay'?'chainMoney':'chain'}" data-v="${k}">${badge(a,ic)}<div class="main"><div class="ttl">${n}</div></div><div class="end"><b>${fa(c)}</b></div></button>`).join('')}</div>`);
-  if(TS('deals'))h+=block('پیگیری‌های سررسیده',follow.length,listOr(follow,dealRow,'پیگیری سررسیده‌ای نداری.'));
+  if(TS('deals')&&follow.length)h+=block('پیگیری‌های سررسیده',follow.length,listOr(follow,dealRow,'پیگیری سررسیده‌ای نداری.'));
   if(money7.length&&TS('money7'))h+=block('سررسید مالی ۷ روز آینده',money7.length,listOr(money7,ledgerRow,''));
   if(noNext.length&&TS('deals'))h+=block('فرصت بدون قدم بعدی',noNext.length,listOr(noNext,dealRow,''));
   if(stale.length&&TS('deals'))h+=block('بیش از ۱۴ روز بی‌حرکت',stale.length,listOr(stale,dealRow,''));
-  if(TS('inbox'))h+=block('یادداشت‌های سریع',inbox.length,listOr(inbox,i=>`<button class="row" data-act="viewInbox" data-id="${i.id}">${badge('affairs','note')}<div class="main"><div class="ttl">${esc(i.text)}</div><div class="sub"><span>${i.created?jNice(i.created.slice(0,10)):''}</span><span>برای ویرایش، تبدیل به کار یا خط زدن بزن</span></div></div></button>`,'هر فکری را بالای صفحه بنویس تا یادت نرود؛ بعداً با یک لمس ویرایشش کن یا به کار تبدیلش کن.'));
+  if(TS('inbox')&&inbox.length)h+=block('یادداشت‌های سریع',inbox.length,listOr(inbox,i=>`<button class="row" data-act="viewInbox" data-id="${i.id}">${badge('affairs','note')}<div class="main"><div class="ttl">${esc(i.text)}</div><div class="sub"><span>${i.created?jNice(i.created.slice(0,10)):''}</span><span>برای ویرایش، تبدیل به کار یا خط زدن بزن</span></div></div></button>`,'هر فکری را بالای صفحه بنویس تا یادت نرود؛ بعداً با یک لمس ویرایشش کن یا به کار تبدیلش کن.'));
   h+=`<div style="text-align:center;margin:18px 0 6px"><button class="link" data-act="prefs">${svg('filter')} چیدمان این صفحه و کمک‌های هوشمند</button></div>`;
   return h;
 }
