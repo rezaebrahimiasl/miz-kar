@@ -247,6 +247,9 @@
 - `vchRem()`: خطوط شخص سند (Cr 1201=received، Dr 2101=paid، Dr 1201=receivable، Cr 2101=payable، با `refId`) در `remMap` (کلید کش شامل vouchers). خط سند `refId` دارد (`.j_ref`).
 - `payVoucher({inn,personId,refId,amount,desc,sug})` → `formVoucher(v,tpl,{sug})` با چیپ‌های مبلغ (act `jvAmt`: ردیف ۱ بدهکار، ردیف ۲ بستانکار). acts: `invPay` (در فرم فاکتور، `d.id||d.redoOf`)، `ledPay` (viewLedger طلب/بدهی باز)، `pJV` (صفحهٔ شخص، بر اساس مانده). پیل مانده/تسویه در فهرست اسناد.
 
+## ۳٫۶۹ — تأمین‌کنندهٔ هر ردیف پیش‌فاکتور
+- `docItemRow` برای proforma: `.di_pf` در `.di_more` با `.di_bs`/`.di_bp` (همان فیلدهای bSup/bPrice خرید مستقیم) و چیپ‌های `.di_sq` از quotes «got» و محموله‌های خرید (`pfRow`، act `pfPick`)؛ سود ردیف در `.di_t`. چاپ نمی‌شود. `docConvert`: ردیف با bSup و بی‌محموله → `src:'buy'`.
+
 ## در انتظار تصمیم کاربر
 - توزیع/فروش نسخه‌ها (پایه/نقره‌ای/طلایی، کلید مجوز امضاشده، ساخت نسخهٔ مشتری) — پیشنهاد داده شد.
 
