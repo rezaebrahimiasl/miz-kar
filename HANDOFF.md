@@ -261,6 +261,9 @@
 ## ۳٫۷۲ — یادآور فیلتر همه‌جا
 - `fHint(defs,sheet)` زیر چیپ‌های کارها، فرصت‌ها، پول (ثبت‌ها)، اسناد، پرونده‌ها، چک‌ها، دارایی‌ها؛ برچسب با `fLabels` (چیپ‌های فشرده در `.chips` قبلی، از MutationObserver)؛ act `fClear` (ui=defs، سپس sheet یا render).
 
+## ۳٫۷۳ — برگردان (Undo)
+- `UB` دستهٔ تغییرات هر کار کاربر: `undoOpen()` در شروع هر کلیک data-act و هر submit؛ `undoRec(col,id)` در `save0`، `putRaw`، `delDoc` (نسخهٔ قبلی یا null؛ تا ۶ ثانیه؛ بدون contacts و meta tomb/prefs/profile؛ SMART `undo`). `undoShow` پس از ۷۰۰ms سکوت نوار `#undoBar` (۷ ثانیه) را نشان می‌دهد؛ ردیف‌های تازهٔ save0 بی‌شناسه از روی created پیدا می‌شوند. `undoDo` (act `undoDo`): برعکس، نسخهٔ قبلی را putRaw می‌کند (و tombstone را برمی‌دارد) یا ردیف تازه را حذف می‌کند (با tombstone). `syncMerge` دسته را می‌بندد.
+
 ## در انتظار تصمیم کاربر
 - توزیع/فروش نسخه‌ها (پایه/نقره‌ای/طلایی، کلید مجوز امضاشده، ساخت نسخهٔ مشتری) — پیشنهاد داده شد.
 
