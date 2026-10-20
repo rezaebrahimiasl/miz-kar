@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#b8740a">
 <meta name="description" content="میز کار رضا — دستیار شخصی، کسب‌وکار و زنبورداری">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon2-192.png">
+<link rel="apple-touch-icon" href="icon2-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
 #spl{position:fixed;inset:0;z-index:10000;background:radial-gradient(circle at 50% 40%,#fff8e6 0,var(--bg) 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:opacity .7s ease-in;overflow:hidden}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #spl{background:radial-gradient(circle at 50% 40%,#3a2e14 0,var(--bg) 70%)}}
@@ -343,7 +343,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.64';
+const APP_VER='3.65';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -1805,6 +1805,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.65',[['affairs','star','آیکون تازه','آیکون برنامه روی گوشی همان لوگوی «عسل رضا» شد.','']]],
  ['3.64',[['affairs','star','صفحهٔ آغاز','با باز شدن برنامه: لوگوی «عسل رضا»، نام و نسخه، و زنبوری که دور صفحه می‌چرخد؛ با یک لمس رد می‌شود و از «نمای صفحه‌ها» خاموش‌شدنی است. همین لوگو روی سربرگ فاکتور، پیش‌فاکتور و نامه هم می‌آید.','viewPanel']]],
  ['3.63',[['sales','note','فاکتور جدولی','اقلام فاکتور، پیش‌فاکتور و خرید هر کدام یک سطر: شرح، مقدار، واحد، فی؛ مبلغ ردیف و منبع انبار زیرش کوچک؛ «⋯» کنار هر ردیف: انبار یا محموله، توضیح ردیف، تخفیف.','docsSheet'],['finance','book','بستن سال مالی','در «دفاتر حسابداری ← بستن سال»: سود و زیان سال، سند اختتامیه (درآمد و هزینه به «سود و زیان انباشته»، برداشت شخصی از سرمایه)، ماندهٔ افتتاحیهٔ سال بعد، بررسی پیش از بستن، چاپ؛ با «بستن و قفل»، ثبت و تغییر با تاریخ آن سال ممکن نیست (اصلاح با سند اصلاحی در سال جاری) و بازگشایی با سابقه.','yearClose']]],
  ['3.62',[['affairs','filter','«امروز» خلوت‌تر','بخش‌های خالی (پیگیری سررسیده، یادداشت سریع) دیگر جا نمی‌گیرند؛ «آخرین ثبت‌ها» سه ردیف و بدون دکمهٔ حذف (حذف و برگرداندن در «همهٔ ثبت‌ها»).','']]],

@@ -236,6 +236,9 @@
 - splash (IIFE پیش از attnFold): یک بار در هر نشست (`sessionStorage.mizSpl`)، لوگو، «میز کار»، نسخه، زنبور SVG با بال‌زدن روی مدار دایره‌ای دور لوگو (`.orb` rotate، `.trail`)، لمس = رد، ۲٫۸ ثانیه؛ reduced-motion بی‌حرکت. خاموش: «نمای صفحه‌ها» (`miz.view.noSplash`).
 - `docHtml`: اگر لوگوی پروفایل نیست، `logo.webp` با نشانی کامل (برای iframe) روی سربرگ؛ `P.noLogo` برای حرف اول.
 
+## ۳٫۶۵ — آیکون
+- `icon2-192.png`، `icon2-512.png` (لوگو ۹۸٪ روی زمینهٔ #ece5cd) و `icon2-maskable-512.png` (۸۰٪، ناحیهٔ امن)؛ نام تازه برای دور زدن کش آیکون. manifest (purpose any/maskable، background_color)، link icon/apple-touch-icon و SHELL در sw.js. فایل‌های قدیمی icon-*.png برای نصب‌های قبلی ماندند.
+
 ## در انتظار
 - تنظیم واقعی پله‌های پورسانت (درون برنامه پرسیده می‌شود).
 - تست اتصال جمینای روی گوشی کاربر.
