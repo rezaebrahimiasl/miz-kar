@@ -346,7 +346,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.76';
+const APP_VER='3.77';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 const UIKEEP=['taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
 try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
@@ -1812,6 +1812,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.77',[['affairs','filter','فیلتر افراد یکجا','کنار جستجو یک دکمهٔ فیلتر (با شمارهٔ فیلترهای فعال): نقش، وضعیت (بدهکار، طلبکار، فرصت باز، وقت تماس) و ترتیب در یک صفحه با تعداد هر کدام؛ فیلترهای فعال بالای فهرست با ✕ برداشته می‌شوند.','']]],
  ['3.76',[['affairs','check','برگردان فقط جایی که لازم است','جاهایی که با یک لمس دوباره خودش برمی‌گردد (نماز و عبادات، تیک عادت‌ها، اهداف پرونده، روشن/خاموش کردن، فیلترها و تنظیمات نما) دیگر نوار «برگردان» نمی‌آورند.','']]],
  ['3.75',[['finance','check','«برگرد به فرم» بعد از ثبت سند','بعد از ثبت یا تغییر فاکتور، سند، دریافت و پرداخت، ورود کالا یا چک، نوار پایین «✎ برگرد به فرم» دارد: همان فرم با همهٔ اطلاعات باز می‌شود تا اصلاح کنی (نسخهٔ قبل در سابقه می‌ماند)؛ «باطل» هم کنارش هست.','']]],
  ['3.74',[['finance','check','برگردانِ حسابداری‌پسند','برای سند، فاکتور، دریافت و پرداخت، انبار و چک، «برگردان» دیگر پاک نمی‌کند: ثبت تازه «باطل» می‌شود (با دلیل و تاریخ، در «همهٔ ثبت‌ها» دیده می‌شود و برگشت‌پذیر است) و تغییر به نسخهٔ قبل برمی‌گردد و در سابقه ثبت می‌شود. کارها، یادداشت‌ها و افراد مثل قبل کامل برمی‌گردند.','']]],
@@ -2702,6 +2703,16 @@ function vDeals(){
   else h+=block('فرصت‌ها',arr.length,listOr(arr,dealRow,'فرصتی نیست. با دکمهٔ + اضافه کن.'));
   return h;
 }
+function pFSheet(){const r=ui.peopleR||'all',ps=ui.peopleS||'all',so=ui.pSort||'name';const all=S.people.filter(x=>x.status!=='archived');const cnt=x=>all.filter(p=>(p.roles||[]).includes(x)).length;const pb0=personBal();const bt=id=>(pb0[id]||{})['تومان']||0;
+  const c2={recv:all.filter(x=>bt(x.id)>0.5).length,pay:all.filter(x=>bt(x.id)<-0.5).length,deal:all.filter(x=>openDeals().some(d=>d.personId===x.id)).length,touch:touchDue().length};
+  const ch=(k,opts,cur)=>`<div class="chips wrap" style="margin-bottom:10px">${opts.map(([v,l])=>`<button class="chip" data-act="pFSet" data-k="${k}" data-v="${esc(v)}" aria-pressed="${cur===v}">${esc(l)}</button>`).join('')}</div>`;
+  openSheet(`<h3>${svg('filter')} فیلتر و ترتیب افراد</h3>
+  <div class="grp" style="margin-top:0">نقش</div>${ch('peopleR',[['all','همه '+fa(all.length)],...ROLES.filter(x=>cnt(x)||x===r).map(x=>[x,x+' '+fa(cnt(x))])],r)}
+  <div class="grp">وضعیت</div>${ch('peopleS',[['all','همه'],['recv','به من بدهکارند '+fa(c2.recv)],['pay','طلبکارند '+fa(c2.pay)],['deal','فرصت باز '+fa(c2.deal)],['touch','وقت تماس '+fa(c2.touch)]],ps)}
+  <div class="grp">ترتیب</div>${ch('pSort',[['name','الفبا'],['bal','بیشترین مانده'],['recent','آخرین ارتباط']],so)}
+  <div class="hint" style="font-size:12px;color:var(--muted);margin-bottom:10px">انتخاب‌ها برای دفعهٔ بعد هم می‌مانند؛ هر کدام بالای فهرست با ✕ برداشته می‌شود.</div>
+  <div class="acts"><button class="btn pri" data-act="close">نمایش ${fa(vPeopleCount())} نفر</button><button class="btn ghost" data-act="pFClear">پاک کردن همه</button></div>`)}
+function vPeopleCount(){try{const d=document.createElement('div');d.innerHTML=vPeople();const t=d.querySelector('#peopleRes .blk-h .n');return t?Number(en(t.textContent))||0:0}catch(_){return 0}}
 function vPeople(){
   let arr=S.people.filter(x=>x.status!=='archived');const q=ui.peopleQ.trim(),r=ui.peopleR;
   if(r!=='all')arr=arr.filter(x=>(x.roles||[]).includes(r));
@@ -2710,10 +2721,9 @@ function vPeople(){
   if(q){const ql=nrm(q),qd=normDigits(q),ws=q.split(/\s+/).map(nrm).filter(Boolean);arr=arr.filter(x=>{const k=nrm([x.name,x.org,x.note,(x.roles||[]).join(' ')].join(' '));return k.includes(ql)||ws.every(w=>k.includes(w))||(qd.length>=4&&normDigits(x.phone).includes(qd))})}
   if(so==='bal')arr.sort((a,b)=>Math.abs(bt(b.id))-Math.abs(bt(a.id))||a.name.localeCompare(b.name,'fa'));else if(so==='recent')arr.sort((a,b)=>(lastTouch(b)||'').localeCompare(lastTouch(a)||'')||a.name.localeCompare(b.name,'fa'));else arr.sort((a,b)=>a.name.localeCompare(b.name,'fa'));
   const pb=personBal();
-  let h=`<input class="search-in" id="peopleQ" placeholder="جستجو در افراد و مخاطبین گوشی…" value="${esc(q)}" style="margin-top:14px">`;
-  {const all=S.people.filter(x=>x.status!=='archived');const cnt=x=>all.filter(p=>(p.roles||[]).includes(x)).length;h+=chips('peopleR',[['all','همه '+fa(all.length)],...ROLES.filter(x=>cnt(x)||x===r).map(x=>[x,x+' '+fa(cnt(x))])],r).replace('class="chips"','class="chips wrap"')}
-  h+=`<details class="more" style="margin-top:6px" ${ps!=='all'||so!=='name'?'open':''}><summary>فیلتر و ترتیب${ps!=='all'||so!=='name'?' <span class="pill acc">فعال</span>':''}</summary>${chips('peopleS',[['all','همه'],['recv','به من بدهکارند'],['pay','طلبکارند'],['deal','فرصت باز'],['touch','وقت تماس']],ps).replace('class="chips"','class="chips wrap"')}<div style="height:6px"></div>${chips('pSort',[['name','الفبا'],['bal','بیشترین مانده'],['recent','آخرین ارتباط']],so)}</details>`;
-  if(r!=='all'||ps!=='all')h+=`<div class="hint" style="font-size:12px;margin:6px 2px">فیلتر از دفعهٔ قبل مانده: ${[r!=='all'?esc(r):'',ps!=='all'?({recv:'به من بدهکارند',pay:'طلبکارند',deal:'فرصت باز',touch:'وقت تماس'})[ps]:''].filter(Boolean).join(' · ')} <button class="link" data-act="pFClear">همه را نشان بده</button></div>`;
+  const PSN={recv:'به من بدهکارند',pay:'طلبکارند',deal:'فرصت باز',touch:'وقت تماس'},SON={bal:'بیشترین مانده',recent:'آخرین ارتباط'};const nAct=(r!=='all'?1:0)+(ps!=='all'?1:0)+(so!=='name'?1:0);
+  let h=`<div style="display:flex;gap:8px;margin-top:14px"><input class="search-in" id="peopleQ" placeholder="جستجو در افراد و مخاطبین گوشی…" value="${esc(q)}" style="flex:1;margin:0"><button class="icon-btn" data-act="pFSheet" aria-label="فیلتر و ترتیب" style="position:relative;width:48px;height:48px">${svg('filter')}${nAct?`<span style="position:absolute;top:-4px;left:-4px;min-width:18px;height:18px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-size:11px;display:grid;place-items:center">${fa(nAct)}</span>`:''}</button></div>`;
+  if(nAct)h+=`<div class="chips wrap" style="margin-top:8px">${r!=='all'?`<button class="chip" aria-pressed="true" data-act="pFDel" data-v="peopleR">${esc(r)} ✕</button>`:''}${ps!=='all'?`<button class="chip" aria-pressed="true" data-act="pFDel" data-v="peopleS">${PSN[ps]} ✕</button>`:''}${so!=='name'?`<button class="chip" aria-pressed="true" data-act="pFDel" data-v="pSort">ترتیب: ${SON[so]} ✕</button>`:''}${nAct>1?'<button class="chip" data-act="pFClear">پاک کردن همه</button>':''}</div>`;
   return h+`<div id="peopleRes">${peopleRes(arr,q)}</div>`}
 function peopleRes(arr,q){const pb=personBal();let h='';
   h+=block('افراد',arr.length,listOr(arr,x=>{const b=pb[x.id];const bs=b?Object.entries(b).filter(([,v])=>Math.abs(v)>0.0001):[];
@@ -3797,7 +3807,7 @@ document.addEventListener('change',e=>{if(e.target&&e.target.id==='f_brLogo'&&e.
 function fHint(defs,sheet){const on1=Object.entries(defs).some(([k,d])=>(ui[k]??d)!==d);if(!on1)return'';return `<div class="hint" data-fhint style="font-size:12px;margin:6px 2px">${svg('filter')} فیلتر از دفعهٔ قبل فعال است: <b data-fl></b> <button class="link" data-act="fClear" data-v="${esc(JSON.stringify(defs))}" data-s="${sheet||''}">همه را نشان بده</button></div>`}
 function fLabels(root){(root||document).querySelectorAll('[data-fhint]').forEach(h=>{const b=h.querySelector('[data-fl]');if(!b||b.textContent)return;let p=h.previousElementSibling;const L=[];for(let i=0;i<4&&p;i++,p=p.previousElementSibling){if(p.classList&&p.classList.contains('chips'))p.querySelectorAll('[aria-pressed=true]').forEach(x=>L.push(x.textContent.replace(/[۰-۹0-9]+\s*$/,'').trim()))}b.textContent=L.filter(x=>!/^همه/.test(x)).join(' · ')||'انتخاب دفعهٔ قبل'})}
 /* ---------- undo: every user action's writes can be reverted for a few seconds ---------- */
-let UB=null,_ubT=0;const UNDO_SELF=['prTap','habitToggle','ibNiy','ibSileh','ibQ','recurToggle','gsToggle','toggleChip','mhsHide','cGoal','vwSet','brSet','filter','fClear','pFClear','attnAll','hSnooze','cPriv','cFilter','docF','chqF','winF','asF','chgA'];const UNDO_SKIPM=['tomb','prefs','profile'];const UNDO_FIN=['ledger','vouchers','docs','moves','lots','cheques'];
+let UB=null,_ubT=0;const UNDO_SELF=['pFSet','pFDel','pFSheet','prTap','habitToggle','ibNiy','ibSileh','ibQ','recurToggle','gsToggle','toggleChip','mhsHide','cGoal','vwSet','brSet','filter','fClear','pFClear','attnAll','hSnooze','cPriv','cFilter','docF','chqF','winF','asF','chgA'];const UNDO_SKIPM=['tomb','prefs','profile'];const UNDO_FIN=['ledger','vouchers','docs','moves','lots','cheques'];
 function undoOpen(){UB={t:Date.now(),ops:[],seen:new Set()}}
 function undoRec(col,id){try{if(!UB||Date.now()-UB.t>6000||!SM('undo'))return;if(col==='contacts'||(col==='meta'&&UNDO_SKIPM.includes(id)))return;const k=col+'/'+(id||'');if(id&&UB.seen.has(k))return;
   const prev=id?byId(col,id):null;if(id)UB.seen.add(k);UB.ops.push({col,id,prev:prev?JSON.parse(JSON.stringify(prev)):null,neu:!id});clearTimeout(_ubT);_ubT=setTimeout(undoShow,700)}catch(_){}}
@@ -4087,7 +4097,10 @@ document.addEventListener('click',async e=>{
     case'undoDo':await undoDo();break;
     case'undoEdit':undoEdit();break;
     case'fClear':{try{Object.assign(ui,JSON.parse(b.dataset.v))}catch(_){}const sh=b.dataset.s;if(sh&&typeof window[sh]==='function')window[sh]();else render();break}
-    case'pFClear':ui.peopleR='all';ui.peopleS='all';ui.pSort='name';render();break;
+    case'pFClear':ui.peopleR='all';ui.peopleS='all';ui.pSort='name';if(document.querySelector('.sheet [data-act=pFSet]'))pFSheet();render();break;
+    case'pFSheet':pFSheet();break;
+    case'pFSet':ui[b.dataset.k]=b.dataset.v;render();pFSheet();break;
+    case'pFDel':ui[b.dataset.v]=b.dataset.v==='pSort'?'name':'all';render();break;
     case'close':closeSheet();break;
     case'toggleTask':{const t=byId('tasks',id);if(t&&await save('tasks',id,t.status==='done'?{status:'open',doneAt:null}:{status:'done',doneAt:nowTs()}))toast(t.status==='done'?'دوباره باز شد':'انجام شد ✓ رفت به «انجام‌شده‌ها»');break}
     case'editTask':formTask(byId('tasks',id));break;
