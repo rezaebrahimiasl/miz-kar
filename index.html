@@ -8,7 +8,10 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}form[data-inv="0"] [data-inv]{display:none!important}form[data-give="1"] [data-sale],form[data-give="1"] .di_p,form[data-give="1"] .di_s option[value=""]{display:none!important}img{max-width:100%}</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
+html.vhide .kpi .v,html.vhide .row .end,html.vhide .amt-pos,html.vhide .amt-neg,html.vhide .tbl td:not(.ds):not(:first-child),html.vhide .tbl tfoot td{filter:blur(7px);user-select:none}
+html.vdense .row{padding-top:6px;padding-bottom:6px}html.vdense .blk{margin-top:10px}html.vdense .kpi{padding:8px 10px}html.vdense .tile{padding:8px}html.vdense .fld{margin-bottom:8px}
+html.fs-s body{zoom:.9}html.fs-l body{zoom:1.12}form[data-inv="0"] [data-inv]{display:none!important}form[data-give="1"] [data-sale],form[data-give="1"] .di_p,form[data-give="1"] .di_s option[value=""]{display:none!important}img{max-width:100%}</style>
 </head>
 <body>
 <title>میز کار رضا</title>
@@ -207,6 +210,7 @@ html body .row2{grid-template-columns:1fr 1fr}
 <div class="wrap">
   <header class="top">
     <div class="t"><h1 id="hTitle">امروز</h1><div class="d" id="hDate"></div></div>
+    <button class="icon-btn" id="btnView" data-act="viewPanel" aria-label="نما و نمایش"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
     <button class="icon-btn" id="btnSearch" aria-label="جستجو"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
     <button class="icon-btn" id="btnMenu" aria-label="بیشتر"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
   </header>
@@ -325,7 +329,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.58';
+const APP_VER='3.60';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -1532,7 +1536,7 @@ const ACTS=[
  ['امنیت و تنظیمات','roadmap','affairs','map','نقشهٔ راه','کارهای بعدی برنامه','نقشه راه نسخه ها',''],
  ['امنیت و تنظیمات','checkUpd','affairs','bell',()=>'نسخهٔ '+fa(APP_VER),'بررسی به‌روزرسانی','نسخه به روز رسانی آپدیت','']];
 const actsOn=()=>ACTS.filter(a=>!a[8]||on(a[8]));
-const actTile=a=>{if(a[1]==='tab')return `<button class="tile" data-act="tab" data-v="money">${badge('finance','finance')}<span><b>پول</b><small>${esc(a[5])}</small></span></button>`;const sm=typeof a[5]==='function'?a[5]():a[5];const t=typeof a[4]==='function'?a[4]():a[4];const nw=SM('newDots')&&!['checkUpd','roadmap','helpAll','logSheet','whatsNew'].includes(a[1])&&!HUBS[a[1]]&&!tried(a[1]);return `<button class="tile" data-act="${a[1]}">${nw?'<span class="newdot" title="هنوز امتحان نکرده‌ای" aria-label="هنوز امتحان نکرده‌ای"></span>':''}${badge(a[2],a[3])}<span><b>${esc(t)}</b>${sm?`<small>${esc(sm)}</small>`:''}</span></button>`};
+const actTile=a=>{if(a[1]==='tab')return `<button class="tile" data-act="tab" data-v="money">${badge('finance','finance')}<span><b>پول</b><small>${esc(a[5])}</small></span></button>`;const sm=typeof a[5]==='function'?a[5]():a[5];const t=typeof a[4]==='function'?a[4]():a[4];const nw=SM('newDots')&&!['checkUpd','roadmap','helpAll','logSheet','whatsNew'].includes(a[1])&&!HUBS[a[1]]&&!tried(a[1])&&recentGo().has(a[1]);return `<button class="tile" data-act="${a[1]}">${nw?'<span class="newdot" title="هنوز امتحان نکرده‌ای" aria-label="هنوز امتحان نکرده‌ای"></span>':''}${badge(a[2],a[3])}<span><b>${esc(t)}</b>${sm?`<small>${esc(sm)}</small>`:''}</span></button>`};
 function actMatch(q){const qn=nrm(q);if(qn.length<2)return[];return actsOn().filter(a=>{const t=typeof a[4]==='function'?a[4]():a[4];return nrm(t+' '+a[6]).includes(qn)||a[6].split(' ').some(w=>w.length>2&&qn.includes(nrm(w)))}).slice(0,6)}
 const TIPS=[
  {id:'review',mod:'',c:()=>!lastReview()&&S.tasks.length>8,t:'«مرور هفتگی» ده دقیقه است: کارهای عقب‌افتاده و طلب‌های سررسید را یک‌جا مرتب می‌کند.',a:'review'},
@@ -1779,6 +1783,8 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.60',[['affairs','filter','نمای صفحه‌ها از هر جا','دکمهٔ تازهٔ بالای همهٔ صفحه‌ها (کنار جستجو): مبالغ خلاصه یا دقیق، پنهان کردن مبالغ، بدهکار و بستانکار یک یا دو ستون، فشرده، اندازهٔ نوشته و پوستهٔ روشن یا تیره. میان‌بر: لمس طولانی روی عنوان صفحه مبالغ را پنهان یا آشکار می‌کند؛ دو بار زدن روی عنوان همین پنجره را باز می‌کند.','viewPanel']]],
+ ['3.59',[['affairs','filter','بازبینی کلی: ساده‌تر و یکدست','فرم دریافت/پرداخت/طلب/بدهی با چهار دکمهٔ نوع و فقط موارد لازم (سررسید، شیوه، چک، ارز و مدرک در «جزئیات بیشتر»؛ دسته در تسویه پنهان؛ تیک تسویه فقط با طرف حساب)؛ «+» بدون تکرار: سند حسابداری، خرید کالا و «ورود کالای خودم» جدا؛ «نیاز به توجه» با سه مورد اول و بقیه با یک لمس؛ نقطهٔ «امتحان‌نشده» فقط برای بخش‌های تازه.','']]],
  ['3.58',[['finance','book','جدول‌های جمع‌وجورتر','بدهکار و بستانکار در یک ستون «گردش» با برچسب «بد» و «بس» و دو رنگ؛ شرح‌های بلند در دو سطر؛ همهٔ ستون‌ها راست‌چین. در چاپ همان دو ستون می‌ماند و در «سلیقهٔ من» قابل برگشت است.','']]],
  ['3.57',[['finance','book','معین بانک','روی هر حساب بانکی (در «پول»، دفتر کل ۱۱۰۱ یا ردیف بانک در سند) بزن: جدول تاریخ، شرح، بدهکار، بستانکار و مانده، از موجودی اول؛ هر ردیف سند منبعش را باز می‌کند؛ با «سند تازه با این حساب»، تطبیق و چاپ.','']]],
  ['3.56',[['finance','bell','پرداخت ثابت ماهانه جلوی چشم','در «+ ← ثبت مالی» کنار «سند حسابداری»؛ باشگاه، شهریه، قسط، اجاره و خرجی یک بار تعریف می‌شوند و هر ماه خودشان یادآوری یا ثبت می‌شوند.','recurs'],['finance','book','کاری که پرداخت است ← سند','اگر کاری مثل «حوالهٔ ماهیانهٔ باشگاه» در کارها نوشتی، داخلش «ثابت ماهانه شود» یا «پرداخت شد ← سند» هست؛ و با «انجام شد» سند پرداخت (هزینه بدهکار، بانک بستانکار) آماده باز می‌شود تا از حساب کم شود.','']]],
@@ -1856,6 +1862,7 @@ let usedSet=null;const usedGet=()=>{if(usedSet)return usedSet;try{usedSet=new Se
 function markUsed(a){const u=usedGet();if(u.has(a))return;u.add(a);try{localStorage.setItem('miz.used',JSON.stringify([...u]))}catch(_){}}
 const USEDBY={recurs:()=>S.recurs.length,vault:()=>S.vault.length,wins:()=>S.wins.some(w=>!w.void),docsSheet:()=>S.docs.length,ibadat:()=>S.ibadat.length,apiary:()=>S.apiary.length,clinic:()=>S.cases.length,quran:()=>S.qtopics.length,newTrip:()=>S.trips.length,habits:()=>S.habits.length,review:()=>!!lastReview(),backupSheet:()=>!!lastBackup(),occSheet:()=>S.people.some(p=>(p.occ||[]).length),notesList:()=>S.notes.length,receipt:()=>S.ledger.some(l=>l.ref),profile:()=>hasProfile()};
 const tried=a=>usedGet().has(a)||(USEDBY[a]?!!(()=>{try{return USEDBY[a]()}catch(_){return 0}})():false);
+let _rg=null;const recentGo=()=>_rg||(_rg=new Set(WHATS_NEW.slice(0,6).flatMap(([v,x])=>x.map(y=>y[4]).filter(Boolean))));
 const untried=()=>actsOn().filter(a=>!['checkUpd','roadmap','helpAll','logSheet','whatsNew'].includes(a[1])&&!tried(a[1]));
 const verNum=v=>{const [a,b]=String(v||'0').split('.').map(Number);return a*100+(b||0)};
 function whatsNew(auto){let seen='';try{seen=localStorage.getItem('miz.seenVer')||''}catch(_){}const fresh=WHATS_NEW.filter(([v])=>!seen||verNum(v)>verNum(seen));const list=(auto&&fresh.length?fresh:WHATS_NEW.slice(0,2));const items=list.flatMap(([v,a])=>a.map(x=>[...x,v])).slice(0,7);
@@ -2580,7 +2587,7 @@ function vToday(){
   {const pend=S.ledger.filter(l=>l.pending&&!l.void);if(pend.length)A+=block('پرداخت و دریافت‌های دوره‌ای: تأیید کن',pend.length,`<div class="list">${pend.filter((l,i,a)=>!l.pairId||a.findIndex(y=>y.pairId===l.pairId)===i).map(l=>`<div class="row" style="flex-wrap:wrap">${badge('finance','bell')}<div class="main"><div class="ttl">${esc(l.about)}</div><div class="sub"><span>${jNice(l.date)}</span><span>${esc(l.evidence||'')}</span></div></div><div class="end ${l.kind==='received'?'amt-pos':'amt-neg'}">${l.pairId?'<span class="pill">به جای من</span> ':''}${l.amount?money(l.amount,l.currency):'مبلغ؟'}</div><div class="acts" style="width:100%;margin-top:6px"><button class="btn" data-act="pendOk" data-id="${l.id}">انجام شد ✓</button><button class="btn ghost" data-act="viewLedger" data-id="${l.id}">اصلاح</button><button class="btn ghost danger" data-act="pendNo" data-id="${l.id}">انجام نشد</button></div></div>`).join('')}</div>`)}
   {let sn='';try{sn=localStorage.getItem('miz.recurAsk')||''}catch(_){}if(on('recurs')&&S.recurs.length<3&&(!sn||sn<=today()))A+=`<div class="row" style="margin-top:12px;border:1px dashed var(--line);border-radius:14px;flex-wrap:wrap">${badge('finance','bell')}<div class="main"><div class="ttl">پول‌های ثابت ماهانه را کم‌کم وارد کن</div><div class="sub"><span>پرداخت‌های خودکار بانک، خرجی منزل، دریافتی از پدر، حق بیمه… هر بار یکی؛ بعد خودش در روزش ثبت می‌شود و فقط تأیید می‌خواهد.</span></div></div><div class="acts" style="width:100%;margin-top:6px"><button class="btn" data-act="newRecur">افزودن یکی</button><button class="btn ghost" data-act="recurLater">بعداً بپرس</button></div></div>`}
   {const inc=openTasks().filter(x=>x.incomplete);if(inc.length)A+=block('نیاز به تکمیل',inc.length,`<div class="list">${inc.map(x=>`<button class="row" data-act="completeTask" data-id="${x.id}">${badge(x.area||'affairs','note')}<div class="main"><div class="ttl">${esc(x.title)}</div><div class="sub"><span class="pill warn">${fa((x.needs||[]).length)} مورد را بپرس</span><span>${esc((x.needs||[]).join('، '))}</span></div></div></button>`).join('')}</div>`)}
-  if(A&&TS('attn'))h+=`<div class="blk-h" style="margin-top:14px"><h2>${svg('warn')} نیاز به توجه</h2></div><div class="attn">${A}</div>`;
+  if(A&&TS('attn'))h+=`<div class="blk-h" style="margin-top:14px"><h2>${svg('warn')} نیاز به توجه</h2><span class="n" id="attnN"></span></div><div class="attn" id="attnBox">${A}</div>`;setTimeout(attnFold,0);
   {const hc=TS('here')&&hereCity();if(hc){const ct=openTasks().filter(x=>x.city===hc).sort((a,b)=>(a.priority||3)-(b.priority||3)||(a.due||'9').localeCompare(b.due||'9'));
     h+=block(`در ${esc(hc)} هستی · کارهای اینجا`,ct.length,listOr(ct,taskRow,'کار بازی برای این شهر نمانده.'),`<button class="link" data-act="hereOff">سفر تمام شد</button>`)}}
   {const lr=lastReview();const fri=wdOf(today())===5||wdOf(today())===4;if(!lr||diffDays(today(),lr)>=7&&(fri||diffDays(today(),lr)>=9))A+=`<button class="row" data-act="review" style="margin-top:12px;border:1px solid var(--accent);border-radius:14px;background:var(--accent-soft)">${badge('affairs','check')}<div class="main"><div class="ttl">وقت مرور هفتگی است (۱۰ دقیقه)</div><div class="sub"><span>${lr?'آخرین مرور '+jNice(lr):'هنوز مرور نکرده‌ای'} · کارهای نیمه‌کاره را تعیین تکلیف کن</span></div></div></button>`}
@@ -2874,9 +2881,9 @@ function formPerson(p={}){openSheet(`<h3>${p.id?'ویرایش شخص':'شخص ی
   <div class="fld"><label for="f_every">هر چند وقت خبر بگیرم؟</label><select id="f_every">${EVERY.map(([v,l])=>opt(v,l,Number(p.every)||0)).join('')}</select><div class="hint" style="font-size:12px;color:var(--muted)">اگر از موعد بگذرد، در «امروز» و مرور هفتگی یادآوری می‌شود. هر تماس، پیامک، فروش یا ویزیت ثبت‌شده، ارتباط حساب می‌شود.</div></div>
   <div class="fld"><label for="f_note">یادداشت (واقعیت را از برداشت جدا بنویس)</label><textarea id="f_note">${esc(p.note)}</textarea></div>
   <div class="acts"><button class="btn pri">ذخیره</button>${p.id?`<button type="button" class="btn ghost danger" data-act="archivePerson" data-id="${p.id}">از فهرست افراد بردار</button>`:''}<button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`)}
-function formLedger(l={},pre={}){l={...pre,...l};const kind=l.kind||'receivable';setTimeout(commHint,0);setTimeout(()=>{try{lgTips()}catch(_){}},60);openSheet(`<h3>ثبت طلب، بدهی، دریافت یا پرداخت${helpBtn('ledger')}</h3><form data-form="ledger">
-  <div class="seg" style="margin:0 0 12px"><button type="button" data-act="lgMode" data-v="money" aria-pressed="true">${svg('finance')} پولی</button><button type="button" data-act="lgMode" data-v="kind" aria-pressed="false">${svg('box')} کالایی (امانی)</button></div><input type="hidden" id="f_lgmode" value="money">
-  <div class="fld"><label for="f_kind">نوع</label><select id="f_kind">${Object.entries(LK).map(([k,v])=>opt(k,v.n,kind)).join('')}</select></div>
+function formLedger(l={},pre={}){l={...pre,...l};const kind=l.kind||'receivable';setTimeout(commHint,0);setTimeout(lgVis,30);setTimeout(()=>{try{lgTips()}catch(_){}},60);openSheet(`<h3>دریافت، پرداخت، طلب یا بدهی${helpBtn('ledger')}</h3><form data-form="ledger">
+  ${on('docs')?'':`<div class="seg" style="margin:0 0 12px"><button type="button" data-act="lgMode" data-v="money" aria-pressed="true">${svg('finance')} پولی</button><button type="button" data-act="lgMode" data-v="kind" aria-pressed="false">${svg('box')} کالایی (امانی)</button></div>`}<input type="hidden" id="f_lgmode" value="money">
+  <div class="chips wrap" style="margin:0 0 4px">${[['received','دریافت'],['paid','پرداخت'],['receivable','طلب'],['payable','بدهی']].map(([k,l])=>`<button type="button" class="chip" data-act="lgKind" data-v="${k}" aria-pressed="${kind===k}">${l}</button>`).join('')}</div><select id="f_kind" hidden>${Object.entries(LK).map(([k,v])=>opt(k,v.n,kind)).join('')}</select><div id="lgKindH" class="hint" style="font-size:12px;color:var(--muted);margin:0 2px 10px">${esc(LK[kind].n)}</div>
   ${personSelect('f_person',l.personId,'طرف حساب (اختیاری؛ می‌توانی فقط نام بنویسی یا خالی بگذاری)')}<div id="commHint"></div>
   <div id="lgKind" hidden>
    <div class="hint" style="font-size:12.5px;margin:-4px 0 10px">برای «بدهی»: کالا را از طرف حساب امانی گرفتی و همان کالا را بدهکاری. برای «طلب»: کالا را امانی دادی و همان را پس می‌گیری.</div>
@@ -2888,17 +2895,17 @@ function formLedger(l={},pre={}){l={...pre,...l};const kind=l.kind||'receivable'
      <div class="fld" data-ksale hidden><label for="f_kprice">قیمت فروش هر واحد (میلیون تومان)</label><input id="f_kprice" inputmode="decimal"></div>${locField()}</div></div>
    <div data-kk="recv" hidden><div class="fld"><label for="f_klot">از کدام محموله دادی؟</label><select id="f_klot">${opt('','— انتخاب کن —','')}${lotOptions('')}</select></div></div>
   </div><div id="lgMoney">
-  <div class="row2"><div class="fld"><label for="f_amt">مبلغ${ul('f_cur',l.currency)}</label><input id="f_amt" inputmode="decimal"></div><div class="fld"><label for="f_cur">ارز</label><select id="f_cur">${CUR.map(c=>opt(c,c,l.currency||'تومان')).join('')}</select></div></div><div id="lgTips" style="margin:-6px 0 10px"></div>
+  <div class="fld"><label for="f_amt">مبلغ${ul('f_cur',l.currency)}</label><input id="f_amt" inputmode="decimal"></div><div id="lgTips" style="margin:-6px 0 10px"></div>
   <div class="fld"><label for="f_about">بابت</label><input id="f_about" list="aboutList" autocomplete="off" value="${esc(l.about)}" placeholder="مثلاً: پورسانت مهر، فروش ۱۰ کیلو عسل"></div>
   <div class="fld"><label for="f_cat">دستهٔ درآمد یا هزینه</label><select id="f_cat">${opt('','— انتخاب کن —',l.category)}${catOptions(l.category,kindDir(kind))}</select><div class="hint" id="f_cat_h">فقط دسته‌های مربوط به همین نوع نشان داده می‌شود. گزارش «درآمد پارسال از عسل» از همین دسته ساخته می‌شود.</div></div>${l.netOf?`<input type="hidden" id="f_netof" value="${esc(l.netOf)}">`:''}
-  <div class="row2"><div class="fld"><label for="f_instr">شیوه</label><select id="f_instr">${INSTR.map(c=>opt(c,c,l.instrument||'نقد/کارت')).join('')}</select></div><div class="fld"><label for="f_ref">شمارهٔ چک / فاکتور</label><input id="f_ref" dir="ltr"></div></div>
   <div data-acct ${kind==='received'||kind==='paid'||l.category===LOAN&&(kind==='receivable'||kind==='payable')?'':'hidden'}>${acctField('f_acct',l.acct||'',kindDir(kind))}</div>
-  <label style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin-bottom:11px"><input type="checkbox" id="f_settles" style="margin-top:5px"> <span>این دریافت یا پرداخت بابت <b>تسویهٔ طلب یا بدهی قبلی</b> است (مانده را کم می‌کند). برای فروش یا خرید نقدی تیک نزن.</span></label>
+  <label id="lgSetW" hidden style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin-bottom:11px"><input type="checkbox" id="f_settles" style="margin-top:5px"> <span>این دریافت یا پرداخت بابت <b>تسویهٔ طلب یا بدهی قبلی</b> است (مانده را کم می‌کند). برای فروش یا خرید نقدی تیک نزن.</span></label>
   </div>
-  ${dateField('f_date','تاریخ ثبت',today())}
-  <div data-lgm>${dateField('f_due','سررسید (برای طلب، بدهی یا چک)','', 'از ۷ روز قبل از سررسید در صفحهٔ «امروز» یادآوری می‌شود.')}
-  <div class="fld"><label for="f_ev">مدرک (توضیح یا لینک عکس فاکتور/چک)</label><input id="f_ev"></div></div>
-  <div class="hint" data-lgm style="margin-bottom:10px">بعداً هم همه‌چیز، حتی مبلغ، قابل اصلاح است و سابقهٔ تغییر می‌ماند.</div>
+  ${dateField('f_date','تاریخ',today())}
+  <details class="more" data-lgm><summary>جزئیات بیشتر: سررسید، شیوه، شمارهٔ چک، ارز، مدرک</summary>
+  ${dateField('f_due','سررسید (برای طلب، بدهی یا چک)','', 'از ۷ روز قبل از سررسید در صفحهٔ «امروز» یادآوری می‌شود.')}
+  <div class="row2"><div class="fld"><label for="f_instr">شیوه</label><select id="f_instr">${INSTR.map(c=>opt(c,c,l.instrument||'نقد/کارت')).join('')}</select></div><div class="fld"><label for="f_ref">شمارهٔ چک / فاکتور</label><input id="f_ref" dir="ltr"></div></div>
+  <div class="row2"><div class="fld"><label for="f_cur">ارز</label><select id="f_cur">${CUR.map(c=>opt(c,c,l.currency||'تومان')).join('')}</select></div><div class="fld"><label for="f_ev">مدرک (توضیح یا لینک)</label><input id="f_ev"></div></div></details>
   <div class="acts"><button class="btn pri">ثبت</button><button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`)}
 
 function viewDeal(id){const d=byId('deals',id);if(!d)return;const P=PIPES[d.pipe]||{st:[],n:''};const i=P.st.indexOf(d.stage);const st=d.status||'open';
@@ -2980,9 +2987,9 @@ function quickAdd(){openSheet(`<div data-addsheet><h3>چه چیزی ثبت کن�
   ${on('clinic')?`<button data-act="clinic">${svg('therapy')}ویزیت بیمار</button>`:''}${on('trips')?`<button data-act="newTrip">${svg('truck')}سفر</button>`:''}${on('wins')?`<button data-act="winNew">${svg('star')}دستاورد یا بینش</button>`:''}</div>
   <div class="grp">کالا و پول</div><div class="qa">
   ${on('stock')?`<button data-act="${on('docs')?'saleNew':'newMove'}">${svg('truck')}فروش / ارسال</button>
-  <button data-act="newLot">${svg('box')}ورود کالا</button>
+  ${on('docs')?`<button data-act="buyNew">${svg('box')}خرید کالا</button>`:''}<button data-act="newLot">${svg('star')}ورود کالای خودم</button>
   <button data-act="newQuote">${svg('tag')}ثبت قیمت</button>`:''}
-  <button data-act="moneyAdd">${svg('finance')}ثبت مالی</button>
+  <button data-act="accVoucher">${svg('book')}سند حسابداری</button><button data-act="moneyAdd">${svg('finance')}همهٔ ثبت‌های مالی</button>
   ${on('deals')||on('stock')?`<button data-act="refNew">${svg('marketers')}فروش معرفی (پورسانت)</button>`:''}
   ${on('docs')?`<button data-act="docNew" data-v="letter">${svg('note')}نامه یا قرارداد</button>`:''}
   ${on('apiary')?`<button data-act="new" data-v="apiary"><svg viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>عملیات زنبورداری</button>`:''}</div>
@@ -3658,6 +3665,29 @@ function vLine(i,x={},c){c=c||(document.getElementById('f_vcur')||{}).value||'ت
   ${i>1?`<button type="button" class="link" data-act="vDel" style="color:var(--bad)">حذف این ردیف</button>`:''}</div>`}
 document.addEventListener('change',e=>{const t=e.target;if(!t||!(t.id==='f_person'||t.id==='f_kind'))return;const f=t.closest('form[data-form=ledger]');if(!f)return;const ck=document.getElementById('f_settles');if(!ck||ck.dataset.touched)return;const k=val('f_kind'),pid=val('f_person');const b=pid&&pid!=='new'?(balances(pid)['تومان']||0):0;ck.checked=(k==='received'&&b>0.5)||(k==='paid'&&b<-0.5);if(ck.checked)toast(`${pname(pid)} ${b>0?'به تو بدهکار است':'از تو طلب دارد'}؛ «بابت تسویه» خودش تیک خورد`)});
 document.addEventListener('click',e=>{if(e.target&&e.target.id==='f_settles')e.target.dataset.touched='1'});
+/* ---------- view panel: one place to change how every page looks (button in header; long-press title = hide amounts) ---------- */
+const VW=()=>{try{return JSON.parse(localStorage.getItem('miz.view')||'{}')}catch(_){return {}}};
+function applyView(){const v=VW();const h=document.documentElement;h.classList.toggle('vhide',!!v.hide);h.classList.toggle('vdense',!!v.dense);h.classList.toggle('fs-s',v.fs==='s');h.classList.toggle('fs-l',v.fs==='l');if(v.theme)h.dataset.theme=v.theme;else delete h.dataset.theme}
+function setVW(k,x){const v=VW();v[k]=x;try{localStorage.setItem('miz.view',JSON.stringify(v))}catch(_){}applyView()}
+async function setSM(k,on1){const cur=PREFS();const off=new Set(cur.smartOff||[]);if(on1)off.delete(k);else off.add(k);await putRaw('meta',{...cur,id:'prefs',smartOff:[...off],created:cur.created||nowTs(),updated:nowTs()})}
+async function setMfmt(m){const pr=S.meta.find(x=>x.id==='profile')||{};await putRaw('meta',{...pr,id:'profile',mfmt:m,created:pr.created||nowTs(),updated:nowTs()})}
+function viewPanel(){const v=VW();const seg=(k,opts,cur)=>`<div class="seg" style="margin:0 0 12px">${opts.map(([x,l])=>`<button type="button" data-act="vwSet" data-k="${k}" data-v="${x}" aria-pressed="${String(cur)===String(x)}">${l}</button>`).join('')}</div>`;
+  openSheet(`<h3>${svg('filter')} نمای صفحه‌ها</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">روی همهٔ صفحه‌ها اثر دارد. میان‌بر: <b>لمس طولانی روی عنوان بالای صفحه</b> مبالغ را پنهان یا آشکار می‌کند؛ <b>دو بار زدن روی عنوان</b> همین پنجره را باز می‌کند.</p>
+  <div class="grp" style="margin-top:0">مبالغ</div>${seg('mfmt',[['short','خلاصه (۵٫۳)'],['full','دقیق (تا ریال)']],moneyShort()?'short':'full')}
+  <div class="grp">پنهان کردن مبالغ (جلوی دیگران)</div>${seg('hide',[['0','نمایش'],['1','پنهان']],v.hide?1:0)}
+  <div class="grp">بدهکار و بستانکار در جدول‌ها</div>${seg('oneCol',[['1','یک ستون (بد/بس)'],['0','دو ستون']],SM('oneCol')?1:0)}
+  <div class="grp">فشردگی</div>${seg('dense',[['0','عادی'],['1','فشرده']],v.dense?1:0)}
+  <div class="grp">اندازهٔ نوشته</div>${seg('fs',[['s','کوچک'],['m','عادی'],['l','درشت']],v.fs||'m')}
+  <div class="grp">پوسته</div>${seg('theme',[['','خودکار'],['light','روشن'],['dark','تیره']],v.theme||'')}
+  <div class="acts"><button class="btn" data-act="prefs">چیدمان و هوشمندی‌های بیشتر</button><button class="btn ghost" data-act="close">بستن</button></div>`)}
+(()=>{applyView();let t=0,last=0;const T=()=>document.getElementById('hTitle');document.addEventListener('pointerdown',e=>{if(e.target!==T())return;t=setTimeout(()=>{t=0;const v=VW();setVW('hide',v.hide?0:1);toast(v.hide?'مبالغ نمایش داده شد':'مبالغ پنهان شد 🙈')},600)});
+  ['pointerup','pointercancel','pointerleave'].forEach(n=>document.addEventListener(n,e=>{if(t){clearTimeout(t);t=0;if(n==='pointerup'&&e.target===T()){const now=Date.now();if(now-last<350){last=0;viewPanel()}else last=now}}}))})();
+/* ---------- fold the attention block: first 3 items, the rest on demand ---------- */
+function attnFold(){const b=document.getElementById('attnBox');if(!b||b.dataset.f)return;b.dataset.f='1';const K=[...b.children].filter(x=>x.textContent.trim());const n=document.getElementById('attnN');if(n)n.textContent=fa(K.length);if(K.length<=3||ui.attnAll)return;K.slice(3).forEach(x=>x.hidden=true);b.insertAdjacentHTML('beforeend',`<button class="btn ghost" data-act="attnAll" style="width:100%;margin-top:8px">${fa(K.length-3)} مورد دیگر</button>`)}
+/* ---------- 3.59 ledger form helpers ---------- */
+function lgVis(){const f=document.querySelector('form[data-form=ledger]');if(!f)return;const k=val('f_kind'),pid=val('f_person');const w=document.getElementById('lgSetW');const mon=k==='received'||k==='paid';if(w)w.hidden=!(mon&&pid);const ck=document.getElementById('f_settles');const st=ck&&ck.checked&&mon&&pid;
+  const cat=document.getElementById('f_cat');const cf=cat&&cat.closest('.fld');if(cf)cf.hidden=!!st;const h=document.getElementById('lgKindH');if(h)h.textContent=st?(k==='received'?'دریافت بابت طلب قبلی؛ از ماندهٔ او کم می‌شود (دسته لازم نیست)':'پرداخت بابت بدهی قبلی؛ از ماندهٔ تو کم می‌شود (دسته لازم نیست)'):LK[k].n}
+document.addEventListener('change',e=>{const t=e.target;if(t&&['f_person','f_kind','f_settles','f_q'].includes(t.id))setTimeout(lgVis,0)});
 /* ---------- one debit/credit column on screen (print keeps two) ---------- */
 function drcrMerge(root){if(!SM('oneCol'))return;(root||document).querySelectorAll('.tbl table:not([data-m1]),#sheetRoot table:not([data-m1])').forEach(t=>{const hr=t.querySelector('thead tr')||t.querySelector('tr');if(!hr)return;const H=[...hr.children].map(x=>x.textContent.trim());const i=H.indexOf('بدهکار'),j=H.indexOf('بستانکار');if(i<0||j!==i+1)return;t.dataset.m1='1';
   [...t.querySelectorAll('tr')].forEach(tr=>{const c=[...tr.children];if(tr===hr){c[i].textContent='گردش';c[j].remove();return}if(c.length<=j){const w=c.find(x=>x.colSpan>1);if(w)w.colSpan=w.colSpan-1;return}
@@ -4040,6 +4070,10 @@ document.addEventListener('click',async e=>{
     case'cFuDone':await cContact(id,b.dataset.v,'انجام شد');toast('ثبت شد');cRefresh(id);break;
     case'cNoShow':{const c=byId('cases',id);if(!c)break;for(const t of S.tasks.filter(t=>t.caseId===id&&t.status==='open'&&t.due<today()))await save('tasks',t.id,{status:'done',doneAt:nowTs(),note:(t.note||'')+'\nغیبت مراجع'});await save('cases',id,{noShow:(c.noShow||0)+1});await cContact(id,'miss','غیبت');toast('غیبت ثبت شد؛ برای نوبت تازه «نوبت» را بزن');cRefresh(id);break}
     case'cBook':cBookSheet(id);break;
+    case'viewPanel':viewPanel();break;
+    case'vwSet':{const k=b.dataset.k,x=b.dataset.v;if(k==='mfmt')await setMfmt(x);else if(k==='oneCol'){await setSM('oneCol',x==='1');document.querySelectorAll('table[data-m1]').forEach(t=>delete t.dataset.m1)}else setVW(k,k==='fs'||k==='theme'?x:Number(x));render();viewPanel();break}
+    case'attnAll':ui.attnAll=1;{const bx=document.getElementById('attnBox');if(bx){[...bx.children].forEach(x=>x.hidden=false);b.remove()}}break;
+    case'lgKind':{const k=document.getElementById('f_kind');k.value=b.dataset.v;b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));k.dispatchEvent(new Event('change',{bubbles:true}));break}
     case'bankLedger':bankLedger(b.dataset.v);break;
     case'bankJV':formVoucher({lines:[{acc:'1101',bank:b.dataset.v},{}]});break;
     case'bankPrint':{const n=b.dataset.v;const tb=document.querySelector('.sheet .tbl');let h=docHtml({type:'letter',personId:'',toName:'',no:'',date:today(),subject:'',body:''});h=h.replace('<h2>نامه</h2>','<h2>دفتر معین '+esc(n)+'</h2>').replace('<div class="body"></div>','<div style="font-size:12px;color:#6b6255;text-align:left">مبالغ به میلیون تومان</div>'+(tb?tb.innerHTML:'')).replace(/<title>[^<]*<\/title>/,'<title>معین '+esc(n)+'</title>');htmlView(h);break}
