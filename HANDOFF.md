@@ -239,6 +239,10 @@
 ## ۳٫۶۵ — آیکون
 - `icon2-192.png`، `icon2-512.png` (لوگو ۹۸٪ روی زمینهٔ #ece5cd) و `icon2-maskable-512.png` (۸۰٪، ناحیهٔ امن)؛ نام تازه برای دور زدن کش آیکون. manifest (purpose any/maskable، background_color)، link icon/apple-touch-icon و SHELL در sw.js. فایل‌های قدیمی icon-*.png برای نصب‌های قبلی ماندند.
 
+## ۳٫۶۶ — لوگو و صفحهٔ آغاز قابل تنظیم
+- localStorage `miz.brand` (`BR`/`setBR`): logo (dataURL مربعی ≤۴۸۰، از `#f_brLogo`)، off، title، sub، bee (off)، speed (slow/norm/fast)، dur (short/norm/long)، ver (off). `brandLogo()`؛ `showSplash(force)` (پیش‌نمایش). `brandSheet` از «نمای صفحه‌ها»؛ acts: brandSheet، brSet (doc: profile.logo پاک و noLogo)، brSave، brPrev. عنوان/زیرعنوان با input ذخیره می‌شوند. سربرگ اسناد از `brandLogo()`. ذخیرهٔ پروفایل noLogo را نگه می‌دارد.
+- آیکون گوشی از داخل برنامه عوض‌شدنی نیست (manifest ثابت).
+
 ## در انتظار
 - تنظیم واقعی پله‌های پورسانت (درون برنامه پرسیده می‌شود).
 - تست اتصال جمینای روی گوشی کاربر.
