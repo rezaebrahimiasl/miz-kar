@@ -243,6 +243,13 @@
 - localStorage `miz.brand` (`BR`/`setBR`): logo (dataURL مربعی ≤۴۸۰، از `#f_brLogo`)، off، title، sub، bee (off)، speed (slow/norm/fast)، dur (short/norm/long)، ver (off). `brandLogo()`؛ `showSplash(force)` (پیش‌نمایش). `brandSheet` از «نمای صفحه‌ها»؛ acts: brandSheet، brSet (doc: profile.logo پاک و noLogo)، brSave، brPrev. عنوان/زیرعنوان با input ذخیره می‌شوند. سربرگ اسناد از `brandLogo()`. ذخیرهٔ پروفایل noLogo را نگه می‌دارد.
 - آیکون گوشی از داخل برنامه عوض‌شدنی نیست (manifest ثابت).
 
+## ۳٫۶۷ — دریافت/پرداخت از روی فاکتور و طلب
+- `vchRem()`: خطوط شخص سند (Cr 1201=received، Dr 2101=paid، Dr 1201=receivable، Cr 2101=payable، با `refId`) در `remMap` (کلید کش شامل vouchers). خط سند `refId` دارد (`.j_ref`).
+- `payVoucher({inn,personId,refId,amount,desc,sug})` → `formVoucher(v,tpl,{sug})` با چیپ‌های مبلغ (act `jvAmt`: ردیف ۱ بدهکار، ردیف ۲ بستانکار). acts: `invPay` (در فرم فاکتور، `d.id||d.redoOf`)، `ledPay` (viewLedger طلب/بدهی باز)، `pJV` (صفحهٔ شخص، بر اساس مانده). پیل مانده/تسویه در فهرست اسناد.
+
+## در انتظار تصمیم کاربر
+- توزیع/فروش نسخه‌ها (پایه/نقره‌ای/طلایی، کلید مجوز امضاشده، ساخت نسخهٔ مشتری) — پیشنهاد داده شد.
+
 ## در انتظار
 - تنظیم واقعی پله‌های پورسانت (درون برنامه پرسیده می‌شود).
 - تست اتصال جمینای روی گوشی کاربر.
