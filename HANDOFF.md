@@ -267,6 +267,9 @@
 ## ۳٫۷۴ — برگردانِ حسابداری‌پسند
 - `UNDO_FIN` (ledger، vouchers، docs، moves، lots، cheques): ردیف تازه → `void:true` با `voidReason:'برگردان بلافاصله پس از ثبت'`؛ تغییر → نسخهٔ قبل + `hist` (`why`، `was`). افراد تازهٔ همان دسته حذف نمی‌شوند. بقیهٔ مجموعه‌ها مثل قبل کامل برمی‌گردند.
 
+## ۳٫۷۵ — «برگرد به فرم»
+- `undoHead(ops)` رکورد اصلی مالی (docs بدون viaSale، vouchers، ledger، lots، moves، cheques)؛ نوار برای آن «✎ برگرد به فرم» (act `undoEdit` → editRoute/formVoucher/formLot/formCheque، بستن #hv) و «باطل/نسخهٔ قبل» (undoDo). z-index نوار بالای پیش‌نمایش.
+
 ## در انتظار تصمیم کاربر
 - توزیع/فروش نسخه‌ها (پایه/نقره‌ای/طلایی، کلید مجوز امضاشده، ساخت نسخهٔ مشتری) — پیشنهاد داده شد.
 

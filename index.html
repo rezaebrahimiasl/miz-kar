@@ -9,8 +9,8 @@
 <link rel="icon" href="icon2-192.png">
 <link rel="apple-touch-icon" href="icon2-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
-#undoBar{position:fixed;left:12px;right:12px;bottom:84px;z-index:9000;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;background:#2b2418;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.3);font-size:14px;overflow:hidden;animation:ubIn .2s ease-out}
-#undoBar span{flex:1}#undoBar small{opacity:.75}#undoBar button{font:inherit;font-weight:800;color:#f6b51e;background:none;border:0;padding:6px 8px}
+#undoBar{position:fixed;left:12px;right:12px;bottom:84px;z-index:10001;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;background:#2b2418;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.3);font-size:14px;overflow:hidden;animation:ubIn .2s ease-out}
+#undoBar span{flex:1;min-width:0}#undoBar small{opacity:.75}#undoBar button{font:inherit;font-weight:800;color:#f6b51e;background:none;border:0;padding:6px 8px}
 #undoBar i{position:absolute;left:0;bottom:0;height:3px;background:#f6b51e;animation:ubT 7s linear forwards}@keyframes ubT{from{width:100%}to{width:0}}@keyframes ubIn{from{transform:translateY(20px);opacity:0}}
 #spl{position:fixed;inset:0;z-index:10000;background:radial-gradient(circle at 50% 40%,#fff8e6 0,var(--bg) 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:opacity .7s ease-in;overflow:hidden}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #spl{background:radial-gradient(circle at 50% 40%,#3a2e14 0,var(--bg) 70%)}}
@@ -346,7 +346,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.74';
+const APP_VER='3.75';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 const UIKEEP=['taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
 try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
@@ -1812,6 +1812,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.75',[['finance','check','«برگرد به فرم» بعد از ثبت سند','بعد از ثبت یا تغییر فاکتور، سند، دریافت و پرداخت، ورود کالا یا چک، نوار پایین «✎ برگرد به فرم» دارد: همان فرم با همهٔ اطلاعات باز می‌شود تا اصلاح کنی (نسخهٔ قبل در سابقه می‌ماند)؛ «باطل» هم کنارش هست.','']]],
  ['3.74',[['finance','check','برگردانِ حسابداری‌پسند','برای سند، فاکتور، دریافت و پرداخت، انبار و چک، «برگردان» دیگر پاک نمی‌کند: ثبت تازه «باطل» می‌شود (با دلیل و تاریخ، در «همهٔ ثبت‌ها» دیده می‌شود و برگشت‌پذیر است) و تغییر به نسخهٔ قبل برمی‌گردد و در سابقه ثبت می‌شود. کارها، یادداشت‌ها و افراد مثل قبل کامل برمی‌گردند.','']]],
  ['3.73',[['affairs','check','برگردان بعد از هر کار','بعد از هر ثبت، تیک، تغییر، باطل یا حذف، پایین صفحه چند ثانیه «↶ برگردان» می‌آید؛ با یک لمس همهٔ ردیف‌هایی که همان کار عوض کرده بود (مثلاً فاکتور با انبار و حساب‌هایش) به حالت قبل برمی‌گردند. در «سلیقهٔ من» خاموش‌شدنی است.','']]],
  ['3.72',[['affairs','filter','یادآور فیلتر در همهٔ فهرست‌ها','در کارها، فرصت‌ها، پول، فاکتورها و اسناد، پرونده‌ها، چک‌ها و دارایی‌ها هم اگر فیلتری از دفعهٔ قبل مانده باشد، زیرش نوشته می‌شود کدام است، با «همه را نشان بده».','']]],
@@ -3803,9 +3804,15 @@ function undoShow(){const B=UB;if(!B||!B.ops.length)return;UB=null;
   // records created without an id (save0 new) are resolved now: the newest docs of that collection created after the action
   B.ops.forEach(o=>{if(o.neu){const c=S[o.col].filter(x=>x.created&&new Date(x.created).getTime()>=B.t-50&&!B.ops.some(p=>p.col===o.col&&p.id===x.id));const x=c[c.length-1];if(x)o.id=x.id}});
   const ops=B.ops.filter(o=>o.id);if(!ops.length)return;window._undo=ops;const n=ops.length;const anyNew=ops.some(o=>!o.prev),anyOld=ops.some(o=>o.prev);
-  let el=document.getElementById('undoBar');if(el)el.remove();el=document.createElement('div');el.id='undoBar';const fin=ops.some(o=>UNDO_FIN.includes(o.col));el.innerHTML=`<span>${anyNew&&!anyOld?'ثبت شد':anyOld&&!anyNew?'تغییر ذخیره شد':'انجام شد'}${n>1?` <small>(${fa(n)} ردیف)</small>`:''}${fin&&anyNew?' <small>· برگردان = باطل با سابقه</small>':''}</span><button data-act="undoDo">↶ برگردان</button><i></i>`;document.body.appendChild(el);
+  let el=document.getElementById('undoBar');if(el)el.remove();el=document.createElement('div');el.id='undoBar';const fin=ops.some(o=>UNDO_FIN.includes(o.col));const head=undoHead(ops);window._undoHead=head;
+  el.innerHTML=head?`<span>${anyNew?'ثبت شد':'تغییر ذخیره شد'}${n>1?` <small>(${fa(n)} ردیف)</small>`:''}</span><button data-act="undoEdit">✎ برگرد به فرم</button><button data-act="undoDo" style="color:#ffb4a8;font-weight:600">${anyNew?'باطل':'نسخهٔ قبل'}</button><i></i>`:`<span>${anyNew&&!anyOld?'ثبت شد':anyOld&&!anyNew?'تغییر ذخیره شد':'انجام شد'}${n>1?` <small>(${fa(n)} ردیف)</small>`:''}</span><button data-act="undoDo">↶ برگردان</button><i></i>`;document.body.appendChild(el);
   clearTimeout(window._undoT);window._undoT=setTimeout(()=>{const x=document.getElementById('undoBar');if(x)x.remove();window._undo=null},7000)}
-async function undoDo(){const ops=window._undo;if(!ops)return;window._undo=null;UB=null;const x=document.getElementById('undoBar');if(x)x.remove();
+// the main financial record of an action (the one a person would edit): invoice/document first, then voucher, ledger row, lot, move, cheque
+function undoHead(ops){for(const c of ['docs','vouchers','ledger','lots','moves','cheques']){const o=ops.find(o=>o.col===c&&byId(c,o.id)&&!(c==='docs'&&(byId(c,o.id)||{}).viaSale)&&!(byId(c,o.id)||{}).void);if(o)return{col:c,id:o.id}}return null}
+function undoEdit(){const h=window._undoHead;window._undo=null;const x=document.getElementById('undoBar');if(x)x.remove();{const v=document.getElementById('hv');if(v)v.remove()}if(!h)return;const r=byId(h.col,h.id);if(!r)return;
+  if(h.col==='docs')editRoute('doc',h.id);else if(h.col==='vouchers')formVoucher(r);else if(h.col==='ledger')editRoute('ledger',h.id);else if(h.col==='moves')editRoute('move',h.id);else if(h.col==='lots')formLot(r);else if(h.col==='cheques')formCheque(r);
+  setTimeout(()=>toast('همان فرم باز شد؛ اصلاح کن و ثبت بزن (نسخهٔ قبل در سابقه می‌ماند)، یا «انصراف» تا همان‌طور بماند'),300)}
+async function undoDo(){const ops=window._undo;if(!ops)return;window._undo=null;UB=null;const x=document.getElementById('undoBar');if(x)x.remove();{const v=document.getElementById('hv');if(v)v.remove()}
   const hasFin=ops.some(o=>UNDO_FIN.includes(o.col));for(const o of ops.slice().reverse()){try{const cur=byId(o.col,o.id);if(hasFin&&o.col==='people'&&!o.prev)continue;if(UNDO_FIN.includes(o.col)&&cur){const at=nowTs();if(!o.prev){await putRaw(o.col,{...cur,void:true,voidReason:'برگردان بلافاصله پس از ثبت',voidAt:at,updated:at});continue}await putRaw(o.col,{...o.prev,hist:[...(cur.hist||[]),{at,why:'برگردان به نسخهٔ قبل',was:Object.fromEntries(Object.keys(cur).filter(k=>JSON.stringify(cur[k])!==JSON.stringify(o.prev[k])&&!['updated','hist'].includes(k)).map(k=>[k,cur[k]]))}],updated:at});continue}if(o.prev){await putRaw(o.col,{...o.prev,updated:nowTs()});const T=tombDoc();if(T.items&&T.items[o.col+'/'+o.id]){const it={...T.items};delete it[o.col+'/'+o.id];await putRaw('meta',{...T,items:it,updated:nowTs()})}}else if(byId(o.col,o.id)){if(mode==='cloud')await db.collection(o.col).doc(o.id).delete();else{await idbDel(o.col,o.id);S[o.col]=S[o.col].filter(z=>z.id!==o.id);await tombAdd(o.col,o.id)}}}catch(_){}}
   UB=null;ghDirty=true;closeSheet();render();toast('برگشت به حالت قبل ✓')}
 /* ---------- fold the attention block: first 3 items, the rest on demand ---------- */
@@ -4077,6 +4084,7 @@ document.addEventListener('click',async e=>{
     case'tab':{let t=b.dataset.v;if(t==='deals'||t==='stock'){ui.biz=t;t='biz'}closeSheet();goTab(t);break}
     case'filter':ui[b.dataset.k]=b.dataset.v;render();break;
     case'undoDo':await undoDo();break;
+    case'undoEdit':undoEdit();break;
     case'fClear':{try{Object.assign(ui,JSON.parse(b.dataset.v))}catch(_){}const sh=b.dataset.s;if(sh&&typeof window[sh]==='function')window[sh]();else render();break}
     case'pFClear':ui.peopleR='all';ui.peopleS='all';ui.pSort='name';render();break;
     case'close':closeSheet();break;
