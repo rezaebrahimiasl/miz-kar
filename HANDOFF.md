@@ -276,6 +276,9 @@
 ## ۳٫۷۷ — فیلتر افراد یکجا
 - `vPeople`: جستجو + دکمهٔ فیلتر (act `pFSheet`، نشان تعداد فعال) و چیپ‌های فعال قابل حذف (act `pFDel`، `pFClear`). `pFSheet()` نقش/وضعیت/ترتیب با شمارش و «نمایش n نفر» (`vPeopleCount`)؛ act `pFSet`. هر سه در UNDO_SELF.
 
+## ۳٫۷۸ — یک الگوی فیلتر برای همهٔ فهرست‌ها
+- `FB` تعریف گروه‌های فیلتر هر فهرست (people، tasks با گروه‌های بخش/دسته/شهر روی همان taskF، deals، money، docs، clinic، chq، assets، wins؛ `s` = تابع برگهٔ فهرست). `fBar(name,extra)`: دکمهٔ «فیلتر» با شمار فعال، چیپ‌های فعال ✕، یا خلاصهٔ وضعیت. `fbSheet` با شمار هر گزینه (صفرها پنهان)، acts: fbOpen، fbSet، fbDone، fbDel، fbClr (`fbBack`). چیپ‌های قدیمی (taskF/tag/city، dealP/F، moneyF/mAcctF، docF، cFilter، chqF، asF، winF) و fHint از این فهرست‌ها برداشته شد؛ pFSheet بلااستفاده ماند.
+
 ## در انتظار تصمیم کاربر
 - توزیع/فروش نسخه‌ها (پایه/نقره‌ای/طلایی، کلید مجوز امضاشده، ساخت نسخهٔ مشتری) — پیشنهاد داده شد.
 
