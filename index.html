@@ -346,7 +346,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.73';
+const APP_VER='3.74';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 const UIKEEP=['taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
 try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
@@ -1812,6 +1812,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.74',[['finance','check','برگردانِ حسابداری‌پسند','برای سند، فاکتور، دریافت و پرداخت، انبار و چک، «برگردان» دیگر پاک نمی‌کند: ثبت تازه «باطل» می‌شود (با دلیل و تاریخ، در «همهٔ ثبت‌ها» دیده می‌شود و برگشت‌پذیر است) و تغییر به نسخهٔ قبل برمی‌گردد و در سابقه ثبت می‌شود. کارها، یادداشت‌ها و افراد مثل قبل کامل برمی‌گردند.','']]],
  ['3.73',[['affairs','check','برگردان بعد از هر کار','بعد از هر ثبت، تیک، تغییر، باطل یا حذف، پایین صفحه چند ثانیه «↶ برگردان» می‌آید؛ با یک لمس همهٔ ردیف‌هایی که همان کار عوض کرده بود (مثلاً فاکتور با انبار و حساب‌هایش) به حالت قبل برمی‌گردند. در «سلیقهٔ من» خاموش‌شدنی است.','']]],
  ['3.72',[['affairs','filter','یادآور فیلتر در همهٔ فهرست‌ها','در کارها، فرصت‌ها، پول، فاکتورها و اسناد، پرونده‌ها، چک‌ها و دارایی‌ها هم اگر فیلتری از دفعهٔ قبل مانده باشد، زیرش نوشته می‌شود کدام است، با «همه را نشان بده».','']]],
  ['3.71',[['affairs','filter','فیلترها یادشان می‌ماند','انتخاب فیلترها (افراد، کارها، فرصت‌ها، پول، اسناد، پرونده‌ها، چک‌ها…) دفعهٔ بعد هم همان می‌ماند و اگر فیلتری فعال است، کنارش «همه را نشان بده» هست. در افراد: «به من بدهکارند»، «طلبکارند»، «فرصت باز»، «وقت تماس» و ترتیب الفبا، بیشترین مانده یا آخرین ارتباط.','']]],
@@ -3794,7 +3795,7 @@ document.addEventListener('change',e=>{if(e.target&&e.target.id==='f_brLogo'&&e.
 function fHint(defs,sheet){const on1=Object.entries(defs).some(([k,d])=>(ui[k]??d)!==d);if(!on1)return'';return `<div class="hint" data-fhint style="font-size:12px;margin:6px 2px">${svg('filter')} فیلتر از دفعهٔ قبل فعال است: <b data-fl></b> <button class="link" data-act="fClear" data-v="${esc(JSON.stringify(defs))}" data-s="${sheet||''}">همه را نشان بده</button></div>`}
 function fLabels(root){(root||document).querySelectorAll('[data-fhint]').forEach(h=>{const b=h.querySelector('[data-fl]');if(!b||b.textContent)return;let p=h.previousElementSibling;const L=[];for(let i=0;i<4&&p;i++,p=p.previousElementSibling){if(p.classList&&p.classList.contains('chips'))p.querySelectorAll('[aria-pressed=true]').forEach(x=>L.push(x.textContent.replace(/[۰-۹0-9]+\s*$/,'').trim()))}b.textContent=L.filter(x=>!/^همه/.test(x)).join(' · ')||'انتخاب دفعهٔ قبل'})}
 /* ---------- undo: every user action's writes can be reverted for a few seconds ---------- */
-let UB=null,_ubT=0;const UNDO_SKIPM=['tomb','prefs','profile'];
+let UB=null,_ubT=0;const UNDO_SKIPM=['tomb','prefs','profile'];const UNDO_FIN=['ledger','vouchers','docs','moves','lots','cheques'];
 function undoOpen(){UB={t:Date.now(),ops:[],seen:new Set()}}
 function undoRec(col,id){try{if(!UB||Date.now()-UB.t>6000||!SM('undo'))return;if(col==='contacts'||(col==='meta'&&UNDO_SKIPM.includes(id)))return;const k=col+'/'+(id||'');if(id&&UB.seen.has(k))return;
   const prev=id?byId(col,id):null;if(id)UB.seen.add(k);UB.ops.push({col,id,prev:prev?JSON.parse(JSON.stringify(prev)):null,neu:!id});clearTimeout(_ubT);_ubT=setTimeout(undoShow,700)}catch(_){}}
@@ -3802,10 +3803,10 @@ function undoShow(){const B=UB;if(!B||!B.ops.length)return;UB=null;
   // records created without an id (save0 new) are resolved now: the newest docs of that collection created after the action
   B.ops.forEach(o=>{if(o.neu){const c=S[o.col].filter(x=>x.created&&new Date(x.created).getTime()>=B.t-50&&!B.ops.some(p=>p.col===o.col&&p.id===x.id));const x=c[c.length-1];if(x)o.id=x.id}});
   const ops=B.ops.filter(o=>o.id);if(!ops.length)return;window._undo=ops;const n=ops.length;const anyNew=ops.some(o=>!o.prev),anyOld=ops.some(o=>o.prev);
-  let el=document.getElementById('undoBar');if(el)el.remove();el=document.createElement('div');el.id='undoBar';el.innerHTML=`<span>${anyNew&&!anyOld?'ثبت شد':anyOld&&!anyNew?'تغییر ذخیره شد':'انجام شد'}${n>1?` <small>(${fa(n)} ردیف)</small>`:''}</span><button data-act="undoDo">↶ برگردان</button><i></i>`;document.body.appendChild(el);
+  let el=document.getElementById('undoBar');if(el)el.remove();el=document.createElement('div');el.id='undoBar';const fin=ops.some(o=>UNDO_FIN.includes(o.col));el.innerHTML=`<span>${anyNew&&!anyOld?'ثبت شد':anyOld&&!anyNew?'تغییر ذخیره شد':'انجام شد'}${n>1?` <small>(${fa(n)} ردیف)</small>`:''}${fin&&anyNew?' <small>· برگردان = باطل با سابقه</small>':''}</span><button data-act="undoDo">↶ برگردان</button><i></i>`;document.body.appendChild(el);
   clearTimeout(window._undoT);window._undoT=setTimeout(()=>{const x=document.getElementById('undoBar');if(x)x.remove();window._undo=null},7000)}
 async function undoDo(){const ops=window._undo;if(!ops)return;window._undo=null;UB=null;const x=document.getElementById('undoBar');if(x)x.remove();
-  for(const o of ops.slice().reverse()){try{if(o.prev){await putRaw(o.col,{...o.prev,updated:nowTs()});const T=tombDoc();if(T.items&&T.items[o.col+'/'+o.id]){const it={...T.items};delete it[o.col+'/'+o.id];await putRaw('meta',{...T,items:it,updated:nowTs()})}}else if(byId(o.col,o.id)){if(mode==='cloud')await db.collection(o.col).doc(o.id).delete();else{await idbDel(o.col,o.id);S[o.col]=S[o.col].filter(z=>z.id!==o.id);await tombAdd(o.col,o.id)}}}catch(_){}}
+  const hasFin=ops.some(o=>UNDO_FIN.includes(o.col));for(const o of ops.slice().reverse()){try{const cur=byId(o.col,o.id);if(hasFin&&o.col==='people'&&!o.prev)continue;if(UNDO_FIN.includes(o.col)&&cur){const at=nowTs();if(!o.prev){await putRaw(o.col,{...cur,void:true,voidReason:'برگردان بلافاصله پس از ثبت',voidAt:at,updated:at});continue}await putRaw(o.col,{...o.prev,hist:[...(cur.hist||[]),{at,why:'برگردان به نسخهٔ قبل',was:Object.fromEntries(Object.keys(cur).filter(k=>JSON.stringify(cur[k])!==JSON.stringify(o.prev[k])&&!['updated','hist'].includes(k)).map(k=>[k,cur[k]]))}],updated:at});continue}if(o.prev){await putRaw(o.col,{...o.prev,updated:nowTs()});const T=tombDoc();if(T.items&&T.items[o.col+'/'+o.id]){const it={...T.items};delete it[o.col+'/'+o.id];await putRaw('meta',{...T,items:it,updated:nowTs()})}}else if(byId(o.col,o.id)){if(mode==='cloud')await db.collection(o.col).doc(o.id).delete();else{await idbDel(o.col,o.id);S[o.col]=S[o.col].filter(z=>z.id!==o.id);await tombAdd(o.col,o.id)}}}catch(_){}}
   UB=null;ghDirty=true;closeSheet();render();toast('برگشت به حالت قبل ✓')}
 /* ---------- fold the attention block: first 3 items, the rest on demand ---------- */
 function attnFold(){const b=document.getElementById('attnBox');if(!b||b.dataset.f)return;b.dataset.f='1';const K=[...b.children].filter(x=>x.textContent.trim());const n=document.getElementById('attnN');if(n)n.textContent=fa(K.length);if(K.length<=3||ui.attnAll)return;K.slice(3).forEach(x=>x.hidden=true);b.insertAdjacentHTML('beforeend',`<button class="btn ghost" data-act="attnAll" style="width:100%;margin-top:8px">${fa(K.length-3)} مورد دیگر</button>`)}
