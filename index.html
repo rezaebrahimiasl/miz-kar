@@ -351,7 +351,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.86';
+const APP_VER='3.87';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 const UIKEEP=['stX','stP','stK','stS','taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
 try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
@@ -1731,7 +1731,7 @@ function diAutoLot(r){if(!SM('autoLot'))return;const s=r.querySelector('.di_s');
 function diPkAll(){document.querySelectorAll('#ditems .ditem').forEach(r=>diPk(r))}
 function formDoc(d={}){const type=d.type||'invoice';const P=PROF();const isInv=INVT.includes(type);const INV=true;
   openSheet(`<h3>${badge('sales',INV?'note':'truck')} <span id="dhd">${d.redoOf||d.legacy?'اصلاح: ':INV?(d.id?'ویرایش':'تازه')+': ':''}</span><span id="dtt">${!INV?(type==='purchase'?'خرید کالا':'فروش یا ارسال'):type==='invoice'&&isGive(d.led)?'رسید تحویل کالا':DT[type][0]}</span>${helpBtn('docs')}</h3><form data-form="doc" data-legacy="${esc(d.legacy||'')}" data-redo="${esc(d.redoOf||'')}" data-inv="${INV?1:0}" data-give="${type==='invoice'&&isGive(d.led)?1:''}" data-id="${d.id||''}" data-move="${esc(d.moveId||'')}" data-from="${esc(d.fromId||'')}" data-deal="${esc(d.dealId||'')}">
-  ${d.id||d.redoOf||d.legacy?'':`<div class="chips wrap" data-inv style="margin:0 0 10px">${Object.entries(DT).filter(([k])=>k!=='count').map(([k,v])=>`<button type="button" class="chip" data-act="docType" data-v="${k}" aria-pressed="${k===type}">${v[0]}</button>`).join('')}</div>`}<input type="hidden" id="f_dty" value="${type}">
+  <input type="hidden" id="f_dty" value="${type}">
   ${personSelect('f_person',d.personId||'',type==='letter'?'گیرنده':type==='contract'?'طرف قرارداد (خریدار)':type==='invoice'?'خریدار یا گیرنده':type==='purchase'||type==='pret'?'فروشنده':'خریدار')}
   ${isInv||type==='contract'||type==='letter'?'<div id="dtoPrev" class="hint" style="font-size:12.5px;margin:-6px 2px 10px"></div>':''}
   ${d.redoOf||d.legacy?`<div class="hint" style="font-size:12px;color:var(--muted);margin:-4px 2px 10px">هر چیزی را مثل بار اول عوض کن و «ثبت» بزن؛ انبار و حساب‌ها با هم درست می‌شوند و نسخهٔ قبلی در سابقه می‌ماند.</div>`:''}
@@ -1816,6 +1816,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.87',[['sales','note','فرم سند بی‌تکرار','داخل فاکتور دیگر ردیف انتخاب نوع سند نمی‌آید؛ نوع را همان کاشی‌ای که زدی تعیین می‌کند.','saleNew']]],
  ['3.86',[['sales','box','همهٔ کارهای انبار و فروش در یک صفحه','بالای «انبار و فروش» همهٔ سندها کاشی‌اند: فروش، خرید، برداشت، پیش‌فاکتور، برگشت، هدیه، امانی و با «بیشتر» بقیه. زیرش «همهٔ اسناد»، «قیمت‌ها» و «لوازم بسته‌بندی». صفحهٔ جدای «⋯ بیشتر» و کاشی‌های تکراری «فاکتورها و اسناد» برداشته شد؛ آنجا فقط فهرست است با «+ سند تازه».','tab|biz|biz:stock']]],
  ['3.85',[['personal','star','زنبورِ زنده‌تر در صفحهٔ آغاز','زنبور دیگر روی دایرهٔ صاف نمی‌چرخد: موج‌دار می‌پرد، دور و نزدیک می‌شود، آخر کار جلو می‌آید و بزرگ می‌شود و هر بار یک چشمک، لایک، بوس، عسل، قلب یا گل نثارت می‌کند. جانور (پروانه، کفشدوزک، کبوتر، جغد، پرنده یا هر بار یکی) و هدیهٔ پایانی در «لوگو و صفحهٔ آغاز» قابل انتخاب است.','brandSheet']]],
  ['3.84',[['sales','note','انبار: فروش، خرید، برداشت','بالای انبار حالا «فروش» فاکتور فروش و «خرید» فاکتور خرید را باز می‌کند؛ «برداشت» برای محصول تولید خودت است.','tab|biz|biz:stock'],['affairs','star','«امتحان کن» دقیق‌تر','هر قابلیت تازه مستقیم به همان صفحه و زیربخش می‌رود و با برگشت گوشی به فهرست تازه‌ها برمی‌گردی.','whatsNew']]],
