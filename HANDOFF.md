@@ -270,6 +270,9 @@
 ## ۳٫۷۵ — «برگرد به فرم»
 - `undoHead(ops)` رکورد اصلی مالی (docs بدون viaSale، vouchers، ledger، lots، moves، cheques)؛ نوار برای آن «✎ برگرد به فرم» (act `undoEdit` → editRoute/formVoucher/formLot/formCheque، بستن #hv) و «باطل/نسخهٔ قبل» (undoDo). z-index نوار بالای پیش‌نمایش.
 
+## ۳٫۷۶ — بی‌برگردان برای کارهای برگشت‌پذیر با لمس
+- `UNDO_SELF` (prTap، habitToggle، ibNiy، ibSileh، recurToggle، toggleChip، cGoal، فیلترها و تنظیمات نما…): دسته باز نمی‌شود و نوار قبلی بسته می‌شود.
+
 ## در انتظار تصمیم کاربر
 - توزیع/فروش نسخه‌ها (پایه/نقره‌ای/طلایی، کلید مجوز امضاشده، ساخت نسخهٔ مشتری) — پیشنهاد داده شد.
 

@@ -346,7 +346,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.75';
+const APP_VER='3.76';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 const UIKEEP=['taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
 try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
@@ -1812,6 +1812,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.76',[['affairs','check','برگردان فقط جایی که لازم است','جاهایی که با یک لمس دوباره خودش برمی‌گردد (نماز و عبادات، تیک عادت‌ها، اهداف پرونده، روشن/خاموش کردن، فیلترها و تنظیمات نما) دیگر نوار «برگردان» نمی‌آورند.','']]],
  ['3.75',[['finance','check','«برگرد به فرم» بعد از ثبت سند','بعد از ثبت یا تغییر فاکتور، سند، دریافت و پرداخت، ورود کالا یا چک، نوار پایین «✎ برگرد به فرم» دارد: همان فرم با همهٔ اطلاعات باز می‌شود تا اصلاح کنی (نسخهٔ قبل در سابقه می‌ماند)؛ «باطل» هم کنارش هست.','']]],
  ['3.74',[['finance','check','برگردانِ حسابداری‌پسند','برای سند، فاکتور، دریافت و پرداخت، انبار و چک، «برگردان» دیگر پاک نمی‌کند: ثبت تازه «باطل» می‌شود (با دلیل و تاریخ، در «همهٔ ثبت‌ها» دیده می‌شود و برگشت‌پذیر است) و تغییر به نسخهٔ قبل برمی‌گردد و در سابقه ثبت می‌شود. کارها، یادداشت‌ها و افراد مثل قبل کامل برمی‌گردند.','']]],
  ['3.73',[['affairs','check','برگردان بعد از هر کار','بعد از هر ثبت، تیک، تغییر، باطل یا حذف، پایین صفحه چند ثانیه «↶ برگردان» می‌آید؛ با یک لمس همهٔ ردیف‌هایی که همان کار عوض کرده بود (مثلاً فاکتور با انبار و حساب‌هایش) به حالت قبل برمی‌گردند. در «سلیقهٔ من» خاموش‌شدنی است.','']]],
@@ -3796,7 +3797,7 @@ document.addEventListener('change',e=>{if(e.target&&e.target.id==='f_brLogo'&&e.
 function fHint(defs,sheet){const on1=Object.entries(defs).some(([k,d])=>(ui[k]??d)!==d);if(!on1)return'';return `<div class="hint" data-fhint style="font-size:12px;margin:6px 2px">${svg('filter')} فیلتر از دفعهٔ قبل فعال است: <b data-fl></b> <button class="link" data-act="fClear" data-v="${esc(JSON.stringify(defs))}" data-s="${sheet||''}">همه را نشان بده</button></div>`}
 function fLabels(root){(root||document).querySelectorAll('[data-fhint]').forEach(h=>{const b=h.querySelector('[data-fl]');if(!b||b.textContent)return;let p=h.previousElementSibling;const L=[];for(let i=0;i<4&&p;i++,p=p.previousElementSibling){if(p.classList&&p.classList.contains('chips'))p.querySelectorAll('[aria-pressed=true]').forEach(x=>L.push(x.textContent.replace(/[۰-۹0-9]+\s*$/,'').trim()))}b.textContent=L.filter(x=>!/^همه/.test(x)).join(' · ')||'انتخاب دفعهٔ قبل'})}
 /* ---------- undo: every user action's writes can be reverted for a few seconds ---------- */
-let UB=null,_ubT=0;const UNDO_SKIPM=['tomb','prefs','profile'];const UNDO_FIN=['ledger','vouchers','docs','moves','lots','cheques'];
+let UB=null,_ubT=0;const UNDO_SELF=['prTap','habitToggle','ibNiy','ibSileh','ibQ','recurToggle','gsToggle','toggleChip','mhsHide','cGoal','vwSet','brSet','filter','fClear','pFClear','attnAll','hSnooze','cPriv','cFilter','docF','chqF','winF','asF','chgA'];const UNDO_SKIPM=['tomb','prefs','profile'];const UNDO_FIN=['ledger','vouchers','docs','moves','lots','cheques'];
 function undoOpen(){UB={t:Date.now(),ops:[],seen:new Set()}}
 function undoRec(col,id){try{if(!UB||Date.now()-UB.t>6000||!SM('undo'))return;if(col==='contacts'||(col==='meta'&&UNDO_SKIPM.includes(id)))return;const k=col+'/'+(id||'');if(id&&UB.seen.has(k))return;
   const prev=id?byId(col,id):null;if(id)UB.seen.add(k);UB.ops.push({col,id,prev:prev?JSON.parse(JSON.stringify(prev)):null,neu:!id});clearTimeout(_ubT);_ubT=setTimeout(undoShow,700)}catch(_){}}
@@ -3923,7 +3924,7 @@ function vSum(){const b=document.getElementById('vsum');if(!b)return;const ls=re
 
 /* ---------- Actions ---------- */
 document.addEventListener('click',async e=>{
-  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id;if(a!=='undoDo')undoOpen();markUsed(a);try{useCount(b)}catch(_){}
+  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id;if(a!=='undoDo'&&a!=='undoEdit'){if(UNDO_SELF.includes(a)){UB=null;const ub=document.getElementById('undoBar');if(ub)ub.remove()}else undoOpen()}markUsed(a);try{useCount(b)}catch(_){}
   if(a==='closeBg'){if(e.target===b)tryClose();return}if(a==='forceClose'){closeSheet();return}if(a==='keepOpen'){const x=document.getElementById('closeAsk');if(x)x.remove();return}
   if(b.tagName==='BUTTON'&&b.type!=='submit')e.preventDefault();
   switch(a){
