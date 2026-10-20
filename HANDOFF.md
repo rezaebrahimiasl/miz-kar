@@ -254,6 +254,10 @@
 - `buyGuard(f)` پیش از ثبت فاکتور فروش با ردیف `src=buy`: بنر `#buyAsk` (فروشنده، قیمت، بدهکار/پرداخت) با act `buyOk` (دو بار؛ `f.dataset.buyOk`، با input در ردیف پاک می‌شود)، `buyEdit`، `buyLot`، `buyLater`، `buyAskX`.
 - `postDoc`: برای هر ردیف خرید مستقیم یک سند `type:'purchase'`، `posted:true`، `viaSale:<id فاکتور فروش>` (فقط سند نمایشی/چاپی؛ لات و ledger همچنان با docId فروش). editRoute/docDel آن را به فاکتور فروش می‌فرستند؛ `docVoid` و اصلاح فاکتور فروش آن‌ها را هم باطل می‌کنند.
 
+## ۳٫۷۱ — فیلترهای ماندگار
+- `UIKEEP` (کلیدهای فیلتر ui) از localStorage `miz.uiF` در بوت خوانده و در `render()` و `openSheet()` با `uiKeep()` ذخیره می‌شوند.
+- افراد: `peopleS` (recv/pay/deal/touch) و `pSort` (name/bal/recent) در details «فیلتر و ترتیب»؛ یادآور «فیلتر از دفعهٔ قبل مانده … همه را نشان بده» (act `pFClear`).
+
 ## در انتظار تصمیم کاربر
 - توزیع/فروش نسخه‌ها (پایه/نقره‌ای/طلایی، کلید مجوز امضاشده، ساخت نسخهٔ مشتری) — پیشنهاد داده شد.
 

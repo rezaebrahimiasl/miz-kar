@@ -343,8 +343,11 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.70';
+const APP_VER='3.71';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
+const UIKEEP=['taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
+try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
+function uiKeep(){try{const o={};UIKEEP.forEach(k=>{if(ui[k]!==undefined)o[k]=ui[k]});localStorage.setItem('miz.uiF',JSON.stringify(o))}catch(_){}}
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
 const byId=(c,id)=>S[c].find(x=>x.id===id);
@@ -1806,6 +1809,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.71',[['affairs','filter','فیلترها یادشان می‌ماند','انتخاب فیلترها (افراد، کارها، فرصت‌ها، پول، اسناد، پرونده‌ها، چک‌ها…) دفعهٔ بعد هم همان می‌ماند و اگر فیلتری فعال است، کنارش «همه را نشان بده» هست. در افراد: «به من بدهکارند»، «طلبکارند»، «فرصت باز»، «وقت تماس» و ترتیب الفبا، بیشترین مانده یا آخرین ارتباط.','']]],
  ['3.70',[['sales','box','خرید مستقیم با تأیید','وقتی در فاکتور فروش ردیفی «خرید مستقیم از …» دارد، پیش از ثبت نشان می‌دهد چه فاکتور خریدی (از چه کسی، چه قیمتی، بدهکار یا پرداخت‌شده) زده می‌شود و دو بار تأیید می‌گیرد؛ یا «از کس دیگری / قیمت دیگر»، «از انبار خودم بود»، «خریدش را بعداً ثبت می‌کنم».','docsSheet']]],
  ['3.69',[['sales','tag','پیش‌فاکتور: هر ردیف از چه کسی','در «⋯» هر ردیف پیش‌فاکتور: تأمین‌کننده و قیمت خرید (فقط برای خودت، چاپ نمی‌شود) با پیشنهاد از قیمت‌های گرفته‌شده و خریدهای قبلی؛ سود هر ردیف کنار مبلغ. با تبدیل به فاکتور، همان ردیف «خرید مستقیم از …» می‌شود و فاکتور خرید هم خودکار زده می‌شود.','docsSheet']]],
  ['3.68',[['affairs','user','صفحهٔ شخص یکدست‌تر','«دریافت، پرداخت، طلب» و «سند با او» یکی شدند: «دریافت، پرداخت، سند» (سند آماده با بانک، طرف حساب و چیپ «کل مانده»/«نصف»)؛ «قیمت» هم «پیش‌فاکتور یا قیمت» شد.','']]],
@@ -2693,11 +2697,15 @@ function vDeals(){
 function vPeople(){
   let arr=S.people.filter(x=>x.status!=='archived');const q=ui.peopleQ.trim(),r=ui.peopleR;
   if(r!=='all')arr=arr.filter(x=>(x.roles||[]).includes(r));
+  const ps=ui.peopleS||'all',so=ui.pSort||'name';const pb0=personBal();const bt=id=>(pb0[id]||{})['تومان']||0;
+  if(ps==='recv')arr=arr.filter(x=>bt(x.id)>0.5);else if(ps==='pay')arr=arr.filter(x=>bt(x.id)<-0.5);else if(ps==='deal')arr=arr.filter(x=>openDeals().some(d=>d.personId===x.id));else if(ps==='touch'){const T=new Set(touchDue().map(t=>t.p.id));arr=arr.filter(x=>T.has(x.id))}
   if(q){const ql=nrm(q),qd=normDigits(q),ws=q.split(/\s+/).map(nrm).filter(Boolean);arr=arr.filter(x=>{const k=nrm([x.name,x.org,x.note,(x.roles||[]).join(' ')].join(' '));return k.includes(ql)||ws.every(w=>k.includes(w))||(qd.length>=4&&normDigits(x.phone).includes(qd))})}
-  arr.sort((a,b)=>a.name.localeCompare(b.name,'fa'));
+  if(so==='bal')arr.sort((a,b)=>Math.abs(bt(b.id))-Math.abs(bt(a.id))||a.name.localeCompare(b.name,'fa'));else if(so==='recent')arr.sort((a,b)=>(lastTouch(b)||'').localeCompare(lastTouch(a)||'')||a.name.localeCompare(b.name,'fa'));else arr.sort((a,b)=>a.name.localeCompare(b.name,'fa'));
   const pb=personBal();
   let h=`<input class="search-in" id="peopleQ" placeholder="جستجو در افراد و مخاطبین گوشی…" value="${esc(q)}" style="margin-top:14px">`;
   {const all=S.people.filter(x=>x.status!=='archived');const cnt=x=>all.filter(p=>(p.roles||[]).includes(x)).length;h+=chips('peopleR',[['all','همه '+fa(all.length)],...ROLES.filter(x=>cnt(x)||x===r).map(x=>[x,x+' '+fa(cnt(x))])],r).replace('class="chips"','class="chips wrap"')}
+  h+=`<details class="more" style="margin-top:6px" ${ps!=='all'||so!=='name'?'open':''}><summary>فیلتر و ترتیب${ps!=='all'||so!=='name'?' <span class="pill acc">فعال</span>':''}</summary>${chips('peopleS',[['all','همه'],['recv','به من بدهکارند'],['pay','طلبکارند'],['deal','فرصت باز'],['touch','وقت تماس']],ps).replace('class="chips"','class="chips wrap"')}<div style="height:6px"></div>${chips('pSort',[['name','الفبا'],['bal','بیشترین مانده'],['recent','آخرین ارتباط']],so)}</details>`;
+  if(r!=='all'||ps!=='all')h+=`<div class="hint" style="font-size:12px;margin:6px 2px">فیلتر از دفعهٔ قبل مانده: ${[r!=='all'?esc(r):'',ps!=='all'?({recv:'به من بدهکارند',pay:'طلبکارند',deal:'فرصت باز',touch:'وقت تماس'})[ps]:''].filter(Boolean).join(' · ')} <button class="link" data-act="pFClear">همه را نشان بده</button></div>`;
   return h+`<div id="peopleRes">${peopleRes(arr,q)}</div>`}
 function peopleRes(arr,q){const pb=personBal();let h='';
   h+=block('افراد',arr.length,listOr(arr,x=>{const b=pb[x.id];const bs=b?Object.entries(b).filter(([,v])=>Math.abs(v)>0.0001):[];
@@ -2800,7 +2808,7 @@ function vMoney(){const ms=ui.ms||'sum';const pb=personBal();
 
 /* ---------- Main render ---------- */
 const TITLES={biz:'کسب‌وکار',stock:'انبار و معاملات',today:'امروز',tasks:'کارها',deals:'فرصت‌ها',people:'افراد',money:'پول'};
-function render(){
+function render(){uiKeep();
   document.getElementById('hTitle').textContent=TITLES[tab];{const bz=document.querySelector('#tabs [data-tab=biz]');if(bz)bz.hidden=!on('deals')&&!on('stock')}
   document.getElementById('hDate').innerHTML=jLong(today())+` <span style="opacity:.6;font-size:.85em">· نسخهٔ ${fa(APP_VER)}</span>`;
     document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false'));
@@ -2811,7 +2819,7 @@ function render(){
 }
 
 /* ---------- Sheets & forms ---------- */
-function openSheet(html){{const pr=document.getElementById('pickRoot');if(pr&&!pr.hidden){pr.hidden=true;pr.innerHTML=''}}const r=document.getElementById('sheetRoot');r.dataset.dirty='';if(r.hidden){try{if(!(history.state&&history.state.sheet))history.pushState({sheet:1},'')}catch(_){}}r.innerHTML=`<div class="sheet-wrap" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div></div>`;r.hidden=false;const f=r.querySelector('input,select,textarea');if(f&&f.dataset.autofocus!=null)f.focus()}
+function openSheet(html){uiKeep();{const pr=document.getElementById('pickRoot');if(pr&&!pr.hidden){pr.hidden=true;pr.innerHTML=''}}const r=document.getElementById('sheetRoot');r.dataset.dirty='';if(r.hidden){try{if(!(history.state&&history.state.sheet))history.pushState({sheet:1},'')}catch(_){}}r.innerHTML=`<div class="sheet-wrap" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div></div>`;r.hidden=false;const f=r.querySelector('input,select,textarea');if(f&&f.dataset.autofocus!=null)f.focus()}
 function closeSheet(){ciOpen=false;const r=document.getElementById('sheetRoot');const was=!r.hidden;r.hidden=true;r.innerHTML='';r.dataset.dirty='';if(was&&history.state&&history.state.sheet){window._ignPop=true;window._ignTab=true;try{history.back()}catch(_){window._ignPop=false}}}
 function tryClose(){const r=document.getElementById('sheetRoot');if(r.hidden)return;const s=r.querySelector('.sheet');if(r.dataset.dirty==='1'&&r.querySelector('form')){if(s){s.style.transition='transform .2s ease-out';s.style.transform='';const w=s.parentElement;if(w)w.style.background=''}if(!r.querySelector('#closeAsk')&&s){s.insertAdjacentHTML('afterbegin',`<div id="closeAsk" class="banner" style="margin:0 0 10px;display:flex;gap:8px;align-items:center"><span style="flex:1">نوشته‌ها ذخیره نشده. بدون ذخیره ببندم؟</span><button class="btn" data-act="forceClose">ببند</button><button class="btn pri" data-act="keepOpen">بمان</button></div>`);s.scrollTop=0}return false}closeSheet();return true}
 document.addEventListener('input',e=>{const r=document.getElementById('sheetRoot');if(!r.hidden&&e.target.closest&&e.target.closest('#sheetRoot form')&&e.target.id!=='gq'&&e.target.id!=='mq'&&e.target.id!=='vq')r.dataset.dirty='1'});
@@ -4045,6 +4053,7 @@ document.addEventListener('click',async e=>{
     case'pick':pickOpen(document.getElementById(b.dataset.for));break;
     case'tab':{let t=b.dataset.v;if(t==='deals'||t==='stock'){ui.biz=t;t='biz'}closeSheet();goTab(t);break}
     case'filter':ui[b.dataset.k]=b.dataset.v;render();break;
+    case'pFClear':ui.peopleR='all';ui.peopleS='all';ui.pSort='name';render();break;
     case'close':closeSheet();break;
     case'toggleTask':{const t=byId('tasks',id);if(t&&await save('tasks',id,t.status==='done'?{status:'open',doneAt:null}:{status:'done',doneAt:nowTs()}))toast(t.status==='done'?'دوباره باز شد':'انجام شد ✓ رفت به «انجام‌شده‌ها»');break}
     case'editTask':formTask(byId('tasks',id));break;
