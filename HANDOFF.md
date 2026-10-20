@@ -280,7 +280,7 @@
 - `FB` تعریف گروه‌های فیلتر هر فهرست (people، tasks با گروه‌های بخش/دسته/شهر روی همان taskF، deals، money، docs، clinic، chq، assets، wins؛ `s` = تابع برگهٔ فهرست). `fBar(name,extra)`: دکمهٔ «فیلتر» با شمار فعال، چیپ‌های فعال ✕، یا خلاصهٔ وضعیت. `fbSheet` با شمار هر گزینه (صفرها پنهان)، acts: fbOpen، fbSet، fbDone، fbDel، fbClr (`fbBack`). چیپ‌های قدیمی (taskF/tag/city، dealP/F، moneyF/mAcctF، docF، cFilter، chqF، asF، winF) و fHint از این فهرست‌ها برداشته شد؛ pFSheet بلااستفاده ماند.
 
 ## در انتظار تصمیم کاربر
-- توزیع/فروش نسخه‌ها (پایه/نقره‌ای/طلایی، کلید مجوز امضاشده، ساخت نسخهٔ مشتری) — پیشنهاد داده شد.
+- کلید عمومی مالک برای `LIC_PUB` (کاربر از «مدیریت فروش برنامه ← کپی کلید عمومی» می‌فرستد؛ فقط x,y). بخش‌های نسخهٔ رایگان (`FREE_MODS`، فعلاً خالی). آیکون/نام manifest برای مشتری‌ها هنوز لوگوی مالک است.
 
 ## در انتظار
 - تنظیم واقعی پله‌های پورسانت (درون برنامه پرسیده می‌شود).
@@ -336,3 +336,11 @@
 
 ## ۳٫۹۱
 - DEF_PACKS: p950/p460 → «شیشه …». PACKS() نام ذخیره‌شدهٔ این دو را اگر نوع ظرف نداشت با «شیشه» نمایش می‌دهد (ویرایش کاربر محفوظ). راهنمای ویرایشگر بسته‌بندی: نوع ظرف اول نام = دسته.
+
+## ۳٫۹۲ فروش برنامه و فعال‌سازی
+- `LIC_PUB` (JWK x,y؛ فعلاً null)، `TRIAL_DAYS=14`، `FREE_MODS=[]`. `on(k)` = تنظیم کاربر && `licOK(k)`.
+- وضعیت: `licGet/licSet` (localStorage `miz.lic` + meta `lic` با idbPut، بدون undo)، `licBoot()` بعد از بارگذاری محلی: اگر داده هست → `owner:1` (مالک قدیمی)، وگرنه `start` آزمایشی. `licOwner()` = owner یا وجود meta `licAdmin`. `licState()`: owner / lic (امضا معتبر، دستگاه، انقضا) / trial / free. `licCheck()` امضا را با WebCrypto دوباره می‌سنجد (`_licV`).
+- کد درخواست: `devId()` ۸ حرف (localStorage `miz.dev`) → `MZ-XXXX-XXXX`. کد فعال‌سازی: base64url(JSON {d,n,t,m,e,i}) + '.' + امضای ECDSA P-256/SHA-256.
+- پنل مالک `licAdmin()`: `ladmGen` (کلید خصوصی JWK با AES-GCM از PBKDF2 ۲۵۰هزار، در meta `licAdmin` {enc,salt,iv,pub,tiers,issued})، `ladmSign`، `ladmTiers` (نسخه‌ها با تیک بخش‌ها؛ همه = '*')، فهرست مشتری‌ها، `ladmShareApp`. منو فقط برای مالک (actsOn).
+- مشتری `licSheet()`: وضعیت، کد درخواست، چسباندن کد، فهرست بخش‌های باز/قفل. در پروفایل کنار بخش قفل «🔒 در نسخهٔ کامل».
+- پیش‌فرض‌های خنثی برای غیرمالک: PROF name/biz خالی، `NEUTRAL_LOGO`، زیرعنوان صفحهٔ آغاز خالی، document.title «میز کار».
