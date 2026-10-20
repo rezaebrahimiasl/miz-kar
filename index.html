@@ -346,7 +346,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.79';
+const APP_VER='3.80';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 const UIKEEP=['stP','stK','stS','taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
 try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
@@ -1812,6 +1812,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.80',[['finance','finance','طلب و بدهی فقط در «پول»','کاشی‌های طلب من و بدهی من از «امروز» برداشته شد تا تکراری نباشد؛ جای آن‌ها زبانهٔ «پول» است.','']]],
  ['3.79',[['sales','box','انبار مرتب و جدولی','بالا فقط «ورود کالا»، «فروش» و «⋯ بیشتر» (شمارش، تغییر انبار، قیمت‌ها، لوازم بسته‌بندی، محموله‌های تمام‌شده، اسناد)؛ موجودی هر کالا در یک جدول؛ محموله‌ها در یک جدول با فیلتر کالا و انبار و ترتیب (به‌جای دو فهرست تکراری)؛ آخرین گردش انبار فقط ۵ ردیف.','biz'],['affairs','check','کارها مرتب‌تر','بالا «+ کار»، «چند کار با هم» و «دفتر کارها» در یک ردیف، بعد فیلتر، و میان‌بر عقب‌افتاده/امروز/این هفته با تعداد.',''],['finance','chart','یک رقم اعشار در فهرست طلب و بدهی','جدول ماندهٔ هر طرف حساب در صفحهٔ پول با یک رقم اعشار؛ جزئیات دقیق در حساب هر شخص.','']]],
  ['3.78',[['affairs','filter','یک شکل فیلتر در همهٔ فهرست‌ها','افراد، کارها، فرصت‌ها، پول، فاکتورها و اسناد، پرونده‌ها، چک‌ها، دارایی‌ها و دستاوردها هم مثل افراد: دکمهٔ «فیلتر» با شمارهٔ فیلترهای فعال، فیلترهای فعال با ✕، و صفحهٔ فیلتر با تعداد هر گزینه؛ وقتی فیلتری فعال نیست، کنار دکمه فقط نوشته می‌شود الان چه نمایش داده می‌شود.','']]],
  ['3.77',[['affairs','filter','فیلتر افراد یکجا','کنار جستجو یک دکمهٔ فیلتر (با شمارهٔ فیلترهای فعال): نقش، وضعیت (بدهکار، طلبکار، فرصت باز، وقت تماس) و ترتیب در یک صفحه با تعداد هر کدام؛ فیلترهای فعال بالای فهرست با ✕ برداشته می‌شوند.','']]],
@@ -2582,7 +2583,7 @@ function vView(id){vTouch();const x=VAULT.items.find(i=>i.id===id);if(!x)return;
   <div class="list">${(x.f||[]).map((f,i)=>!f.v?'':`<div class="row" style="cursor:default"><div class="main"><div class="sub" style="margin:0"><span>${esc(f.k)}</span></div><div class="ttl" dir="auto" id="vv${i}" data-v="${esc(f.v)}">${/رمز|pass|pin|کد/i.test(f.k)?'••••••':esc(f.v)}</div></div><div class="end" style="display:flex;gap:4px">${/رمز|pass|pin|کد/i.test(f.k)?`<button class="pill" data-act="vShow" data-i="${i}">نمایش</button>`:''}<button class="pill" data-act="vCopy" data-i="${i}">کپی</button></div></div>`).join('')}</div>
   ${x.note?`<div class="prose" style="margin-top:8px">${esc(x.note)}</div>`:''}${x.type==='geo'&&(x.f||[]).some(f=>/\d+\.\d+\s*,\s*\d+\.\d+/.test(f.v))?`<a class="btn" style="margin-top:8px" target="_blank" rel="noopener" href="https://maps.google.com/?q=${encodeURIComponent((x.f.find(f=>/\d+\.\d+\s*,\s*\d+\.\d+/.test(f.v))||{}).v)}">روی نقشه</a>`:''}
   <div class="acts" style="margin-top:12px"><button class="btn" data-act="vEdit" data-id="${id}">ویرایش</button><button class="btn ghost" data-act="vault">بازگشت</button></div></div>`)}
-const TSEC=[['capture','یادداشت سریع'],['kpis','کاشی‌های خلاصه (کارها، طلب، بدهی)'],['trip','سفر در جریان'],['stockSum','خلاصهٔ موجودی انبار'],['attn','نیاز به توجه (هشدارها و تأییدها)'],['ibadat','عبادات و مناسبت قمری'],['tips','نکته‌های آموزشی'],['here','کارهای شهری که در آن هستی'],['touch','در تماس بمان'],['occ','تبریک و مناسبت‌ها'],['insights','بینش‌های کسب‌وکار (موجودی، مشتری، طلب، فروش ماه)'],['top3','سه کار مهم امروز'],['habits','عادت‌ها'],['recent','آخرین ثبت‌ها'],['chains','زنجیره‌ها و هشدار انبار'],['deals','پیگیری فرصت‌ها'],['money7','سررسید مالی ۷ روز آینده'],['inbox','یادداشت‌های سریع']];
+const TSEC=[['capture','یادداشت سریع'],['kpis','کاشی‌های خلاصه (کارها و فرصت‌ها)'],['trip','سفر در جریان'],['stockSum','خلاصهٔ موجودی انبار'],['attn','نیاز به توجه (هشدارها و تأییدها)'],['ibadat','عبادات و مناسبت قمری'],['tips','نکته‌های آموزشی'],['here','کارهای شهری که در آن هستی'],['touch','در تماس بمان'],['occ','تبریک و مناسبت‌ها'],['insights','بینش‌های کسب‌وکار (موجودی، مشتری، طلب، فروش ماه)'],['top3','سه کار مهم امروز'],['habits','عادت‌ها'],['recent','آخرین ثبت‌ها'],['chains','زنجیره‌ها و هشدار انبار'],['deals','پیگیری فرصت‌ها'],['money7','سررسید مالی ۷ روز آینده'],['inbox','یادداشت‌های سریع']];
 const SMART=[['priceTips','قیمت پیشنهادی، سود و هشدار زیر بها در ردیف فروش'],['autoLot','انتخاب خودکار محموله از روی شرح کالا'],['dayCheck','بررسی روز و تداخل هنگام ثبت کار'],['softSafety','یادآوری نسخهٔ دوم پشتیبان و گزارش اضطراری ماهانه'],['buyTips','قیمت‌های قبلی و هشدار گرانی در خرید'],['payTips','پیشنهاد مبلغ در دریافت و پرداخت (تسویهٔ کامل، مثل دفعهٔ قبل)'],['lotPrev','«مثل دفعهٔ قبل» در ورود کالا'],['fabOrder','«پرکاربردهای تو» بالای دکمهٔ +'],['health','هشدار مبلغ غیرعادی و کارت «بررسی سلامت داده‌ها»'],['wnAuto','نشان دادن خودکار «تازه‌ها» بعد از هر نسخه'],['newDots','نقطهٔ «امتحان‌نشده» روی کلیدهای منو'],['clinicFu','پیگیری خودکار مراجعین (غیبت، بدتر شدن، عارضه، دور شدن) در «امروز» و پرونده‌ها'],['clinicChk','پیشنهاد احوال‌پرسی ۲ تا ۵ روز بعد از هر جلسه'],['clinicAI','دکمه‌های هوش مصنوعی در پرونده و ویزیت (فقط کد و متن بی‌نام)'],['calClinic','نوبت‌های مراجعین (فقط با کد پرونده) در تقویم گوگل'],['profFu','پیگیری پیش‌فاکتورهای بی‌جواب (بعد از ۳ روز) در «امروز»'],['yearClose','یادآوری بستن سال مالی در سه ماه اول سال'],['undo','دکمهٔ «برگردان» تا چند ثانیه بعد از هر ثبت، تغییر یا حذف'],['oneCol','بدهکار و بستانکار در یک ستون «گردش» با «بد» و «بس» (چاپ دو ستونی می‌ماند)'],['payDone','کاری که پرداخت است (حواله، قسط، شهریه…) با «انجام شد» فرم سند پرداخت را باز کند']];
 const PREFS=()=>S.meta.find(x=>x.id==='prefs')||{};
 const TS=k=>!(PREFS().todayOff||[]).includes(k);
@@ -2610,7 +2611,6 @@ function vToday(){
   const money7=dueLedger(7);
   const inbox=S.inbox.filter(i=>!i.processed);
   const bal=balances();
-  const recv=Object.entries(personBal()).reduce((a,[,m])=>{Object.entries(m).forEach(([c,v])=>{if(v>0)a[c]=(a[c]||0)+v});return a},{});
   const isLoading=mode===null||loaded.size<COLS.length;
   let h='',A='';
   if(TS('capture'))h+=`<form class="capture" data-form="capture"><input id="capIn" placeholder="یادداشت سریع…" aria-label="یادداشت سریع">${micBtn('capIn')}<button class="btn pri">بنویس</button></form>`;
@@ -2619,8 +2619,6 @@ function vToday(){
   if(TS('kpis'))h+=`<div class="kpis">
     <div class="kpi"><div class="l">کارهای باز</div><div class="v">${fa(openTasks().length)}</div></div>
     <div class="kpi"><div class="l">فرصت‌های باز</div><div class="v">${fa(openDeals().length)}</div></div>
-    <div class="kpi" data-act="tab" data-v="money" style="cursor:pointer"><div class="l">طلب من <small style="font-weight:400">(میلیون تومان)</small></div><div class="v amt-pos">${Object.keys(recv).length?Object.entries(recv).map(([c,v])=>money(v,c)).join('<br>'):'۰'}</div>${kindLine(kindTotals().due,'amt-pos')}</div>
-    <div class="kpi" data-act="tab" data-v="money" style="cursor:pointer"><div class="l">بدهی من <small style="font-weight:400">(میلیون تومان)</small></div><div class="v amt-neg">${(()=>{const pay={};Object.values(personBal()).forEach(m=>Object.entries(m).forEach(([c,v])=>{if(v<0)pay[c]=(pay[c]||0)-v}));return Object.keys(pay).length?Object.entries(pay).map(([c,v])=>money(v,c)).join('<br>'):'۰'})()}</div>${kindLine(kindTotals().owe,'amt-neg')}</div>
   </div>`;
   {const lg=legacyAmounts();if(lg.length&&!(()=>{try{return localStorage.getItem('miz.legacyOk')}catch(_){return 0}})())A+=`<div class="banner">${svg('warn')} ${fa(lg.length)} مبلغ تومانی کمتر از هزار تومان ثبت شده (مثل «${nfmt(lg[0].v)} تومان»). احتمالاً قبل از نسخهٔ ۰٫۷ به میلیون نوشته شده‌اند.<div class="acts" style="margin-top:8px"><button class="btn pri" data-act="fixLegacy">بله، به میلیون تبدیل کن</button><button class="btn ghost" data-act="legacyOk">نه، درست‌اند</button></div></div>`}
   {const at=TS('trip')&&on('trips')&&activeTrip();if(at)h+=tripCard(at)}
