@@ -343,7 +343,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.67';
+const APP_VER='3.68';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -1805,6 +1805,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.68',[['affairs','user','صفحهٔ شخص یکدست‌تر','«دریافت، پرداخت، طلب» و «سند با او» یکی شدند: «دریافت، پرداخت، سند» (سند آماده با بانک، طرف حساب و چیپ «کل مانده»/«نصف»)؛ «قیمت» هم «پیش‌فاکتور یا قیمت» شد.','']]],
  ['3.67',[['finance','book','دریافت و پرداخت از روی فاکتور یا حساب شخص','در فاکتور نسیه «دریافت وجه (مانده …)»، روی هر طلب یا بدهی «دریافت بابت همین ← سند»، و در صفحهٔ شخص «سند با او»: سند آماده با بانک و طرف حساب، و چیپ «کل مانده» یا «نصف». سند به همان فاکتور وصل می‌شود؛ ماندهٔ فاکتور، «تسویه» در فهرست اسناد و ماندهٔ شخص خودشان درست می‌شوند.','docsSheet']]],
  ['3.66',[['affairs','star','لوگو و صفحهٔ آغاز به سلیقهٔ تو','از «نمای صفحه‌ها ← لوگو، صفحهٔ آغاز»: عکس لوگو (از گالری، برش مربعی خودکار)، عنوان و زیرعنوان، زنبور (چرخان یا نه، آرام/عادی/تند)، مدت نمایش، شمارهٔ نسخه، و لوگوی سربرگ فاکتور؛ با پیش‌نمایش.','brandSheet']]],
  ['3.65',[['affairs','star','آیکون تازه','آیکون برنامه روی گوشی همان لوگوی «عسل رضا» شد.','']]],
@@ -2994,8 +2995,8 @@ function viewPerson(id){const p=byId('people',id);if(!p){toast('شخص پیدا 
    ${(()=>{const q=S.quotes.filter(x=>x.personId===id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));return q.length?`<div class="blk-h" style="margin-top:12px"><h2>قیمت‌های داده و گرفته</h2></div>${listOr(q,quoteRow,'')}`:''})()}
    <div class="grp" style="margin-top:14px">ثبت تازه برای ${esc(p.name)}</div><div class="qa pact">
     <button data-act="${on('docs')?'sellTo':'newMove'}" data-person="${id}">${svg('truck')}فروش / ارسال</button>${on('docs')?`<button data-act="buyFrom" data-person="${id}">${svg('box')}خرید از او</button>`:''}
-    <button data-act="pJV" data-person="${id}">${svg('book')}سند با او</button><button data-act="newLedgerFor" data-person="${id}">${svg('finance')}دریافت، پرداخت، طلب</button><button data-act="newTaskFor" data-person="${id}">${ICON.check}کار</button>
-    ${on('deals')?`<button data-act="newDealFor" data-person="${id}">${svg('marketers')}فرصت</button>`:''}${on('stock')?`<button data-act="newQuote" data-person="${id}">${svg('tag')}قیمت</button>`:''}${(p.roles||[]).includes('بازاریاب')?`<button data-act="mktView" data-id="${id}">${svg('marketers')}پورسانت‌ها</button>`:''}</div>
+    <button data-act="pJV" data-person="${id}">${svg('book')}دریافت، پرداخت، سند</button><button data-act="newTaskFor" data-person="${id}">${ICON.check}کار</button>
+    ${on('deals')?`<button data-act="newDealFor" data-person="${id}">${svg('marketers')}فرصت</button>`:''}${on('docs')?`<button data-act="pProf" data-person="${id}">${svg('tag')}پیش‌فاکتور یا قیمت</button>`:on('stock')?`<button data-act="newQuote" data-person="${id}">${svg('tag')}قیمت</button>`:''}${(p.roles||[]).includes('بازاریاب')?`<button data-act="mktView" data-id="${id}">${svg('marketers')}پورسانت‌ها</button>`:''}</div>
    <div class="acts" style="margin-top:10px"><button class="btn" data-act="tbook" data-person="${id}">دفتر کارهای ${esc(p.name)}</button></div></div>`)}
 function viewLedger(id){if(String(id).startsWith('vch:'))return viewVoucher(String(id).split(':')[1]);const l=byId('ledger',id);if(!l)return;const open=(l.kind==='receivable'||l.kind==='payable')&&!l.settled&&!l.void;
   openSheet(`<div class="det"><h3>${esc(LK[l.kind].n)}</h3><dl>
@@ -4184,6 +4185,7 @@ document.addEventListener('click',async e=>{
     case'jvAmt':{const a=fa(fromBase(Number(b.dataset.v),'تومان'));const R=jvRows();if(R.length>=2){R[0].querySelector('.j_dr').value=a;R[0].querySelector('.j_cr').value='';R[1].querySelector('.j_cr').value=a;R[1].querySelector('.j_dr').value=''}b.parentNode.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));jvSum();break}
     case'invPay':{const d=byId('docs',id);if(!d)break;const L=S.ledger.find(l=>!l.void&&l.docId===id&&(l.kind==='receivable'||l.kind==='payable'));if(!L)break;const rem=remOf(L);const inn=L.kind==='receivable';payVoucher({inn,personId:L.personId,refId:L.id,amount:0,desc:(inn?'دریافت بابت ':'پرداخت بابت ')+docTitle(d)+' '+(d.no||''),sug:[['کل مانده',rem],['نصف',Math.round(rem/2)]]});break}
     case'ledPay':{const L=byId('ledger',id);if(!L)break;const rem=remOf(L);const inn=L.kind==='receivable';payVoucher({inn,personId:L.personId,refId:L.id,amount:0,desc:(inn?'دریافت بابت ':'پرداخت بابت ')+(L.about||LSHORT[L.kind]),sug:[['کل مانده',rem],['نصف',Math.round(rem/2)]]});break}
+    case'pProf':formDoc({type:'proforma',personId:b.dataset.person});break;
     case'attnAll':ui.attnAll=1;{const bx=document.getElementById('attnBox');if(bx){[...bx.children].forEach(x=>x.hidden=false);b.remove()}}break;
     case'lgKind':{const k=document.getElementById('f_kind');k.value=b.dataset.v;b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));k.dispatchEvent(new Event('change',{bubbles:true}));break}
     case'bankLedger':bankLedger(b.dataset.v);break;
