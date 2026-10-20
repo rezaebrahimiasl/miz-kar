@@ -9,6 +9,20 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
+#spl{position:fixed;inset:0;z-index:10000;background:radial-gradient(circle at 50% 40%,#fff8e6 0,var(--bg) 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:opacity .7s ease-in;overflow:hidden}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #spl{background:radial-gradient(circle at 50% 40%,#3a2e14 0,var(--bg) 70%)}}
+:root[data-theme="dark"] #spl{background:radial-gradient(circle at 50% 40%,#3a2e14 0,var(--bg) 70%)}
+#spl.out{opacity:0;pointer-events:none}
+#spl .lg{width:min(58vw,240px);height:min(58vw,240px);border-radius:50%;box-shadow:0 10px 40px rgba(122,75,4,.35);animation:splIn .9s cubic-bezier(.2,1.4,.4,1) both}
+#spl b{font-size:24px;color:var(--ink);margin-top:14px;animation:splUp .7s .25s both}#spl .sb{color:var(--muted);font-size:13.5px;animation:splUp .7s .35s both}#spl .vr{position:absolute;bottom:28px;font-size:12px;color:var(--muted);letter-spacing:.5px}
+#spl .lw{position:relative;display:grid;place-items:center}#spl .orb{position:absolute;left:50%;top:50%;width:0;height:0;animation:orbit 4.2s linear infinite}
+#spl .bee{position:absolute;left:0;top:0;width:34px;height:34px;transform:translate(calc(min(44vw,200px) - 17px),-17px)}
+#spl .bee .w{transform-origin:17px 15px;animation:flap .09s ease-in-out infinite alternate}
+#spl .trail{position:absolute;left:50%;top:50%;width:calc(min(88vw,400px));height:calc(min(88vw,400px));pointer-events:none;transform:translate(-50%,-50%);border:2px dashed rgba(178,111,6,.25);border-radius:50%}
+@keyframes orbit{to{transform:rotate(-360deg)}}@keyframes flap{to{transform:scaleY(.45)}}
+@keyframes splIn{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}@keyframes splUp{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){#spl .orb,#spl .bee .w{animation:none}}
+
 html.vhide .kpi .v,html.vhide .row .end,html.vhide .amt-pos,html.vhide .amt-neg,html.vhide .tbl td:not(.ds):not(:first-child),html.vhide .tbl tfoot td{filter:blur(7px);user-select:none}
 html.vdense .row{padding-top:6px;padding-bottom:6px}html.vdense .blk{margin-top:10px}html.vdense .kpi{padding:8px 10px}html.vdense .tile{padding:8px}html.vdense .fld{margin-bottom:8px}
 html.fs-s body{zoom:.9}html.fs-l body{zoom:1.12}form[data-inv="0"] [data-inv]{display:none!important}form[data-give="1"] [data-sale],form[data-give="1"] .di_p,form[data-give="1"] .di_s option[value=""]{display:none!important}img{max-width:100%}</style>
@@ -329,7 +343,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.63';
+const APP_VER='3.64';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 try{const t=localStorage.getItem('miz.tab');if(t)tab=t}catch(e){}
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
@@ -1753,7 +1767,7 @@ function docHtml(d){const P=PROF();const to=withHon(d.hon,d.toName||pname(d.pers
     <tr class="tot"><td colspan="5">جمع</td><td>${mtn(t.sub)}</td></tr>${t.disc?`<tr><td colspan="5">تخفیف${d.discP?' ('+fa(d.discP)+'٪)':''}</td><td>${mtn(t.disc)}</td></tr>`:''}${t.tax?`<tr><td colspan="5">مالیات و عوارض (${fa(d.tax)}٪)</td><td>${mtn(t.tax)}</td></tr>`:''}<tr class="tot"><td colspan="5">مبلغ قابل پرداخت</td><td>${mtn(t.total)}</td></tr></table><div class="words">به حروف: ${numWords(t.total)} تومان</div>${d.memo?`<div class="terms" style="margin-top:8px"><b>توضیحات:</b> ${esc(d.memo)}</div>`:''}${STL?`<div class="terms" style="margin-top:8px"><b>نحوهٔ تسویه:</b> ${esc(STL)}</div>`:''}${PB}${(()=>{let tm=d.terms||'';const PM={receivable:'نسیه',received:'نقد',barter:'تهاتری (در عوض کالا یا خدمت)'};if(STL)tm=tm.split('\n').filter(x=>x.trim()!=='پرداخت: ………').join('\n');else if(d.type==='invoice'&&PM[d.led])tm=tm.replace('پرداخت: ………','پرداخت: '+PM[d.led]);return tm?`<div class="terms">${esc(tm)}</div>`:''})()}`:`<div class="body">${esc(d.body||'')}</div>`;
   return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(docTitle(d)+' '+(d.no||''))}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap"><style>${css}</style></head><body>
   <div class="bar"><button onclick="print()">چاپ یا ذخیره به PDF</button><button class="g" onclick="history.length>1?history.back():close()">بستن</button></div>
-  <div class="hd">${P.logo?`<img class="lg" src="${esc(P.logo)}" alt="">`:`<div class="mono">${esc(ini)}</div>`}<div><h1>${esc(P.biz||P.name)}</h1><small>${esc(P.name)}${P.phone?' · تلفن '+esc(P.phone):''}${P.addr?' · '+esc(P.addr):''}</small></div></div>
+  <div class="hd">${P.logo?`<img class="lg" src="${esc(P.logo)}" alt="">`:!P.noLogo?`<img class="lg" style="border-radius:50%" src="${new URL('logo.webp',location.href).href}" alt="">`:`<div class="mono">${esc(ini)}</div>`}<div><h1>${esc(P.biz||P.name)}</h1><small>${esc(P.name)}${P.phone?' · تلفن '+esc(P.phone):''}${P.addr?' · '+esc(P.addr):''}</small></div></div>
   <div class="meta">${d.no?`<span>شماره: <b><bdi dir="ltr">${esc(d.no)}</bdi></b></span>`:''}<span>تاریخ: <b>${jLong(d.date)}</b></span>${d.type==='purchase'&&d.place?`<span>ورود به: <b>${esc(d.place)}</b></span>`:''}${to?`<span>${PARTY(d,GV)}: <b>${esc(to)}</b></span>`:''}</div>
   <h2>${esc(docTitle(d))}${d.subject?' — '+esc(d.subject):''}</h2>${UN}${items}
   <div class="sig">${d.type==='contract'?`<div>امضای فروشنده<br>${esc(P.name)}</div><div>امضای خریدار<br>${esc(to)}</div>`:isInv?(GV?'<div>تحویل‌دهنده</div><div>تحویل‌گیرنده</div>':(d.type==='purchase'||d.type==='sret')?`<div>امضای خریدار<br>${esc(P.name)}</div><div>مهر و امضای فروشنده${to?'<br>'+esc(to):''}</div>`:`<div>مهر و امضای فروشنده<br>${esc(P.name)}</div><div>امضای خریدار${to?'<br>'+esc(to):''}</div>`):`<div style="visibility:hidden"></div><div>${esc(P.name)}<br>امضا</div>`}</div>
@@ -1791,6 +1805,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.64',[['affairs','star','صفحهٔ آغاز','با باز شدن برنامه: لوگوی «عسل رضا»، نام و نسخه، و زنبوری که دور صفحه می‌چرخد؛ با یک لمس رد می‌شود و از «نمای صفحه‌ها» خاموش‌شدنی است. همین لوگو روی سربرگ فاکتور، پیش‌فاکتور و نامه هم می‌آید.','viewPanel']]],
  ['3.63',[['sales','note','فاکتور جدولی','اقلام فاکتور، پیش‌فاکتور و خرید هر کدام یک سطر: شرح، مقدار، واحد، فی؛ مبلغ ردیف و منبع انبار زیرش کوچک؛ «⋯» کنار هر ردیف: انبار یا محموله، توضیح ردیف، تخفیف.','docsSheet'],['finance','book','بستن سال مالی','در «دفاتر حسابداری ← بستن سال»: سود و زیان سال، سند اختتامیه (درآمد و هزینه به «سود و زیان انباشته»، برداشت شخصی از سرمایه)، ماندهٔ افتتاحیهٔ سال بعد، بررسی پیش از بستن، چاپ؛ با «بستن و قفل»، ثبت و تغییر با تاریخ آن سال ممکن نیست (اصلاح با سند اصلاحی در سال جاری) و بازگشایی با سابقه.','yearClose']]],
  ['3.62',[['affairs','filter','«امروز» خلوت‌تر','بخش‌های خالی (پیگیری سررسیده، یادداشت سریع) دیگر جا نمی‌گیرند؛ «آخرین ثبت‌ها» سه ردیف و بدون دکمهٔ حذف (حذف و برگرداندن در «همهٔ ثبت‌ها»).','']]],
  ['3.61',[['finance','book','سندها همه‌جا','سندهای حسابداری در «پول ← ثبت‌ها» کنار بقیه می‌آیند (چیپ «سند» و فیلتر هر بانک)؛ در صفحهٔ هر شخص «سند با او».','accVoucher'],['finance','bell','فرم پرداخت ثابت کوتاه شد','جهت پول و تکرار با دکمه؛ فقط عنوان، مبلغ، روز، طرف و حساب؛ خودکار/دستی، قسط، شروع و دسته در «جزئیات».','recurs']]],
@@ -3692,6 +3707,7 @@ function viewPanel(){const v=VW();const seg=(k,opts,cur)=>`<div class="seg" styl
   <div class="grp">بدهکار و بستانکار در جدول‌ها</div>${seg('oneCol',[['1','یک ستون (بد/بس)'],['0','دو ستون']],SM('oneCol')?1:0)}
   <div class="grp">فشردگی</div>${seg('dense',[['0','عادی'],['1','فشرده']],v.dense?1:0)}
   <div class="grp">اندازهٔ نوشته</div>${seg('fs',[['s','کوچک'],['m','عادی'],['l','درشت']],v.fs||'m')}
+  <div class="grp">صفحهٔ آغاز (لوگو و زنبور)</div>${seg('noSplash',[['0','نمایش'],['1','خاموش']],v.noSplash?1:0)}
   <div class="grp">پوسته</div>${seg('theme',[['','خودکار'],['light','روشن'],['dark','تیره']],v.theme||'')}
   <div class="acts"><button class="btn" data-act="prefs">چیدمان و هوشمندی‌های بیشتر</button><button class="btn ghost" data-act="close">بستن</button></div>`)}
 (()=>{applyView();let t=0,last=0;const T=()=>document.getElementById('hTitle');document.addEventListener('pointerdown',e=>{if(e.target!==T())return;t=setTimeout(()=>{t=0;const v=VW();setVW('hide',v.hide?0:1);toast(v.hide?'مبالغ نمایش داده شد':'مبالغ پنهان شد 🙈')},600)});
@@ -3730,6 +3746,10 @@ function yearCloseSheet(y){const thisY=jOf(today()).jy;y=Number(y)||Number(ui.cl
 async function setClose(y,obj){const m=S.meta.find(x=>x.id==='close')||{id:'close',years:{}};const Y={...(m.years||{})};const prev=Y[y]||{};Y[y]={...prev,...obj,hist:[...(prev.hist||[]),{at:nowTs(),closed:!!obj.closed}]};await putRaw('meta',{...m,id:'close',years:Y,created:m.created||nowTs(),updated:nowTs()})}
 function yPrint(y){const D=yearData(Number(y));let h=docHtml({type:'letter',personId:'',toName:'',no:'',date:today(),subject:'بستن سال مالی '+y,body:''});
   h=h.replace('<h2>نامه</h2>','<h2>بستن سال مالی '+fa(y)+'</h2>').replace('<div class="body"></div>',`<div style="font-size:12px;color:#6b6255;text-align:left">مبالغ به میلیون تومان</div><p>درآمد ${amtV(D.ti)} · هزینه ${amtV(D.tx)} · ${D.ni>=0?'سود':'زیان'} خالص ${amtV(Math.abs(D.ni))}</p><h3>سند اختتامیه</h3>${clTable(D.close)}<h3>ماندهٔ افتتاحیهٔ سال ${fa(Number(y)+1)}</h3>${clTable(D.open)}`);htmlView(h)}
+/* ---------- splash: logo, version and a bee flying around (once per session; tap to skip) ---------- */
+(function splash(){try{if(sessionStorage.getItem('mizSpl'))return;sessionStorage.setItem('mizSpl','1')}catch(_){}try{const pr=JSON.parse(localStorage.getItem('miz.view')||'{}');if(pr.noSplash)return}catch(_){}
+  const d=document.createElement('div');d.id='spl';d.innerHTML=`<div class="lw"><div class="trail"></div><img class="lg" src="logo.webp" alt="عسل رضا"><div class="orb"><svg class="bee" viewBox="0 0 34 34" aria-hidden="true"><g class="w"><ellipse cx="12" cy="9" rx="7" ry="5" fill="#cfe9ff" opacity=".85"/><ellipse cx="22" cy="9" rx="7" ry="5" fill="#cfe9ff" opacity=".85"/></g><ellipse cx="17" cy="20" rx="8" ry="10" fill="#f6b51e"/><path d="M9.5 17h15M9 21h16M10.5 25h13" stroke="#3a2a10" stroke-width="2.6" stroke-linecap="round"/><circle cx="17" cy="9.5" r="4.2" fill="#3a2a10"/><path d="M17 30l-1.5 3h3z" fill="#3a2a10"/></svg></div></div><b>میز کار</b><div class="sb">عسل رضا · از بهترین شهد گل‌های کوهستان</div><div class="vr">نسخهٔ ${fa(APP_VER)}</div>`;
+  const fin=()=>{if(d.classList.contains('out'))return;d.classList.add('out');setTimeout(()=>d.remove(),800)};d.addEventListener('click',fin);document.body.appendChild(d);setTimeout(fin,2800)})();
 /* ---------- fold the attention block: first 3 items, the rest on demand ---------- */
 function attnFold(){const b=document.getElementById('attnBox');if(!b||b.dataset.f)return;b.dataset.f='1';const K=[...b.children].filter(x=>x.textContent.trim());const n=document.getElementById('attnN');if(n)n.textContent=fa(K.length);if(K.length<=3||ui.attnAll)return;K.slice(3).forEach(x=>x.hidden=true);b.insertAdjacentHTML('beforeend',`<button class="btn ghost" data-act="attnAll" style="width:100%;margin-top:8px">${fa(K.length-3)} مورد دیگر</button>`)}
 /* ---------- 3.59 ledger form helpers ---------- */

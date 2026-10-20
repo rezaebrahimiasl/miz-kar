@@ -231,6 +231,11 @@
 - `docItemRow`: یک سطر (شمارهٔ `.di_no`، شرح، مقدار، واحد، فی، «⋯» act `diMore`، ✕) + زیرسطر `.di_src` (منبع از select `.di_s`) و `.di_t`؛ `.di_ck`/`.di_h` بیرون؛ تخفیف، توضیح ردیف (`.di_cm` همیشه دیدنی داخل)، انتخاب انبار و svBox در `.di_more` (خودکار باز اگر cm/buy/new/pt/pk). سرستون بالای `#ditems`. docSum متن منبع را تازه می‌کند (تغییر di_s هم docSum صدا می‌زند).
 - بستن سال: meta `close.years[y]={closed,at,ti,tx,ni,hist[]}`؛ `yClosed(date)`، `closeBlock` در ابتدای `save()` (به‌جز `CLOSE_SAFE` مثل settled/status/note) و `CLOSE_FORMS` در submit (تاریخ اصلی فرم). `yearData(y)`: سند اختتامیه (درآمد/هزینه → 3301، برداشت 3201 → 3101) و ماندهٔ افتتاحیه (A/L، سرمایه منهای برداشت تجمعی، سود انباشته تجمعی). `yearCloseSheet`، `yPrint`، acts: yearClose، yClSel، yClose (دو بار)، yReopen، yPrint. دفاتر: دکمهٔ «بستن سال» و 🔒 روی سال. یادآوری در «امروز» سه ماه اول (SMART `yearClose`). سند اختتامیه در دفتر روزنامه پست نمی‌شود (دفتر پیوسته است؛ سود و زیان هر سال جدا حساب می‌شود).
 
+## ۳٫۶۴ — صفحهٔ آغاز و لوگو
+- `logo.webp` (۴۸۰px، بریده از لوگوی دایره‌ای کاربر) در مخزن و در SHELL کش sw.js.
+- splash (IIFE پیش از attnFold): یک بار در هر نشست (`sessionStorage.mizSpl`)، لوگو، «میز کار»، نسخه، زنبور SVG با بال‌زدن روی مدار دایره‌ای دور لوگو (`.orb` rotate، `.trail`)، لمس = رد، ۲٫۸ ثانیه؛ reduced-motion بی‌حرکت. خاموش: «نمای صفحه‌ها» (`miz.view.noSplash`).
+- `docHtml`: اگر لوگوی پروفایل نیست، `logo.webp` با نشانی کامل (برای iframe) روی سربرگ؛ `P.noLogo` برای حرف اول.
+
 ## در انتظار
 - تنظیم واقعی پله‌های پورسانت (درون برنامه پرسیده می‌شود).
 - تست اتصال جمینای روی گوشی کاربر.
