@@ -20,7 +20,7 @@
 #spl b{font-size:24px;color:var(--ink);margin-top:14px;animation:splUp .7s .25s both}#spl .sb{color:var(--muted);font-size:13.5px;animation:splUp .7s .35s both}#spl .vr{position:absolute;bottom:28px;font-size:12px;color:var(--muted);letter-spacing:.5px}
 #spl .lw{position:relative;display:grid;place-items:center}#spl .lg{position:relative;z-index:2}
 #spl .cr{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;z-index:1;pointer-events:none;display:grid;place-items:center}
-#spl .cr.fr{z-index:3}#spl .cr .em{font-size:32px;line-height:1;display:block}#spl .cr svg{width:40px;height:40px;display:block}
+#spl .cr.fr{z-index:4}#spl .ctr{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;pointer-events:none}#spl .cr .em{font-size:32px;line-height:1;display:block}#spl .cr svg{width:40px;height:40px;display:block}
 #spl .bee .w{transform-origin:17px 15px;animation:flap .09s ease-in-out infinite alternate}
 #spl .dot{position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px;border-radius:50%;background:#f6b51e;z-index:1;pointer-events:none;animation:dotF .9s ease-out forwards}
 #spl .gest{position:absolute;left:50%;top:50%;z-index:5;font-size:64px;line-height:1;pointer-events:none;opacity:0;filter:drop-shadow(0 4px 10px rgba(0,0,0,.25))}
@@ -351,7 +351,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[]};
 const COLS=Object.keys(S);
-const APP_VER='3.89';
+const APP_VER='3.90';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 const UIKEEP=['stX','stP','stK','stS','taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
 try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
@@ -1816,6 +1816,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['3.90',[['personal','star','پرواز با ردّ هواپیما','در صفحهٔ آغاز، زنبور (یا جانور انتخابی) فقط دور لوگو می‌چرخد، روی مسیری موج‌دار و نه دایرهٔ کامل، و پشت سرش ردّی سفید مثل ردّ هواپیما می‌ماند که کم‌کم محو می‌شود.','brandSheet']]],
  ['3.89',[['sales','box','فهرست بسته‌بندی مرتب','در ورود کالا، فاکتور خرید، شمارش انبار و بسته‌بندی دوباره، بسته‌بندی‌ها دسته‌بندی شده‌اند (پت، شیشه، ظرف بزرگ، سایر)؛ پرکاربردترها بالاتر، بعد از کوچک به بزرگ. «۰تایی» برای ظرف‌های بی‌کارتن دیگر نمی‌آید.','newLot']]],
  ['3.88',[['sales','hive','«برداشت از کندو»','کاشی «برداشت» حالا «برداشت از کندو» نام دارد تا با برداشت پول یا فاکتور اشتباه نشود.','tab|biz|biz:stock']]],
  ['3.87',[['sales','note','فرم سند بی‌تکرار','داخل فاکتور دیگر ردیف انتخاب نوع سند نمی‌آید؛ نوع را همان کاشی‌ای که زدی تعیین می‌کند.','saleNew']]],
@@ -3819,24 +3820,23 @@ const GEST={wink:['چشمک','😉'],thumb:['لایک','👍'],kiss:['بوس','�
 const BEE_SVG='<svg class="bee" viewBox="0 0 34 34" aria-hidden="true"><g class="w"><ellipse cx="12" cy="9" rx="7" ry="5" fill="#cfe9ff" opacity=".85"/><ellipse cx="22" cy="9" rx="7" ry="5" fill="#cfe9ff" opacity=".85"/></g><ellipse cx="17" cy="20" rx="8" ry="10" fill="#f6b51e"/><path d="M9.5 17h15M9 21h16M10.5 25h13" stroke="#3a2a10" stroke-width="2.6" stroke-linecap="round"/><circle cx="17" cy="9.5" r="4.2" fill="#3a2a10"/><path d="M17 30l-1.5 3h3z" fill="#3a2a10"/></svg>';
 function showSplash(force){const B=BR();if(!force){try{if(sessionStorage.getItem('mizSpl'))return;sessionStorage.setItem('mizSpl','1')}catch(_){}if(B.off||VW().noSplash)return}
   const pick=o=>{const k=Object.keys(o);return k[Math.floor(Math.random()*k.length)]};
-  let ck=B.bee==='off'?'':B.bee==='rand'?pick(CRIT):(CRIT[B.bee]?B.bee:'bee');const gk=B.gest==='none'?'':GEST[B.gest]?B.gest:pick(GEST);
+  let ck=B.bee==='off'?'':B.bee==='rand'?pick(CRIT):(CRIT[B.bee]?B.bee:'bee');
   const per={slow:7,norm:4.2,fast:2.4}[B.speed||'norm'],dur={short:1600,norm:2800,long:4500}[B.dur||'norm'];
   const RM=matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;if(RM)ck='';
-  const d=document.createElement('div');d.id='spl';d.innerHTML=`<div class="lw"><img class="lg" src="${esc(brandLogo())}" alt="">${ck?`<div class="cr">${ck==='bee'?BEE_SVG:`<span class="em">${CRIT[ck][1]}</span>`}</div>`:''}${gk?`<div class="gest">${GEST[gk][1]}</div>`:''}</div><b>${esc(B.title||'میز کار')}</b><div class="sb">${esc(B.sub!=null?B.sub:'عسل رضا · از بهترین شهد گل‌های کوهستان')}</div>${B.ver==='off'?'':`<div class="vr">نسخهٔ ${fa(APP_VER)}</div>`}`;
+  const R=Math.min(innerWidth*.37,185),CW=Math.round(2*R+90),CH=Math.round(2*R*.75+110);
+  const d=document.createElement('div');d.id='spl';d.innerHTML=`<div class="lw"><img class="lg" src="${esc(brandLogo())}" alt="">${ck?`<canvas class="ctr" width="${CW}" height="${CH}" style="width:${CW}px;height:${CH}px"></canvas><div class="cr fr">${ck==='bee'?BEE_SVG:`<span class="em">${CRIT[ck][1]}</span>`}</div>`:''}</div><b>${esc(B.title||'میز کار')}</b><div class="sb">${esc(B.sub!=null?B.sub:'عسل رضا · از بهترین شهد گل‌های کوهستان')}</div>${B.ver==='off'?'':`<div class="vr">نسخهٔ ${fa(APP_VER)}</div>`}`;
   let raf=0;const fin=()=>{if(d.classList.contains('out'))return;cancelAnimationFrame(raf);d.classList.add('out');setTimeout(()=>d.remove(),800)};d.addEventListener('click',fin);document.body.appendChild(d);
-  const lw=d.querySelector('.lw'),cr=d.querySelector('.cr'),ge=d.querySelector('.gest');const END=1300,FLY=Math.max(1200,dur-300);const total=(ck?FLY+END+700:dur)+(force?400:0);
-  if(cr){const R=Math.min(innerWidth*.44,200),ph=Math.random()*6.28,t0=performance.now();let lastDot=0,px=0,py=0,ang=0,sc=1,fx=0,fy=0,fs=1;
-    const pos=t=>{const th=ph-6.2832*t/(per*1000);const w=1+.16*Math.sin(2.3*th+ph)+.06*Math.sin(5.1*th);const x=R*w*Math.cos(th),y=R*.62*w*Math.sin(th)+16*Math.sin(3.7*th),z=Math.sin(th);return{x,y,z}};
-    const step=now=>{const t=now-t0;let x,y,s,front;
-      if(t<FLY){const p=pos(t);x=p.x;y=p.y;s=.62+.5*(p.z+1)/2;front=p.z>0;fx=x;fy=y;fs=s}
-      else{const u=Math.min(1,(t-FLY)/END),e=1-Math.pow(1-u,3);const tx=R*.5,ty=R*.38;x=fx+(tx-fx)*e+Math.sin(u*9)*14*(1-u);y=fy+(ty-fy)*e;s=fs+(3.8-fs)*e;front=true;
-        if(u>=1&&ge&&!ge.classList.contains('on')){ge.style.left=`calc(50% + ${Math.min(R*.92,innerWidth/2-38)}px)`;ge.style.top=`calc(50% + ${R*.38-100}px)`;ge.classList.add('on')}}
-      const dx=x-px,dy=y-py;if(Math.abs(dx)+Math.abs(dy)>.3)ang=Math.atan2(dy,dx)*180/Math.PI;px=x;py=y;
-      cr.classList.toggle('fr',front);
-      const rot=ck==='bee'?(t<FLY?ang+90:(ang+90)*(1-Math.min(1,(t-FLY)/END))):0;const flip=ck!=='bee'&&dx>0?-1:1;
-      cr.style.transform=`translate(${x}px,${y}px) rotate(${rot}deg) scale(${s*flip},${s})`;
-      if(t<FLY&&now-lastDot>90){lastDot=now;const o=document.createElement('i');o.className='dot';o.style.transform=`translate(${x}px,${y}px)`;lw.appendChild(o);setTimeout(()=>o.remove(),950)}
-      if(t<FLY+END+50)raf=requestAnimationFrame(step)};raf=requestAnimationFrame(step)}
+  const cr=d.querySelector('.cr'),cv=d.querySelector('.ctr');const total=dur+(force?400:0);
+  if(cr&&cv){const dpr=Math.min(2,devicePixelRatio||1);cv.width=CW*dpr;cv.height=CH*dpr;const cx=cv.getContext('2d');cx.scale(dpr,dpr);cx.lineCap='round';
+    const ph=Math.random()*6.28,dir=Math.random()<.5?1:-1,t0=performance.now(),TR=[],LIFE=1400;let px=null,py=0,ang=0;
+    const pos=t=>{const th=ph+dir*6.2832*t/(per*1000);const w=1+.14*Math.sin(2.3*th+ph)+.07*Math.sin(5.1*th+1);return{x:R*w*Math.cos(th),y:R*.66*w*Math.sin(th)+18*Math.sin(3.3*th+ph)}};
+    const step=now=>{const t=now-t0;const p=pos(t);const x=p.x,y=p.y;
+      if(px!==null){const dx=x-px,dy=y-py;if(Math.abs(dx)+Math.abs(dy)>.2)ang=Math.atan2(dy,dx)*180/Math.PI}px=x;py=y;
+      TR.push({x,y,t:now});while(TR.length&&now-TR[0].t>LIFE)TR.shift();
+      cx.clearRect(0,0,CW,CH);for(let i=1;i<TR.length;i++){const a=TR[i-1],b=TR[i],k=1-(now-b.t)/LIFE;cx.beginPath();cx.moveTo(a.x+CW/2,a.y+CH/2);cx.lineTo(b.x+CW/2,b.y+CH/2);cx.strokeStyle=`rgba(178,111,6,${(.42*k).toFixed(3)})`;cx.lineWidth=1.5+5*k;cx.stroke();cx.strokeStyle=`rgba(255,255,255,${(.9*k).toFixed(3)})`;cx.lineWidth=.6+2*k;cx.stroke()}
+      const rot=ck==='bee'?ang+90:0;const flip=ck!=='bee'&&Math.cos(ang*Math.PI/180)>0?-1:1;
+      cr.style.transform=`translate(${x}px,${y}px) rotate(${rot}deg) scale(${flip},1)`;
+      if(t<total+200)raf=requestAnimationFrame(step)};raf=requestAnimationFrame(step)}
   setTimeout(fin,total)}
 showSplash();
 function brandSheet(){const B=BR();const P=PROF();const seg=(k,opts,cur)=>`<div class="seg" style="margin:0 0 12px">${opts.map(([x,l])=>`<button type="button" data-act="brSet" data-k="${k}" data-v="${x}" aria-pressed="${String(cur)===String(x)}">${l}</button>`).join('')}</div>`;
@@ -3845,7 +3845,7 @@ function brandSheet(){const B=BR();const P=PROF();const seg=(k,opts,cur)=>`<div 
   <div class="grp" style="margin-top:0">صفحهٔ آغاز</div>${seg('off',[['','نمایش'],['1','خاموش']],B.off||'')}
   <div class="fld"><label for="f_brT">عنوان</label><input id="f_brT" value="${esc(B.title||'میز کار')}"></div>
   <div class="fld"><label for="f_brS">زیرعنوان</label><input id="f_brS" value="${esc(B.sub!=null?B.sub:'عسل رضا · از بهترین شهد گل‌های کوهستان')}"></div>
-  <div class="grp">جانور پرنده</div><div class="chips" style="margin:0 0 12px;flex-wrap:wrap;overflow:visible">${[['','🐝 زنبور'],...Object.entries(CRIT).filter(([k])=>k!=='bee').map(([k,v])=>[k,v[1]+' '+v[0]]),['rand','🎲 هر بار یکی'],['off','نباشد']].map(([x,l])=>`<button type="button" class="chip" data-act="brSet" data-k="bee" data-v="${x}" aria-pressed="${String(B.bee||'')===x}">${l}</button>`).join('')}</div>${B.bee==='off'?'':`<div class="grp">سرعت پرواز</div>${seg('speed',[['slow','آرام'],['norm','عادی'],['fast','تند']],B.speed||'norm')}<div class="grp">در پایان، نثار تو</div><div class="chips" style="margin:0 0 12px;flex-wrap:wrap;overflow:visible">${[['','🎲 هر بار یکی'],...Object.entries(GEST).map(([k,v])=>[k,v[1]+' '+v[0]]),['none','هیچ']].map(([x,l])=>`<button type="button" class="chip" data-act="brSet" data-k="gest" data-v="${x}" aria-pressed="${String(B.gest||'')===x}">${l}</button>`).join('')}</div>`}
+  <div class="grp">جانور پرنده</div><div class="chips" style="margin:0 0 12px;flex-wrap:wrap;overflow:visible">${[['','🐝 زنبور'],...Object.entries(CRIT).filter(([k])=>k!=='bee').map(([k,v])=>[k,v[1]+' '+v[0]]),['rand','🎲 هر بار یکی'],['off','نباشد']].map(([x,l])=>`<button type="button" class="chip" data-act="brSet" data-k="bee" data-v="${x}" aria-pressed="${String(B.bee||'')===x}">${l}</button>`).join('')}</div>${B.bee==='off'?'':`<div class="grp">سرعت پرواز</div>${seg('speed',[['slow','آرام'],['norm','عادی'],['fast','تند']],B.speed||'norm')}`}
   <div class="grp">مدت نمایش</div>${seg('dur',[['short','کوتاه'],['norm','عادی'],['long','بلند']],B.dur||'norm')}
   <div class="grp">شمارهٔ نسخه</div>${seg('ver',[['','نمایش'],['off','پنهان']],B.ver||'')}
   <div class="grp">لوگوی سربرگ فاکتور و نامه</div>${seg('doc',[['brand','همین لوگو'],['none','بدون لوگو (حرف اول)']],P.logo?'custom':P.noLogo?'none':'brand')}${P.logo?'<div class="hint" style="font-size:12px;color:var(--muted);margin:-6px 2px 10px">لوگوی جداگانه‌ای در «پروفایل» برای سربرگ گذاشته‌ای؛ با انتخاب یکی از این دو، آن برداشته می‌شود.</div>':''}
