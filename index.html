@@ -353,7 +353,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[],meets:[]};
 const COLS=Object.keys(S);
-const APP_VER='4.06';
+const APP_VER='4.07';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 const UIKEEP=['stX','stP','stK','stS','taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
 try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
@@ -2103,6 +2103,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['4.07',[['affairs','lock','همگام‌سازی با پشتیبان بزرگ','وقتی پشتیبان ابری از یک مگابایت بزرگ‌تر شود، گیت‌هاب محتوا را جدا می‌دهد؛ حالا همان‌طور خوانده می‌شود و پیام اشتباه «رمز یکی نیست» نمی‌آید.','syncSheet']]],
  ['4.06',[['affairs','lock','ایمنی داده‌ها','اگر داده‌های گوشی خوانده نشود «حالت بازیابی» می‌آید و هیچ چیز به ابر نمی‌رود؛ ارسال نسخهٔ خیلی کوچک‌تر به ابر بی‌تأیید ممنوع است؛ شمارش «تغییرات ارسال‌نشده»؛ در همگام‌سازی، ردیفی که هر دو دستگاه عوض کرده‌اند با جدول مقایسه از تو پرسیده می‌شود؛ ۱۰ نسخهٔ خودکار پیش از هر بازیابی، حذف و همگام‌سازی؛ بازیابی با پیش‌نمایش و تأیید تایپی برای جایگزینی؛ خروجی و بازیابی اکسل کامل.','backupSheet']]],
  ['4.05',[['sales','box','انتخاب کالا قدم‌به‌قدم','در فاکتور «+ کالا» صفحهٔ انتخاب باز می‌کند: اول کالاهایی که قبلاً با همین طرف معامله شده، موجودی انبار (سبز، با مانده و کارتن) و پرکاربردها، با جستجو؛ یا از دسته (عسل…) به نوع و محموله؛ بعد مقدار با کارتن و عدد تکی و فی با پیشنهاد قیمت روز و آخرین قیمت همین طرف. «افزودن و کالای بعدی» برای چند قلم پشت هم.','saleNew'],['sales','book','کاردکس کالا','«انبار ← کاردکس کالا» یا از صفحهٔ هر محموله: گردش هر کالا به ترتیب تاریخ با ورود، خروج و مانده، فیلتر محموله، ارزش ریالی و چاپ؛ لمس هر ردیف سند یا ثبتش را برای اصلاح باز می‌کند.','kardex']]],
  ['4.04',[['sales','note','صفحهٔ نمایش فاکتور','با لمس هر فاکتور یا سند (در اسناد، قیمت‌ها، معین و ردیف‌های مالی) اول صفحهٔ نمایش باز می‌شود: اقلام، جمع، تسویه، دریافت‌ها و پرداخت‌های همان سند و نسخه‌های قبلی؛ با دکمه‌های دریافت/پرداخت وجه، چاپ یا PDF، اصلاح و باطل کردن.','docsSheet']]],
@@ -2616,7 +2617,7 @@ function syncData(){const b=backupData();b.data={...b.data,vault:(b.data.vault||
 let syncBusy=false;
 async function ghSync(manual){const c=GH.cfg;if(!c.token||!c.repo){if(manual)ghSheet();return}if(!c.pass){if(manual)toast('برای همگام‌سازی، رمز رمزنگاری لازم است');return ghPush0(manual)}if(syncBusy||ghBusy)return;if(!navigator.onLine){if(manual)toast('اینترنت وصل نیست؛ بعداً خودش همگام می‌شود');return}
   syncBusy=true;ghBusy=true;const path='miz-kar-backup.json';let tries=0;
-  try{while(tries++<3){let sha,remote=null;const g=await ghApi(path);if(g.status===200){const js=await g.json();sha=js.sha;const raw=new TextDecoder().decode(b64d(js.content.replace(/\n/g,'')));try{remote=await ghUnpack(raw,c.pass)}catch(_){throw new Error('رمز رمزنگاری این دستگاه با پشتیبان یکی نیست')}}else if(g.status===401||g.status===403)throw new Error('توکن معتبر نیست یا دسترسی ندارد');else if(g.status!==404)throw new Error('دریافت نشد ('+g.status+')');
+  try{while(tries++<3){let sha,remote=null;const g=await ghApi(path);if(g.status===200){const js=await g.json();sha=js.sha;let raw='';if(js.content&&js.encoding!=='none')raw=new TextDecoder().decode(b64d(js.content.replace(/\n/g,'')));else{const rr=await ghApi(path,{raw:true});if(!rr.ok)throw new Error('فایل پشتیبان ابری دریافت نشد ('+rr.status+')');raw=await rr.text()}let pj;try{pj=JSON.parse(raw)}catch(_){throw new Error('فایل پشتیبان ابری کامل دریافت نشد؛ دوباره امتحان کن')}try{remote=await ghUnpack(raw,c.pass)}catch(e){throw new Error(pj&&pj.app==='miz-kar-enc'?'رمز رمزنگاری این دستگاه با پشتیبان یکی نیست':'فایل پشتیبان ابری خوانده نشد')}}else if(g.status===401||g.status===403)throw new Error('توکن معتبر نیست یا دسترسی ندارد');else if(g.status!==404)throw new Error('دریافت نشد ('+g.status+')');
       {const rn=remote&&remote.data?COLS.filter(k=>k!=='contacts').reduce((a,k)=>a+((remote.data[k]||[]).length),0):0;const bl=cloudBlock(rn);if(bl){GH.cfg={...GH.cfg,err:bl,blocked:1};if(manual)shrinkSheet(bl);return}}
       if(remote&&remote.data)await snapTake('sync',60);let got=0;if(remote&&remote.data)got=await syncMerge(remote.data);
       const snap=syncData();snap.devs={...((remote&&remote.devs)||{}),[devName()]:nowTs()};

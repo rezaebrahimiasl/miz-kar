@@ -416,3 +416,6 @@
 - اکسل: `xlsxBuild` (zip بی‌فشرده، یک برگه برای هر مجموعه، نشانه‌های §json/§bool/§null/§long، برگه‌های _info/_settings/_long برای متن‌های بلندتر از ۳۰۰۰۰) و `xlsxParse` (deflate با DecompressionStream، sharedStrings) — آزمون: صادر/وارد و پس از ذخیرهٔ دوباره در LibreOffice بی‌کم‌وکاست.
 - CSP در <meta>؛ QR از `qr.js` محلی (Kazuhiko Arase، MIT، از نسخهٔ vendor در qrcode-terminal) به‌جای cdnjs؛ sw SHELL شامل qr.js.
 - `devId` کلید جدا `miz.devid` (مهاجرت از miz.dev فقط اگر کد ۸حرفی بود) — دیگر با devName تداخل ندارد.
+
+## ۴٫۰۷
+- ghSync: اگر پاسخ contents گیت‌هاب برای فایل بزرگ‌تر از ۱ مگابایت content خالی/encoding:none داشت، محتوا با Accept raw گرفته می‌شود. خطاها جدا: «کامل دریافت نشد» / «رمز یکی نیست» (فقط وقتی فایل رمزدار است و رمزگشایی شکست) / «خوانده نشد».
