@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#b8740a">
 <meta name="description" content="میز کار رضا — دستیار شخصی، کسب‌وکار و زنبورداری">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' https://api.github.com https://gist.githubusercontent.com https://generativelanguage.googleapis.com; frame-src 'self' blob: data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' https://api.github.com https://gist.githubusercontent.com https://generativelanguage.googleapis.com https://www.googleapis.com; frame-src 'self' blob: data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon2-192.png">
 <link rel="apple-touch-icon" href="icon2-192.png">
@@ -259,6 +259,9 @@ html body .row2{grid-template-columns:1fr 1fr}
 <div id="toast" hidden></div>
 
 <script>
+/* Google sign-in returns here with #access_token=…; take it before anything else reads the address, keep it only in this tab's memory */
+(()=>{const h=location.hash;if(!/[#&](access_token|error)=/.test(h)||!/state=/.test(h))return;const q=new URLSearchParams(h.slice(1));let s=null;try{s=JSON.parse(sessionStorage.getItem('miz.gc.st')||'null');sessionStorage.removeItem('miz.gc.st')}catch(_){}history.replaceState(null,'',location.pathname+location.search);if(!s||s.st!==q.get('state'))return;
+ if(q.get('access_token')){try{sessionStorage.setItem('miz.gc.tok',JSON.stringify({t:q.get('access_token'),exp:Date.now()+(Number(q.get('expires_in'))||3600)*1000-120000}));sessionStorage.removeItem('miz.gc.tried')}catch(_){}window._gcBack={ok:1,ret:s.ret}}else window._gcBack={err:q.get('error')||'خطا',silent:s.silent,ret:s.ret}})();
 /* ---------- Jalali calendar (jalaali-js algorithm) ---------- */
 const J=(()=>{
   const div=(a,b)=>~~(a/b), mod=(a,b)=>a-~~(a/b)*b;
@@ -355,7 +358,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[],meets:[]};
 const COLS=Object.keys(S);
-const APP_VER='4.08';
+const APP_VER='4.09';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={taskF:'open',dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 const UIKEEP=['stX','stP','stK','stS','taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
 try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
@@ -492,7 +495,7 @@ async function putRaw(col,doc){if(mode==='local'&&!LOAD_OK)throw new Error('دا
 let LOAD_OK=false,BAD=[],LOAD_ERR='';
 const lsGet=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:v}catch(_){return d}};const lsSet=(k,v)=>{try{localStorage.setItem(k,String(v))}catch(_){}};
 const unsentN=()=>Number(lsGet('miz.unsent','0'))||0;
-function markDirty(){ghDirty=true;if(!window._noUnsent)lsSet('miz.unsent',unsentN()+1)}
+function markDirty(){ghDirty=true;try{gcKick()}catch(_){}if(!window._noUnsent)lsSet('miz.unsent',unsentN()+1)}
 function unsentClear(){lsSet('miz.unsent',0);lsSet('miz.cnt',rowCount())}
 const rowCount=()=>COLS.filter(c=>c!=='contacts').reduce((a,c)=>a+(S[c]||[]).length,0);
 function cloudBlock(remoteN){if(mode==='cloud')return'';if(!LOAD_OK)return'داده‌های این گوشی درست خوانده نشد؛ برای حفظ نسخهٔ ابری، ارسال متوقف است.';const n=rowCount(),prev=Math.max(Number(lsGet('miz.cnt','0'))||0,remoteN||0);if(prev>=20&&n<prev*0.5&&!GH.cfg.allowShrink)return`این گوشی ${fa(n)} ردیف دارد ولی آخرین پشتیبان ${fa(prev)} ردیف داشت؛ ارسال متوقف شد تا نسخهٔ کامل‌تر جایگزین نشود.`;return''}
@@ -1310,6 +1313,136 @@ async function calPush(manual){const c=GH.cfg;if(!c.token||!c.cal)return;try{con
   if(!r.ok)throw new Error(r.status===403||r.status===401?'توکن اجازهٔ Gists ندارد':'تقویم ارسال نشد ('+r.status+')');const j=await r.json();
   GH.cfg={...GH.cfg,gist:j.id,calUrl:`https://gist.githubusercontent.com/${j.owner.login}/${j.id}/raw/miz-kar.ics`,calLast:nowTs(),calErr:''};if(manual)toast('تقویم به‌روز شد ✓')}
   catch(e){GH.cfg={...GH.cfg,calErr:e.message};if(manual)toast(e.message)}}
+/* ---------- Google Calendar (API): the app is mirrored into a dedicated «میز کار» calendar; each kind auto / ask / never, per-item approve or reject ---------- */
+const GC_SCOPE='https://www.googleapis.com/auth/calendar.app.created';
+const GC_BASE=()=>new URL('./',location.href).href.split('#')[0].split('?')[0];
+const GC_TYPES={task:['کارها و قدم بعدی فرصت‌ها','check'],meet:['جلسه‌های منظم','cal'],money:['سررسیدها: طلب، بدهی، چک، دوره‌ای','finance'],occ:['تولدها و مناسبت‌ها','gift'],day:['روزنگار: خلاصهٔ کارهای هر روز','book']};
+const GCM={auto:'خودکار',ask:'با پرسش',off:'هرگز'};
+const GCFG=()=>S.meta.find(x=>x.id==='gcal')||{};
+const gcOn=()=>!!(GCFG().clientId&&GCFG().on);
+const gcMode=k=>(GCFG().modes||{})[k]||'ask';
+async function gcSet(p){const c=GCFG();await putRaw('meta',{...c,...p,id:'gcal',created:c.created||nowTs(),updated:nowTs()})}
+const gcLoc=()=>{try{const x=JSON.parse(localStorage.getItem('miz.gc')||'{}');x.sent=x.sent||{};return x}catch(_){return {sent:{}}}};
+const gcLocSet=x=>{try{localStorage.setItem('miz.gc',JSON.stringify(x))}catch(_){}};
+const gcTok=()=>{try{const t=JSON.parse(sessionStorage.getItem('miz.gc.tok')||'null');return t&&t.exp>Date.now()?t.t:''}catch(_){return ''}};
+const gcId=k=>'mk'+[...new TextEncoder().encode(k)].map(b=>b.toString(16).padStart(2,'0')).join('');
+const gcAmt=v=>{const a=Math.abs(Number(v)||0);return a>=1e5?nfmt(a/1e6,1)+' میلیون تومان':nfmt(a,0)+' تومان'};
+const gcHash=it=>{const s=JSON.stringify(gcBody(it));let h=5381;for(let i=0;i<s.length;i++)h=(h*33+s.charCodeAt(i))>>>0;return h.toString(36)+s.length};
+function gcAuth(silent,ret){const c=GCFG();if(!c.clientId)return gcalSheet();if(!navigator.onLine){toast('اینترنت وصل نیست');return}const st=Math.random().toString(36).slice(2)+Date.now().toString(36);
+  try{sessionStorage.setItem('miz.gc.st',JSON.stringify({st,silent:!!silent,ret:ret||''}))}catch(_){}
+  location.href='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({client_id:c.clientId,redirect_uri:GC_BASE(),response_type:'token',scope:GC_SCOPE,include_granted_scopes:'true',state:st,...(silent?{prompt:'none'}:{})})}
+async function gcApi(method,path,body){const t=gcTok();if(!t)throw Object.assign(new Error('auth'),{auth:1});
+  const r=await fetch('https://www.googleapis.com/calendar/v3/'+path,{method,headers:{Authorization:'Bearer '+t,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
+  if(r.status===401){try{sessionStorage.removeItem('miz.gc.tok')}catch(_){}throw Object.assign(new Error('auth'),{auth:1})}
+  if(r.status===204)return {};const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error((j.error&&j.error.message)||('خطای '+r.status)),{status:r.status});return j}
+/* Everything the calendar should show (before approval). Window starts at the connect date − 30 days, so nothing drops out as time passes. */
+function gcItems(){const c=GCFG(),t=today(),from=c.from||addDays(t,-30),hor=addDays(t,120),noA=c.noAmt!==false,noN=!!c.noName,out=[];
+  const nm=id=>noN?'':pname(id);const amt=v=>noA||!v?'':' · '+gcAmt(v);
+  const allDay=(d,e)=>({start:{date:d},end:{date:addDays(e||d,1)}});
+  const tm=(d,min,len)=>{const e=min+len,hm=m=>mHM(m%1440)+':00';return {start:{dateTime:d+'T'+hm(min),timeZone:'Asia/Tehran'},end:{dateTime:(e>=1440?addDays(d,1):d)+'T'+hm(e),timeZone:'Asia/Tehran'},hm:mHM(min)}};
+  const push=(type,key,o)=>out.push({type,key,id:gcId(key),...o});
+  S.tasks.filter(x=>x.status!=='archived'&&x.due&&x.due>=from&&x.due<=hor&&(!x.caseId||SM('calClinic'))).forEach(x=>{const done=x.status==='done',cs=x.caseId&&byId('cases',x.caseId);
+    const ttl=(done?'✓ ':x.priority==1?'❗ ':'')+(x.caseId?'نوبت '+((cs||{}).code||''):x.title);
+    const desc=x.caseId?'':[nm(x.personId)?'با: '+nm(x.personId):'',x.city?'شهر: '+x.city:'',x.note||'',done&&x.doneAt?'انجام شد: '+jShort(x.doneAt.slice(0,10)):''].filter(Boolean).join('\n');
+    const m=taskMin(x);push('task','t:'+x.id,{date:x.due,summary:ttl,description:desc,...(m!=null?tm(x.due,m,x.caseId?CLH().len:60):allDay(x.start&&x.start<x.due?x.start:x.due,x.due)),colorId:done?'8':x.priority==1?'11':'9',rem:done?[]:m!=null?[30]:[],act:'editTask',rid:x.id})});
+  S.deals.filter(d=>d.status!=='archived'&&d.nextDate&&d.nextDate>=from&&d.nextDate<=hor).forEach(d=>push('task','d:'+d.id,{date:d.nextDate,summary:'قدم بعد: '+(d.nextStep||d.title||''),description:d.nextStep?d.title||'':'',...allDay(d.nextDate),colorId:'7',rem:[],act:'viewDeal',rid:d.id}));
+  (S.meets||[]).filter(m=>!m.void&&m.from).forEach(m=>{const [h,mm]=m.from.split(':').map(Number);const [h2,m2]=(m.to||'').split(':').map(Number);const st=h*60+(mm||0);const len=isNaN(h2)?90:Math.max(15,h2*60+(m2||0)-st);
+    let d=[from,(m.created||'').slice(0,10)].sort().pop()||from;for(let i=0;i<7&&wdOf(d)!==Number(m.wd);i++)d=addDays(d,1);
+    const until=m.active===false?((m.updated||nowTs()).slice(0,10)).replace(/-/g,'')+'T235959Z':'';
+    push('meet','m:'+m.id,{date:d,summary:m.title,description:[[m.place,m.city].filter(Boolean).join('، '),(m.members||[]).length?fa((m.members||[]).length)+' نفر':''].filter(Boolean).join('\n'),...tm(d,st,len),recurrence:['RRULE:FREQ=WEEKLY'+(until?';UNTIL='+until:'')],colorId:'3',rem:m.active===false?[]:[60],act:'formMeet',rid:m.id,rep:'هر '+WD[Number(m.wd)]})});
+  S.ledger.filter(l=>!l.void&&(l.kind==='receivable'||l.kind==='payable')&&l.due&&l.due>=from&&l.due<=hor).forEach(l=>{const rec=l.kind==='receivable',rem=remOf(l),done=l.settled||rem<=0.5,n=nm(l.personId);
+    push('money','l:'+l.id,{date:l.due,summary:(done?'✓ ':'')+(rec?'سررسید طلب':'سررسید بدهی')+(n?(rec?' از ':' به ')+n:'')+amt(done?l.amount:rem),description:noN?'':l.about||'',...allDay(l.due),colorId:done?'8':rec?'10':'11',rem:done?[]:[900],act:'viewLedger',rid:l.id})});
+  S.cheques.filter(q=>!q.void&&q.due&&q.due>=from&&q.due<=hor).forEach(q=>{const inn=q.dir==='in',done=q.status!=='wait',n=nm(q.personId);
+    push('money','c:'+q.id,{date:q.due,summary:(done?'✓ ':'')+(inn?'چک دریافتی':'چک پرداختی')+(n?(inn?' از ':' به ')+n:'')+amt(q.amount),description:'',...allDay(q.due),colorId:done?'8':inn?'10':'11',rem:done?[]:[900],act:'chqView',rid:q.id})});
+  S.recurs.forEach(r=>{const lim=r.active===false?[(r.updated||nowTs()).slice(0,10),hor].sort()[0]:hor;let last=addDays([from,r.from||from].sort().pop(),-1),left=r.left==null||r.left===''?null:Number(r.left);
+    for(let i=0;i<40;i++){let d;try{d=recurNext(r,last)}catch(_){break}if(!d||d>lim)break;last=d;if(d>t){if(left!==null&&left<=0)break;if(left!==null)left--}
+      push('money','r:'+r.id+':'+d,{date:d,summary:(d<=t?'✓ ':'')+(r.dir==='in'?'دریافت: ':'پرداخت: ')+r.title+amt(r.amount),description:'',...allDay(d),colorId:d<=t?'8':r.dir==='in'?'10':'5',rem:d<=t?[]:[900],act:'recurEdit',rid:r.id})}});
+  const tj=jOf(t).jy;S.people.filter(p=>p.status!=='archived').forEach(p=>(p.occ||[]).forEach((o,i)=>{if(!o.m||!o.d)return;for(let jy=jOf(from).jy;jy<=tj+1;jy++){const iso=jIso(jy,o.m,o.d);if(iso>=from&&iso<=hor)push('occ','o:'+p.id+':'+i+':'+jy,{date:iso,summary:'🎉 '+o.t+(noN?'':' '+p.name)+(o.y?' ('+fa(jy-o.y)+' سالگی)':''),description:'',...allDay(iso),colorId:'4',rem:[900],act:'occSheet'})}}));
+  if(gcMode('day')!=='off'){const B={},bk=d=>B[d]=B[d]||{task:[],doc:{},in:[],out:[],vis:0};const df=[from,c.dayFrom||from].sort().pop();const inR=d=>d&&d>=df&&d<=t;
+    S.tasks.forEach(x=>{const d=x.status==='done'&&(x.doneAt||'').slice(0,10);if(inR(d))bk(d).task.push(x.caseId?'':x.title)});
+    S.docs.filter(x=>!x.void&&x.inv!==false&&inR(x.date)).forEach(x=>{const k=docTitle(x);(bk(x.date).doc[k]=bk(x.date).doc[k]||[]).push(x)});
+    S.ledger.filter(l=>!l.void&&!l.pending&&(l.kind==='received'||l.kind==='paid')&&inR(l.date)).forEach(l=>bk(l.date)[l.kind==='received'?'in':'out'].push(l));
+    if(SM('calClinic'))S.visits.filter(v=>!v.void&&inR(v.date)).forEach(v=>bk(v.date).vis++);
+    Object.entries(B).forEach(([d,b])=>{const P=[],D=[];const sum=a=>a.reduce((s,l)=>s+(Number(l.amount)||0),0);
+      if(b.task.length){P.push(fa(b.task.length)+' کار');b.task.forEach(x=>D.push('✓ '+(x||'نوبت درمانی')))}
+      Object.entries(b.doc).forEach(([k,a])=>{P.push(fa(a.length)+' '+k);a.forEach(x=>{const n=noN?'':(x.personId?pname(x.personId):x.toName||'');D.push(k+' '+fa(x.no||'')+(n?' · '+n:'')+(noA?'':' · '+gcAmt(docTotal(x))))})});
+      if(b.in.length){P.push(fa(b.in.length)+' دریافت');D.push('دریافت‌ها'+(noA?'':': '+gcAmt(sum(b.in))))}
+      if(b.out.length){P.push(fa(b.out.length)+' پرداخت');D.push('پرداخت‌ها'+(noA?'':': '+gcAmt(sum(b.out))))}
+      if(b.vis){P.push(fa(b.vis)+' ویزیت')}
+      if(P.length)push('day','j:'+d,{date:d,summary:'روزنگار: '+P.join('، '),description:D.join('\n'),...allDay(d),colorId:'8',rem:[],transparent:1,act:'tbook'})})}
+  return out}
+const gcBody=it=>({summary:it.summary,description:((it.description||'')+'\n\n— از برنامهٔ میز کار').trim(),start:it.start,end:it.end,...(it.recurrence?{recurrence:it.recurrence}:{}),colorId:it.colorId,transparency:it.transparent||it.start.date?'transparent':'opaque',reminders:{useDefault:false,overrides:(it.rem||[]).map(m=>({method:'popup',minutes:m}))},extendedProperties:{private:{mk:'1'}}});
+function gcPlan(){const c=GCFG(),ok=c.ok||{},no=c.no||{},sent=gcLoc().sent;const items=gcItems(),want={},pend=[];
+  items.forEach(it=>{if(no[it.id])return;const m=gcMode(it.type);if(ok[it.id]||m==='auto'||(m==='ask'&&sent[it.id]))want[it.id]=it;else if(m==='ask')pend.push(it)});
+  return {items,want,pend,ups:Object.values(want).filter(it=>sent[it.id]!==gcHash(it)),dels:Object.keys(sent).filter(id=>!want[id])}}
+async function gcCal(){const c=GCFG();if(c.calId){if(window._gcCal===c.calId)return c.calId;try{await gcApi('GET','calendars/'+encodeURIComponent(c.calId));window._gcCal=c.calId;return c.calId}catch(e){if(e.auth||(e.status!==404&&e.status!==403))throw e}}
+  const j=await gcApi('POST','calendars',{summary:'میز کار',description:'آینهٔ برنامهٔ میز کار. تغییری که اینجا بدهی به برنامه برنمی‌گردد؛ اصلاح را در برنامه انجام بده.',timeZone:'Asia/Tehran'});
+  const L=gcLoc();L.sent={};gcLocSet(L);window._gcCal=j.id;await gcSet({calId:j.id});return j.id}
+function gcKick(ms){if(!gcOn())return;clearTimeout(window._gcT);window._gcT=setTimeout(()=>gcSync(false),ms||4000)}
+async function gcSync(manual){if(!gcOn()||window._gcBusy)return;if(!navigator.onLine){if(manual)toast('اینترنت وصل نیست؛ بعداً خودش می‌فرستد');return}
+  let P=gcPlan();if(!P.ups.length&&!P.dels.length&&!manual)return;
+  if(!gcTok()){if(manual)return gcAuth(false,'sync');return gcRefresh()}
+  window._gcBusy=true;let n=0,err='',L;
+  try{const cal=await gcCal();P=gcPlan();L=gcLoc();const base='calendars/'+encodeURIComponent(cal)+'/events/';
+    const up=async it=>{const body=gcBody(it);try{await gcApi('PUT',base+it.id,{...body,status:'confirmed'})}catch(e){if(e.status===404)await gcApi('POST','calendars/'+encodeURIComponent(cal)+'/events',{...body,id:it.id});else throw e}L.sent[it.id]=gcHash(it);n++};
+    const del=async id=>{try{await gcApi('DELETE',base+id)}catch(e){if(e.status!==404&&e.status!==410)throw e}delete L.sent[id];n++};
+    const jobs=[...P.ups.map(it=>()=>up(it)),...P.dels.map(id=>()=>del(id))];
+    for(let i=0;i<jobs.length;i+=4){await Promise.all(jobs.slice(i,i+4).map(f=>f()));gcLocSet(L)}
+    L.last=nowTs();L.err=''}
+  catch(e){L=L||gcLoc();if(e.auth){window._gcBusy=false;gcLocSet(L);if(manual)return gcAuth(false,'sync');return gcRefresh()}err=e.message;L.err=err}
+  finally{if(L)gcLocSet(L);window._gcBusy=false}
+  if(manual)toast(err?'تقویم: '+err:n?fa(n)+' مورد در تقویم به‌روز شد ✓':'تقویم به‌روز است ✓');gcRefresh()}
+function gcRefresh(){const r=document.getElementById('sheetRoot');if(r&&!r.hidden){if(r.dataset.key===window._gcKey)gcalSheet();return}if(typeof tab!=='undefined'&&tab==='today')render()}
+function gcBoot(){if(!LOAD_OK)return setTimeout(gcBoot,800);const b=window._gcBack;window._gcBack=null;
+  if(b&&b.ok){if(b.ret==='off')return gcOffNow();gcSync(b.ret==='sync');if(b.ret==='sheet')gcalSheet();else if(b.ret==='pend')gcPend();return}
+  if(b&&b.err){try{sessionStorage.setItem('miz.gc.tried','1')}catch(_){}if(!b.silent){toast('ورود به گوگل انجام نشد ('+b.err+')');gcalSheet()}return}
+  if(!gcOn())return;if(gcTok())return gcSync(false);
+  let tried='';try{tried=sessionStorage.getItem('miz.gc.tried')||''}catch(_){}
+  if(!tried&&GCFG().autoLogin!==false&&navigator.onLine&&!location.search&&!location.hash){const r=document.getElementById('sheetRoot');const P=gcPlan();if((P.ups.length||P.dels.length)&&(!r||r.hidden)){try{sessionStorage.setItem('miz.gc.tried','1')}catch(_){}gcAuth(true,'')}}}
+addEventListener('load',()=>setTimeout(gcBoot,1200));setInterval(()=>{if(gcTok())gcKick(100)},5*60*1000);addEventListener('online',()=>gcKick(1500));
+/* Status of one record in the calendar, for its own page */
+function gcPill(key){if(!gcOn())return null;const id=gcId(key),c=GCFG(),L=gcLoc();if((c.no||{})[id])return `<button class="pill" data-act="gcOk1" data-id="${id}">${svg('cal')} ردشده؛ افزودن به تقویم</button>`;
+  if(L.sent[id])return `<span class="pill ok">${svg('cal')} در تقویم گوگل ✓</span>`;if((c.ok||{})[id]||gcMode(gcItems().find(x=>x.id===id)?.type||'task')==='auto')return `<span class="pill">${svg('cal')} در صف تقویم</span>`;
+  return `<button class="pill" data-act="gcOk1" data-id="${id}">${svg('cal')} افزودن به تقویم</button>`}
+function gcalSheet(){const c=GCFG(),L=gcLoc(),base=GC_BASE(),org=location.origin;const cp=(v,l)=>`<div class="fld"><label>${l}</label><div style="display:flex;gap:6px"><input dir="ltr" readonly value="${esc(v)}" style="flex:1"><button type="button" class="btn" data-act="gcCopy" data-v="${esc(v)}">کپی</button></div></div>`;
+  const H=`<h3>${badge('affairs','cal')} تقویم گوگل</h3>`;
+  if(!c.clientId){window._gcKey=null;openSheet(`${H}<p style="font-size:13.5px;margin-top:0">کارها، جلسه‌ها، سررسیدها، مناسبت‌ها و اگر بخواهی خلاصهٔ هر روز، در تقویمی جدا به نام «میز کار» در تقویم گوگل می‌نشیند و هر اصلاح، انجام یا حذف در برنامه آنجا هم اعمال می‌شود. چه چیزی برود با تأیید توست: برای هر نوع «خودکار»، «با پرسش» یا «هرگز».</p>
+   <div class="grp">راه‌اندازی، فقط یک بار (حدود ۵ دقیقه)</div>
+   <ol style="font-size:13px;line-height:2;padding-inline-start:20px;margin:0 0 8px">
+    <li><a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com</a> را باز کن (با همان حساب گوگلِ تقویمت) و یک پروژهٔ تازه بساز، مثلاً miz-kar.</li>
+    <li>در کادر جست‌وجوی بالای صفحه بنویس <b dir="ltr">Google Calendar API</b>، بازش کن و <b>Enable</b> را بزن.</li>
+    <li>از منو <b dir="ltr">Google Auth Platform</b> (یا OAuth consent screen) ← <b>Get started</b>: نام برنامه «میز کار» و ایمیل خودت؛ در Audience گزینهٔ <b>External</b>.</li>
+    <li>در <b>Audience ← Test users</b> ایمیل خودت را اضافه کن.</li>
+    <li>در <b>Clients ← Create client</b>: نوع <b>Web application</b>؛ دو نشانی زیر را در جای خودشان بگذار و Create را بزن.</li>
+    <li><b dir="ltr">Client ID</b> ساخته‌شده (آخرش apps.googleusercontent.com است) را کپی کن و پایین بچسبان.</li></ol>
+   ${cp(org,'Authorized JavaScript origins')}${cp(base,'Authorized redirect URIs')}
+   <form data-form="gcCfg"><div class="fld"><label for="f_gcid">Client ID</label><input id="f_gcid" dir="ltr" autocomplete="off" placeholder="…apps.googleusercontent.com"></div>
+   <p class="hint" style="font-size:12px;color:var(--muted)">Client ID محرمانه نیست و فقط می‌گوید «این برنامه کیست». به Client secret نیازی نیست؛ آن را هیچ‌جا نگذار. ورود به گوگل روی همین گوشی انجام می‌شود و اجازه فقط برای تقویمی است که خود برنامه می‌سازد؛ به تقویم‌های دیگرت دسترسی ندارد.</p>
+   <div class="acts"><button class="btn pri">ذخیره و ورود به گوگل</button><button type="button" class="btn ghost" data-act="close">بستن</button></div></form>`);return}
+  const P=gcPlan(),tok=gcTok(),w=P.ups.length+P.dels.length,sentN=Object.keys(L.sent).length;
+  const ch=(k,v,l,cur)=>`<button class="chip" aria-pressed="${cur===v}" data-act="gcModeSet" data-k="${k}" data-v="${v}">${l}</button>`;
+  const html=`${H}${L.err?`<div class="banner" style="margin:0 0 8px">${svg('warn')} ${esc(L.err)}</div>`:''}
+   <div class="list"><div class="row" style="cursor:default"><div class="main"><div class="ttl" style="font-size:14px">${!c.on?'خاموش':tok?'وصل ✓':'برای ارسال، ورود به گوگل لازم است'}</div><div class="sub"><span>${fa(sentN)} مورد در تقویم</span>${w?`<span class="pill warn">${fa(w)} تغییر آمادهٔ ارسال</span>`:''}<span>آخرین ارسال: ${L.last?jNice(L.last.slice(0,10))+' '+fa(new Date(L.last).toTimeString().slice(0,5)):'—'}</span></div></div></div>
+   ${P.pend.length?`<button class="row" data-act="gcPend">${badge('affairs','bell')}<div class="main"><div class="ttl">${fa(P.pend.length)} مورد در انتظار تأیید تو</div><div class="sub"><span>همه را یکجا یا تک‌تک تأیید یا رد کن</span></div></div></button>`:''}</div>
+   <div class="acts"><button class="btn pri" data-act="gcSend">${tok?'ارسال الان':'ورود به گوگل و ارسال'}</button><a class="btn" href="https://calendar.google.com/calendar/" target="_blank" rel="noopener">باز کردن تقویم گوگل</a></div>
+   ${GH.cfg.cal?`<div class="banner" style="margin:8px 0">${svg('warn')} تقویم قدیمی (اشتراک با نشانی) هم روشن است و رویدادها تکراری می‌شوند. <button class="link" data-act="calOff">خاموشش کن</button> و در تقویم گوگل اشتراک قدیمی را Unsubscribe کن.</div>`:''}
+   <div class="grp">چه چیزهایی به تقویم برود</div>
+   ${Object.entries(GC_TYPES).map(([k,[l,ic]])=>`<div class="row" style="cursor:default;flex-wrap:wrap">${badge('affairs',ic)}<div class="main"><div class="ttl" style="font-size:14px">${l}</div></div><div class="chips" style="width:100%;margin-top:4px">${Object.entries(GCM).map(([v,t])=>ch(k,v,t,gcMode(k))).join('')}</div></div>`).join('')}
+   <p class="hint" style="font-size:12px;color:var(--muted)">«با پرسش»: هر مورد تازه اول در «در انتظار تأیید» می‌آید؛ وقتی تأییدش کردی، اصلاح‌های بعدی‌اش خودکار می‌رود. هر رکورد را از صفحهٔ خودش هم می‌شود به تقویم فرستاد.</p>
+   <div class="grp">حریم خصوصی</div>
+   <div class="chips wrap"><button class="chip" aria-pressed="${c.noAmt!==false}" data-act="gcFlag" data-k="noAmt">بدون مبلغ</button><button class="chip" aria-pressed="${!!c.noName}" data-act="gcFlag" data-k="noName">بدون نام اشخاص</button><button class="chip" aria-pressed="${c.autoLogin!==false}" data-act="gcFlag" data-k="autoLogin">ورود خودکار هنگام باز کردن برنامه</button></div>
+   <p class="hint" style="font-size:12px;color:var(--muted)">تقویم روی سرور گوگل است. از پرونده‌های درمانی فقط «نوبت + کد پرونده» می‌رود (و فقط اگر در «هوشمندی‌ها» روشن باشد)؛ نام و شرح بیمار هرگز. تقویم «میز کار» آینهٔ برنامه است: تغییری که در خود تقویم گوگل بدهی به برنامه برنمی‌گردد و با اصلاح بعدی همان رکورد بازنویسی می‌شود.</p>
+   <div class="acts" style="margin-top:12px"><button class="btn ghost" data-act="gcCfgReset">تغییر Client ID</button><button class="btn danger" data-act="gcOff">قطع و حذف تقویم «میز کار» از گوگل</button></div>`;
+  openSheet(html);const r=document.getElementById('sheetRoot');window._gcKey=r&&r.dataset.key}
+function gcPend(){const P=gcPlan(),c=GCFG(),no=c.no||{};const rej=P.items.filter(it=>no[it.id]);const by={};P.pend.forEach(it=>(by[it.type]=by[it.type]||[]).push(it));
+  openSheet(`<h3>${badge('affairs','cal')} در انتظار تقویم گوگل</h3>
+   ${P.pend.length?`<form data-form="gcPend"><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">تیک هر چه نمی‌خواهی را بردار و «تأیید» بزن؛ یا «رد» تا دیگر پرسیده نشود.</p>
+    ${Object.entries(by).map(([k,a])=>`<div class="grp">${GC_TYPES[k][0]} · ${fa(a.length)} <button type="button" class="link" data-act="gcModeSet" data-k="${k}" data-v="auto" style="font-size:12px">این نوع همیشه خودکار</button></div><div class="list">${a.sort((x,y)=>(x.date||'').localeCompare(y.date||'')).map(it=>`<label class="row"><input type="checkbox" class="gcp" value="${it.id}" checked style="width:20px;height:20px;flex:none"><div class="main"><div class="ttl" style="font-size:14px">${esc(it.summary)}</div><div class="sub"><span>${it.rep||jNice(it.date)}</span>${it.hm?`<span>${fa(it.hm)}</span>`:''}</div></div></label>`).join('')}</div>`).join('')}
+    <div class="acts" style="position:sticky;bottom:0;background:var(--surface);padding:8px 0"><button class="btn pri">تأیید انتخاب‌شده‌ها</button><button type="button" class="btn" data-act="gcRej">رد انتخاب‌شده‌ها</button></div></form>`:'<div class="empty">چیزی در انتظار تأیید نیست ✓</div>'}
+   ${rej.length?`<details style="margin-top:12px"><summary>ردشده‌ها (${fa(rej.length)})</summary><div class="list">${rej.map(it=>`<div class="row" style="cursor:default"><div class="main"><div class="ttl" style="font-size:14px">${esc(it.summary)}</div><div class="sub"><span>${jNice(it.date)}</span></div></div><button class="btn" data-act="gcUnrej" data-id="${it.id}">برگرداندن</button></div>`).join('')}</div></details>`:''}
+   <div class="acts"><button class="btn ghost" data-act="gcal">تنظیمات تقویم</button></div>`)}
+async function gcOffNow(){const c=GCFG();if(c.calId){if(!gcTok())return gcAuth(false,'off');try{await gcApi('DELETE','calendars/'+encodeURIComponent(c.calId))}catch(e){if(e.status!==404&&e.status!==410){toast('حذف نشد: '+e.message);return}}}
+  gcLocSet({sent:{}});window._gcCal=null;await gcSet({on:false,calId:'',ok:{},no:{}});try{sessionStorage.removeItem('miz.gc.tok')}catch(_){}toast('تقویم «میز کار» از گوگل حذف و اتصال قطع شد');closeSheet();render()}
 function ghPush(m){return GH.cfg.sync&&GH.cfg.pass?ghSync(m):ghPush0(m)}
 async function ghPush0(manual){const c=GH.cfg;if(!c.token||!c.repo){if(manual)ghSheet();return}if(ghBusy)return;if(!navigator.onLine){if(manual)toast('اینترنت وصل نیست؛ وقتی وصل شد خودش می‌فرستد');return}
   {const bl=cloudBlock(0);if(bl){GH.cfg={...GH.cfg,err:bl,blocked:1};if(manual)shrinkSheet(bl);return}}ghBusy=true;try{const body=await ghPack(backupData(),c.pass||'');const path='miz-kar-backup.json';let sha;const g=await ghApi(path);if(g.status===200)sha=(await g.json()).sha;else if(g.status===401||g.status===403)throw new Error('توکن معتبر نیست یا دسترسی ندارد');else if(g.status===404&&!(await fetch('https://api.github.com/repos/'+c.repo,{headers:{Authorization:'Bearer '+c.token}})).ok)throw new Error('مخزن پیدا نشد؛ نام آن را بررسی کن');
@@ -1334,11 +1467,11 @@ function ghSheet(){const c=GH.cfg;openSheet(`<h3>${badge('affairs','box')} پش�
   <div class="acts"><button class="btn pri">ذخیره و ارسال الان</button>${c.token?'<button type="button" class="btn" data-act="ghPull">بازیابی از گیت‌هاب</button>':''}<button type="button" class="btn ghost" data-act="close">بستن</button></div></form>
   ${c.token?`<div class="grp" style="margin-top:16px;color:var(--bad)">قطع اتصال</div><p style="font-size:13px;margin:0 0 6px">برنامه را دوباره فقط به گوشی متکی کن: ارسال خودکار و تقویم متوقف می‌شود، توکن از گوشی پاک می‌شود و فایل تقویم از گیت‌هاب حذف می‌شود. داده‌های برنامه دست نمی‌خورد.</p><button class="btn danger" style="width:100%" data-act="cloudOff">قطع همهٔ اتصال‌های بیرونی</button>`:''}
   ${c.token?`<div class="grp" style="margin-top:16px">${svg('cal')} تقویم گوگل</div>
-  <p style="font-size:13px;margin:0 0 8px">کارهای تاریخ‌دار، قدم بعدی فرصت‌ها، سررسید طلب و بدهی (بدون مبلغ) و تولدها، همراه پشتیبان در یک تقویم به‌روز می‌شوند و تقویم گوگل هر چند ساعت خودش آن را می‌خواند. کارهای پرونده‌های درمانی فرستاده نمی‌شوند.</p>
+  ${c.cal?`<p style="font-size:13px;margin:0 0 8px">روش قدیمی (اشتراک با نشانی) روشن است. روش تازه، «بیشتر ← تقویم گوگل»، فوری و با تأیید توست؛ بعد از راه‌اندازی آن، این را خاموش کن.</p>`:''}
   ${c.cal?`${c.calErr?`<div class="banner" style="margin:0 0 8px">${svg('warn')} ${esc(c.calErr)}</div>`:''}${c.calUrl?`<div class="fld"><label>نشانی تقویم (یک بار در تقویم گوگل اضافه کن)</label><input id="f_calurl" dir="ltr" readonly value="${esc(c.calUrl)}"></div>
    <div class="acts"><button class="btn pri" data-act="calCopy">کپی نشانی</button><a class="btn" href="https://calendar.google.com/calendar/u/0/r/settings/addbyurl" target="_blank" rel="noopener">باز کردن «افزودن با نشانی» در گوگل</a><button class="btn ghost" data-act="calOff">خاموش کردن تقویم</button></div>
    <ol style="font-size:12.5px;color:var(--muted);padding-inline-start:18px;line-height:1.9"><li>«کپی نشانی» را بزن.</li><li>«باز کردن افزودن با نشانی» را بزن (اگر اپ تقویم باز شد، در Chrome با «Desktop site» باز کن).</li><li>نشانی را بچسبان و «Add calendar» را بزن.</li><li>در اپ تقویم گوگل گوشی، تقویم «میز کار» را روشن کن و برایش اعلان بگذار.</li></ol>
-   <p class="hint" style="font-size:12px;color:var(--muted)">آخرین به‌روزرسانی تقویم: ${c.calLast?jNice(c.calLast.slice(0,10))+' '+fa(new Date(c.calLast).toTimeString().slice(0,5)):'—'}. نشانی محرمانه است؛ آن را به کسی نده.</p>`:'<p class="hint">در حال ساختن…</p>'}`:`<button class="btn" style="width:100%" data-act="calOn">${svg('cal')} روشن کردن تقویم گوگل</button>`}`:''}`)}
+   <p class="hint" style="font-size:12px;color:var(--muted)">آخرین به‌روزرسانی تقویم: ${c.calLast?jNice(c.calLast.slice(0,10))+' '+fa(new Date(c.calLast).toTimeString().slice(0,5)):'—'}. نشانی محرمانه است؛ آن را به کسی نده.</p>`:'<p class="hint">در حال ساختن…</p>'}`:`<button class="btn" style="width:100%" data-act="gcal">${svg('cal')} تقویم گوگل</button>`}`:''}`)}
 addEventListener('online',()=>{if(ghDirty)ghPush()});addEventListener('load',()=>setTimeout(()=>{const c=GH.cfg;if(c.token&&(!c.last||Date.now()-new Date(c.last)>864e5)){ghDirty=true;ghPush()}},5000));setInterval(()=>{if(ghDirty)ghPush()},5*60*1000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ghDirty)ghPush()});
 
@@ -1770,6 +1903,7 @@ const ACTS=[
  ['امنیت و تنظیمات','prefs','affairs','filter','چیدمان و هوشمندی‌ها','بخش‌های «امروز» و کمک‌های هوشمند','چیدمان تنظیم هوشمند خاموش روشن سلیقه',''],
  ['امنیت و تنظیمات','aboutHub','affairs','book','درباره و راهنما',()=>'نسخهٔ '+fa(APP_VER)+' · راهنما، تازه‌ها، نقشهٔ راه','درباره راهنما نسخه به روز رسانی',''],
  ['امنیت و تنظیمات','backupSheet','affairs','box','ایمنی و پشتیبان',()=>lastBackup()?'آخرین: '+jNice(lastBackup()):'هنوز گرفته نشده','پشتیبان بکاپ بازیابی گیت هاب',''],
+ ['کار و زمان','gcal','affairs','cal','تقویم گوگل',()=>{if(!gcOn())return'کارها، جلسه‌ها و سررسیدها در تقویم گوگل';const P=gcPlan();return P.pend.length?fa(P.pend.length)+' مورد در انتظار تأیید':gcTok()?'وصل ✓':'روشن · '+fa(Object.keys(gcLoc().sent).length)+' مورد'},'تقویم گوگل google calendar رویداد یادآوری همگام',''],
  ['کار و زمان','meets','affairs','cal','جلسه‌های منظم',()=>{const n=(S.meets||[]).filter(m=>!m.void).length;return n?fa(n)+' جلسهٔ هفتگی':'قرآن، کلاس، هیئت؛ با پیامک یادآوری'},'جلسه قرآن کلاس هیئت هفتگی منظم پیامک گروهی یادآوری',''],
  ['امنیت و تنظیمات','licSheet','affairs','key','نسخه و فعال‌سازی',()=>licLabel(),'نسخه فعال سازی مجوز آزمایشی اشتراک خرید کد',''],
  ['امنیت و تنظیمات','licAdmin','finance','key','مدیریت فروش برنامه','کد فعال‌سازی مشتری، نسخه‌ها، فرستادن برنامه','فروش برنامه مشتری کد فعال سازی کپی نسخه پایه نقره ای طلایی',''],
@@ -2135,6 +2269,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['4.09',[['affairs','cal','تقویم گوگل، هماهنگ با برنامه','«بیشتر ← تقویم گوگل»: کارها، جلسه‌ها، سررسیدها، مناسبت‌ها و روزنگار هر روز در تقویمی جدا به نام «میز کار»؛ هر اصلاح، انجام یا حذف در برنامه آنجا هم اعمال می‌شود. برای هر نوع «خودکار»، «با پرسش» یا «هرگز»؛ موارد «با پرسش» یکجا یا تک‌تک تأیید می‌شوند.','gcal']]],
  ['4.08',[['sales','note','هر ردیف در صفحهٔ خودش','در فاکتور و اسناد مشابه، ردیف‌ها فهرستی مرتب (شرح، مقدار × فی، مبلغ) است؛ «+ کالا» اول کالا را انتخاب می‌کند و بعد صفحهٔ کامل همان ردیف باز می‌شود (مقدار، کارتن، فی با پیشنهاد، انبار، توضیح، تخفیف)؛ «ثبت ردیف» صفحه را می‌بندد و «ثبت و ردیف بعدی» سراغ کالای بعدی می‌رود. لمس هر ردیف برای اصلاح یا حذف.','saleNew'],['affairs','cal','تاریخ تک‌ردیفه','گزینه‌های امروز، دیروز، فردا… زیر تاریخ‌ها برداشته شد؛ فقط همان ردیف تاریخ با جلو و عقب و تقویم.','tab|tasks']]],
  ['4.07',[['affairs','lock','همگام‌سازی با پشتیبان بزرگ','وقتی پشتیبان ابری از یک مگابایت بزرگ‌تر شود، گیت‌هاب محتوا را جدا می‌دهد؛ حالا همان‌طور خوانده می‌شود و پیام اشتباه «رمز یکی نیست» نمی‌آید.','syncSheet']]],
  ['4.06',[['affairs','lock','ایمنی داده‌ها','اگر داده‌های گوشی خوانده نشود «حالت بازیابی» می‌آید و هیچ چیز به ابر نمی‌رود؛ ارسال نسخهٔ خیلی کوچک‌تر به ابر بی‌تأیید ممنوع است؛ شمارش «تغییرات ارسال‌نشده»؛ در همگام‌سازی، ردیفی که هر دو دستگاه عوض کرده‌اند با جدول مقایسه از تو پرسیده می‌شود؛ ۱۰ نسخهٔ خودکار پیش از هر بازیابی، حذف و همگام‌سازی؛ بازیابی با پیش‌نمایش و تأیید تایپی برای جایگزینی؛ خروجی و بازیابی اکسل کامل.','backupSheet']]],
@@ -2656,7 +2791,7 @@ async function ghSync(manual){const c=GH.cfg;if(!c.token||!c.repo){if(manual)ghS
       const snap=syncData();snap.devs={...((remote&&remote.devs)||{}),[devName()]:nowTs()};
       const body=await ghPack(snap,c.pass);const r=await ghApi(path,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'sync '+devName()+' '+jShort(today())+' '+new Date().toTimeString().slice(0,5),content:b64e(new TextEncoder().encode(body)),sha})});
       if(r.status===409||r.status===422)continue;if(!r.ok)throw new Error('ارسال نشد ('+r.status+')');
-      GH.cfg={...GH.cfg,last:nowTs(),syncAt:nowTs(),err:'',blocked:0,allowShrink:false,devs:snap.devs};ghDirty=false;unsentClear();if(openConf().length){render();if(manual)setTimeout(conflictsSheet,300);else toast(fa(openConf().length)+' تعارض همگام‌سازی؛ در «امروز» ببین')}try{localStorage.setItem('miz.lastBackup',today())}catch(_){}if(GH.cfg.cal)await calPush(false);if(got)render();if(manual)toast(got?fa(got)+' تغییر از دستگاه‌های دیگر آمد ✓':'همگام است ✓');return}
+      GH.cfg={...GH.cfg,last:nowTs(),syncAt:nowTs(),err:'',blocked:0,allowShrink:false,devs:snap.devs};ghDirty=false;unsentClear();if(openConf().length){render();if(manual)setTimeout(conflictsSheet,300);else toast(fa(openConf().length)+' تعارض همگام‌سازی؛ در «امروز» ببین')}try{localStorage.setItem('miz.lastBackup',today())}catch(_){}try{gcKick(2000)}catch(_){}if(GH.cfg.cal)await calPush(false);if(got)render();if(manual)toast(got?fa(got)+' تغییر از دستگاه‌های دیگر آمد ✓':'همگام است ✓');return}
     throw new Error('هم‌زمان با دستگاه دیگر؛ چند لحظه بعد دوباره')}
   catch(e){const m=e instanceof TypeError?'به گیت‌هاب وصل نشد؛ اینترنت یا فیلترشکن را بررسی کن.':(e.message||'خطا');GH.cfg={...GH.cfg,err:m};if(manual)toast(m)}finally{syncBusy=false;ghBusy=false}}
 async function syncMerge(data){window._noUnsent=true;try{return await syncMerge0(data)}finally{window._noUnsent=false}}
@@ -2982,6 +3117,7 @@ function vToday(){
   {let sn='';try{sn=localStorage.getItem('miz.recurAsk')||''}catch(_){}if(on('recurs')&&S.recurs.length<3&&(!sn||sn<=today()))A+=`<div class="row" style="margin-top:12px;border:1px dashed var(--line);border-radius:14px;flex-wrap:wrap">${badge('finance','bell')}<div class="main"><div class="ttl">پول‌های ثابت ماهانه را کم‌کم وارد کن</div><div class="sub"><span>پرداخت‌های خودکار بانک، خرجی منزل، دریافتی از پدر، حق بیمه… هر بار یکی؛ بعد خودش در روزش ثبت می‌شود و فقط تأیید می‌خواهد.</span></div></div><div class="acts" style="width:100%;margin-top:6px"><button class="btn" data-act="newRecur">افزودن یکی</button><button class="btn ghost" data-act="recurLater">بعداً بپرس</button></div></div>`}
   {const inc=openTasks().filter(x=>x.incomplete);if(inc.length)A+=block('نیاز به تکمیل',inc.length,`<div class="list">${inc.map(x=>`<button class="row" data-act="completeTask" data-id="${x.id}">${badge(x.area||'affairs','note')}<div class="main"><div class="ttl">${esc(x.title)}</div><div class="sub"><span class="pill warn">${fa((x.needs||[]).length)} مورد را بپرس</span><span>${esc((x.needs||[]).join('، '))}</span></div></div></button>`).join('')}</div>`)}
   try{meetDue().reverse().forEach(m=>{A=`<div class="row" style="margin-top:12px;border:1px solid var(--accent);border-radius:14px;background:var(--accent-soft);flex-wrap:wrap">${badge('affairs','cal')}<div class="main"><div class="ttl">فردا ${esc(m.title)}</div><div class="sub"><span>${WD[Number(m.wd)]} ${meetTime(m)}</span><span>${fa((m.members||[]).length)} نفر</span></div></div><div class="acts" style="margin:6px 0 0;width:100%"><button class="btn pri" data-act="meetSms" data-id="${m.id}">پیامک یادآوری</button><button class="btn ghost" data-act="meetSkip" data-id="${m.id}">این بار نه</button></div></div>`+A})}catch(_){}
+  try{if(gcOn()){const P=gcPlan(),w=P.ups.length+P.dels.length,tk=gcTok();if(P.pend.length||(w&&!tk))A+=`<button class="row" data-act="${P.pend.length?'gcPend':'gcSend'}" style="margin-top:12px;border:1px solid var(--line);border-radius:14px">${badge('affairs','cal')}<div class="main"><div class="ttl">${P.pend.length?'تقویم گوگل: '+fa(P.pend.length)+' مورد در انتظار تأیید':'تقویم گوگل: '+fa(w)+' تغییر آمادهٔ ارسال'}</div><div class="sub"><span>${P.pend.length?'همه را یکجا یا تک‌تک تأیید یا رد کن':'یک لمس برای ورود به گوگل و ارسال'}</span></div></div></button>`}}catch(_){}
   if(A&&TS('attn'))h+=`<div class="blk-h" style="margin-top:14px"><h2>${svg('warn')} نیاز به توجه</h2><span class="n" id="attnN"></span></div><div class="attn" id="attnBox">${A}</div>`;setTimeout(attnFold,0);
   {const hc=TS('here')&&hereCity();if(hc){const ct=openTasks().filter(x=>x.city===hc).sort((a,b)=>(a.priority||3)-(b.priority||3)||(a.due||'9').localeCompare(b.due||'9'));
     h+=block(`در ${esc(hc)} هستی · کارهای اینجا`,ct.length,listOr(ct,taskRow,'کار بازی برای این شهر نمانده.'),`<button class="link" data-act="hereOff">سفر تمام شد</button>`)}}
@@ -3243,7 +3379,7 @@ const LOGT=[['sms','پیامک'],['call','تماس'],['msg','واتساپ/پیا
 const logName=k=>(LOGT.find(x=>x[0]===k)||[,'یادداشت'])[1];
 const logLine=(x,withTask)=>`<div class="row" style="cursor:default"><div class="main"><div class="ttl"><span class="pill">${esc(logName(x.type))}</span> ${esc(x.text||'')}</div><div class="sub"><span>${jNice(x.d)}</span>${withTask?`<span>· ${esc(withTask)}</span>`:''}${x.next==='done'?'<span>· کار تمام شد</span>':x.nextDue?`<span>· پیگیری بعدی ${jNice(x.nextDue)}</span>`:''}</div></div></div>`;
 function taskProgress(t){const log=(t.log||[]).slice().reverse();const per=t.personId?byId('people',t.personId):null;
-  return `<h3>${esc(t.title)}</h3><div class="sub" style="display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 10px">${t.due?duePill(t.due):''}${per?`<span class="pill">${esc(per.name)}</span>`:''}${t.city?`<span class="pill">${esc(t.city)}</span>`:''}<a class="pill" href="${gcalLink(t)}" target="_blank" rel="noopener">+ تقویم گوگل</a>${taskPayPills(t)}${per&&per.phone?`<a class="pill" href="tel:${esc(normDigits(String(per.phone).split(/[،,]/)[0]))}">تماس</a><a class="pill" href="sms:${esc(normDigits(String(per.phone).split(/[،,]/)[0]))}">پیامک</a>`:''}</div>
+  return `<h3>${esc(t.title)}</h3><div class="sub" style="display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 10px">${t.due?duePill(t.due):''}${per?`<span class="pill">${esc(per.name)}</span>`:''}${t.city?`<span class="pill">${esc(t.city)}</span>`:''}${t.due?(gcPill('t:'+t.id)||`<a class="pill" href="${gcalLink(t)}" target="_blank" rel="noopener">+ تقویم گوگل</a>`):''}${taskPayPills(t)}${per&&per.phone?`<a class="pill" href="tel:${esc(normDigits(String(per.phone).split(/[،,]/)[0]))}">تماس</a><a class="pill" href="sms:${esc(normDigits(String(per.phone).split(/[،,]/)[0]))}">پیامک</a>`:''}</div>
   <form data-form="tlog" data-id="${t.id}" style="border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px">
    <div class="fld"><label>چه کردی؟ (ثبت پیشرفت)</label><div class="chips wrap">${LOGT.map(([k,l],i)=>`<button type="button" class="chip" data-act="pick1" data-v="${k}" aria-pressed="${i===0}">${l}</button>`).join('')}</div></div>
    <div class="fld"><textarea id="f_lt" rows="2" placeholder="مثلاً پیامک پیگیری فرستادم؛ گفت تا فردا خبر می‌دهد"></textarea></div>
@@ -4258,7 +4394,7 @@ function fbBack(name){const C=FB[name];if(C.s&&typeof window[C.s]==='function')w
 function fHint(defs,sheet){const on1=Object.entries(defs).some(([k,d])=>(ui[k]??d)!==d);if(!on1)return'';return `<div class="hint" data-fhint style="font-size:12px;margin:6px 2px">${svg('filter')} فیلتر از دفعهٔ قبل فعال است: <b data-fl></b> <button class="link" data-act="fClear" data-v="${esc(JSON.stringify(defs))}" data-s="${sheet||''}">همه را نشان بده</button></div>`}
 function fLabels(root){(root||document).querySelectorAll('[data-fhint]').forEach(h=>{const b=h.querySelector('[data-fl]');if(!b||b.textContent)return;let p=h.previousElementSibling;const L=[];for(let i=0;i<4&&p;i++,p=p.previousElementSibling){if(p.classList&&p.classList.contains('chips'))p.querySelectorAll('[aria-pressed=true]').forEach(x=>L.push(x.textContent.replace(/[۰-۹0-9]+\s*$/,'').trim()))}b.textContent=L.filter(x=>!/^همه/.test(x)).join(' · ')||'انتخاب دفعهٔ قبل'})}
 /* ---------- undo: every user action's writes can be reverted for a few seconds ---------- */
-let UB=null,_ubT=0;const UNDO_SELF=['rowEdit','reSave','reCancel','reDel','reSug','snaps','snapView','snapNow','snapDl','snapApply','rsGo','recRetry','recBadDl','recReset','confSheet','confPick','shrinkOk','xlsxOut','recov2','ghNow','shrinkView','kardex','kxV','kxPrint','ipProd','ipBack','ipLot','ipHist','ipVar','ipNew','ipBlank','ipPr','ipAddNext','docView','imgSet','meets','formMeet','meetWd','meetMemAdd','meetMemDel','meetSms','plDrill','stProd','diSvcQ','licSheet','licAdmin','ladmTiers','licReqShare','ladmPub','ladmCopy','ladmShareApp','tgJump','stX','newDocSheet','stockMore','fbOpen','fbSet','fbDone','fbDel','fbClr','pFSet','pFDel','pFSheet','prTap','habitToggle','ibNiy','ibSileh','ibQ','recurToggle','gsToggle','toggleChip','mhsHide','cGoal','vwSet','brSet','filter','fClear','pFClear','attnAll','hSnooze','cPriv','cFilter','docF','chqF','winF','asF','chgA'];const UNDO_SKIPM=['tomb','prefs','profile'];const UNDO_FIN=['ledger','vouchers','docs','moves','lots','cheques'];
+let UB=null,_ubT=0;const UNDO_SELF=['gcal','gcPend','gcSend','gcCopy','gcModeSet','gcFlag','gcOk1','gcRej','gcUnrej','gcCfgReset','gcOff','rowEdit','reSave','reCancel','reDel','reSug','snaps','snapView','snapNow','snapDl','snapApply','rsGo','recRetry','recBadDl','recReset','confSheet','confPick','shrinkOk','xlsxOut','recov2','ghNow','shrinkView','kardex','kxV','kxPrint','ipProd','ipBack','ipLot','ipHist','ipVar','ipNew','ipBlank','ipPr','ipAddNext','docView','imgSet','meets','formMeet','meetWd','meetMemAdd','meetMemDel','meetSms','plDrill','stProd','diSvcQ','licSheet','licAdmin','ladmTiers','licReqShare','ladmPub','ladmCopy','ladmShareApp','tgJump','stX','newDocSheet','stockMore','fbOpen','fbSet','fbDone','fbDel','fbClr','pFSet','pFDel','pFSheet','prTap','habitToggle','ibNiy','ibSileh','ibQ','recurToggle','gsToggle','toggleChip','mhsHide','cGoal','vwSet','brSet','filter','fClear','pFClear','attnAll','hSnooze','cPriv','cFilter','docF','chqF','winF','asF','chgA'];const UNDO_SKIPM=['tomb','prefs','profile'];const UNDO_FIN=['ledger','vouchers','docs','moves','lots','cheques'];
 function undoOpen(){UB={t:Date.now(),ops:[],seen:new Set()}}
 function undoRec(col,id){try{if(!UB||Date.now()-UB.t>6000||!SM('undo'))return;if(col==='contacts'||(col==='meta'&&UNDO_SKIPM.includes(id)))return;const k=col+'/'+(id||'');if(id&&UB.seen.has(k))return;
   const prev=id?byId(col,id):null;if(id)UB.seen.add(k);UB.ops.push({col,id,prev:prev?JSON.parse(JSON.stringify(prev)):null,neu:!id});clearTimeout(_ubT);_ubT=setTimeout(undoShow,700)}catch(_){}}
@@ -4846,6 +4982,17 @@ document.addEventListener('click',async e=>{
     case'accAcc':accAccSheet(b.dataset.v);break;
     case'plDrill':plDrill(b.dataset.v);break;
     case'meets':meetsSheet();break;
+    case'gcal':gcalSheet();break;
+    case'gcPend':gcPend();break;
+    case'gcSend':gcSync(true);break;
+    case'gcCopy':{const v=b.dataset.v;try{await navigator.clipboard.writeText(v);toast('کپی شد')}catch(_){toast(v)}break}
+    case'gcModeSet':{const c=GCFG();await gcSet({modes:{...(c.modes||{}),[b.dataset.k]:b.dataset.v}});toast(GC_TYPES[b.dataset.k][0]+': '+GCM[b.dataset.v]);if(document.querySelector('[data-form="gcPend"]'))gcPend();else gcalSheet();break}
+    case'gcFlag':{const k=b.dataset.k,c=GCFG();const cur=k==='noName'?!!c[k]:c[k]!==false;await gcSet({[k]:!cur});gcalSheet();break}
+    case'gcOk1':{const c=GCFG(),no={...(c.no||{})};delete no[id];await gcSet({ok:{...(c.ok||{}),[id]:1},no});b.outerHTML=`<span class="pill">${svg('cal')} در صف تقویم</span>`;toast(gcTok()?'به تقویم می‌رود':'تأیید شد؛ با ورود بعدی به گوگل می‌رود');break}
+    case'gcRej':{const ids=[...document.querySelectorAll('.gcp:checked')].map(x=>x.value);if(!ids.length)return toast('چیزی انتخاب نشده');const c=GCFG(),no={...(c.no||{})};ids.forEach(i=>no[i]=1);await gcSet({no});toast(fa(ids.length)+' مورد رد شد');gcPend();break}
+    case'gcUnrej':{const c=GCFG(),no={...(c.no||{})};delete no[id];await gcSet({no});gcPend();break}
+    case'gcCfgReset':{await gcSet({clientId:''});gcalSheet();break}
+    case'gcOff':{if(b.dataset.arm!=='1'){b.dataset.arm='1';b.textContent='دوباره بزن: تقویم «میز کار» و همهٔ رویدادهایش از گوگل حذف می‌شود';return}await gcOffNow();break}
     case'formMeet':formMeet(id?byId('meets',id)||{}:{});break;
     case'meetWd':{document.querySelectorAll('[data-act=meetWd]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));document.getElementById('f_mwd').value=b.dataset.v;break}
     case'meetMemAdd':{const r=(window._mr||[])[Number(b.dataset.v)];if(r){window._mm=[...(window._mm||[]),r];document.getElementById('meetMem').innerHTML=meetMemRows(window._mm);const q=document.getElementById('f_mq');if(q){q.value='';q.focus()}document.getElementById('meetRes').innerHTML='';const r0=document.getElementById('sheetRoot');r0.dataset.dirty='1'}break}
@@ -4989,6 +5136,8 @@ document.addEventListener('change',e=>{if(e.target.classList&&e.target.classList
 document.addEventListener('focusin',e=>{if(e.target.dataset&&e.target.dataset.pp&&!document.getElementById(e.target.dataset.pp).value)ppSearch(e.target.dataset.pp,e.target.value)});
 document.addEventListener('submit',async e=>{window._subAt=Date.now();{const F=e.target&&e.target.dataset&&e.target.dataset.form;
   if(F==='ipAdd'){e.preventDefault();ipCommit(false);return}
+  if(F==='gcCfg'){e.preventDefault();const id=val('f_gcid').replace(/\s+/g,'');if(!/^[\w-]+\.apps\.googleusercontent\.com$/.test(id))return toast('Client ID درست نیست؛ باید به apps.googleusercontent.com ختم شود');const c=GCFG();await gcSet({clientId:id,on:true,from:c.from||addDays(today(),-30),dayFrom:c.dayFrom||today()});return gcAuth(false,'sheet')}
+  if(F==='gcPend'){e.preventDefault();const ids=[...e.target.querySelectorAll('.gcp:checked')].map(x=>x.value);if(!ids.length)return toast('چیزی انتخاب نشده');const c=GCFG(),ok={...(c.ok||{})};ids.forEach(i=>ok[i]=1);await gcSet({ok});toast(fa(ids.length)+' مورد تأیید شد'+(gcTok()?'؛ در حال ارسال…':'؛ برای ارسال، ورود به گوگل لازم است'));if(gcTok())gcKick(200);gcPend();return}
   if(F==='licAct'){e.preventDefault();const c=val('f_lac').replace(/\s+/g,'');if(!c)return toast('کد را بچسبان');if(!LIC_PUB)return toast('این نسخه هنوز کد فعال‌سازی نمی‌پذیرد؛ با فروشنده تماس بگیر');const p=await licVerify(c);if(!p)return toast('کد درست نیست');if(p.d!==devId())return toast('این کد برای گوشی دیگری صادر شده');licSet({...licGet(),code:c});_licV=true;closeSheet();render();toast('فعال شد: '+(p.t||'')+' ✓');return}
   if(F==='ladmGen'){e.preventDefault();const a1=val('f_lp1'),a2=val('f_lp2');if(a1.length<8)return toast('رمز دست‌کم ۸ حرف');if(a1!==a2)return toast('دو رمز یکی نیست');await ladmGen(a1);toast('کلید ساخته شد ✓ رمزش را جایی امن نگه دار');licAdmin();return}
   if(F==='ladmIssue'){e.preventDefault();const A=LADM();const T=(A.tiers||LTIERS0)[Number(val('f_lt'))]||LTIERS0[0];const r=val('f_lr').toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^MZ/,'');if(r.length!==8)return toast('کد درخواست ۸ حرف بعد از MZ دارد');const dd=Number(val('f_le'))||0;

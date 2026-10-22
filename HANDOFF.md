@@ -425,3 +425,10 @@
 - ویرایشگر ردیف: `rowEdit(el,isNew,L0)` گره .ditem را به برگهٔ «ردیف n» (#rowEd، با f_dty/f_person پنهان برای diPk) می‌برد؛ جای آن `i.di_ph`. `reFinish(save|cancel|del)` با history.go به عمق L0 برمی‌گردد و `reHook()` (درون sheetBack) ردیف را سر جایش می‌گذارد؛ برگشت گوشی = ثبت اگر کامل، وگرنه انصراف. «ثبت و ردیف بعدی» → itemPicker. `newRow(x)`، `rowSug` (قیمت روز/آخرین همین طرف/بهای خرید، فقط اگر diPk راهنما نداد)، `reTot`، `reValid` (شرح، مقدار، موجودی محموله).
 - itemPicker: انتخاب کالا → `window._ipNew` و بازگشت به فرم → sheetBack ردیف تازه را با ویرایشگر باز می‌کند (ipDetail دیگر استفاده نمی‌شود). سند تازه بدون ردیف خالی شروع می‌شود (#diEmpty).
 - dateField: تراشه‌های امروز/دیروز/فردا… حذف؛ برای تاریخ‌های آینده دکمهٔ ✕ «بدون تاریخ» داخل همان ردیف.
+
+## 4.09 — Google Calendar (API, one-way mirror with approval)
+- `gcalSheet` (More ← تقویم گوگل): setup guide (user's own OAuth Web client; origin + redirect URI shown with copy), then per-kind mode chips auto/ask/off (`GC_TYPES`: task, meet, money, occ, day), privacy flags noAmt (default on), noName, autoLogin.
+- Auth: OAuth implicit redirect (`gcAuth`, scope `calendar.app.created` → only the calendar the app creates). Token captured by the first inline script from `#access_token` (state checked), kept only in sessionStorage `miz.gc.tok`. `gcBoot` on load: returns from sign-in, or a silent `prompt=none` redirect once per session when there are changes to send.
+- Config/approvals synced in meta `gcal` (clientId, on, calId, from, dayFrom, modes, ok{}, no{}); per-device sent hashes in localStorage `miz.gc`.
+- `gcItems` builds desired events (window from connect date − 30 days → +120 days; deterministic ids `gcId` = 'mk'+hex(key)); `gcPlan` → want/pend/ups/dels; `gcSync` upserts (PUT, POST on 404) and deletes; kicked from `markDirty` and after ghSync.
+- `gcPend` approval page (approve/reject selected, "always auto" per kind), Today attention card, `gcPill` on task view. Clinical tasks only as «نوبت + کد» and only if smart toggle calClinic. Old gist .ics feed kept but flagged as duplicate.
