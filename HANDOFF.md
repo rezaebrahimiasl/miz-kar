@@ -438,3 +438,7 @@
 - Views `IPV` (stock, mine, recent, top, site, man) shown only when non-empty, remembered per family in localStorage `miz.ipV.<fam>`; facets (group, pack) appear only when >1 value. Guided manual `ipMan` (group → variety → pack) builds the name (`ipMake`).
 - Warnings: «در انبار نیست» (sale), «در همین فاکتور هست» (second tap to confirm). Lot chips per candidate (FIFO default).
 - `pickOpen` routes any select with ≥2 lot options to `itemPicker(sel)` (select mode, `ipSelSet`, «گزینه‌های دیگر» for non-lot options; row desc follows a changed lot). Long generic pickers show «اخیر» (localStorage `miz.pkR`). Old ipData/ipDetail/ipCommit flow removed.
+
+## 4.11 — Smart person picker and quick filters
+- `ppSearch` with empty query shows view chips (recent, freq, role by doc type, recv, pay, all), only non-empty, remembered per form context in localStorage `miz.ppV.<ctx+type>`; rows show balance, org, phone. Act `ppV`.
+- `fBar`: the group marked `q` (else the first with counts) renders inline quick chips with counts (zero hidden); act `fbQ` toggles (tap again = default) and persists via `uiKeep`. Applies to every FB list (people, money tx, tasks, deals, docs, cheques, assets, clinic, wins, stock).
