@@ -432,3 +432,9 @@
 - Config/approvals synced in meta `gcal` (clientId, on, calId, from, dayFrom, modes, ok{}, no{}); per-device sent hashes in localStorage `miz.gc`.
 - `gcItems` builds desired events (window from connect date − 30 days → +120 days; deterministic ids `gcId` = 'mk'+hex(key)); `gcPlan` → want/pend/ups/dels; `gcSync` upserts (PUT, POST on 404) and deletes; kicked from `markDirty` and after ghSync.
 - `gcPend` approval page (approve/reject selected, "always auto" per kind), Today attention card, `gcPill` on task view. Clinical tasks only as «نوبت + کد» and only if smart toggle calClinic. Old gist .ics feed kept but flagged as duplicate.
+
+## 4.10 — Smart item picker
+- `itemPicker(sel?)`: one sheet; `ipCands()` merges doc history (same family via `ipFam`), lots (sale excludes supplies), site catalog and price quotes into candidates keyed by nrm(desc) with stock, counts, last/with-party stats, pack, variety.
+- Views `IPV` (stock, mine, recent, top, site, man) shown only when non-empty, remembered per family in localStorage `miz.ipV.<fam>`; facets (group, pack) appear only when >1 value. Guided manual `ipMan` (group → variety → pack) builds the name (`ipMake`).
+- Warnings: «در انبار نیست» (sale), «در همین فاکتور هست» (second tap to confirm). Lot chips per candidate (FIFO default).
+- `pickOpen` routes any select with ≥2 lot options to `itemPicker(sel)` (select mode, `ipSelSet`, «گزینه‌های دیگر» for non-lot options; row desc follows a changed lot). Long generic pickers show «اخیر» (localStorage `miz.pkR`). Old ipData/ipDetail/ipCommit flow removed.
