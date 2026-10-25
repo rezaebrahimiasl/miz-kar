@@ -454,3 +454,13 @@
 - `invDiag()/invDiagHtml()` in accAccSheet('1301') + act invAdj (adjusting voucher).
 - Tasks: time + alarm fields → gcal reminders (alarm items auto-approved; 9:00 if no time); asset expiries in gcal.
 - Habits/tasks: `pauseSheet(col,id)` (form «pause»), off habits get reviewAt (60 d) with Today card (hRe/hLater/hNever), pause-end card (pzOk), `missInsights()` (weekday misses, consistent other weekday for weekly tasks → taskDay, 14+ days overdue series → taskPause), dismiss 30 d (insDis).
+
+## 4.13 — Audit stage 1 (bugs 1–9, suggestions 9–10)
+- lgSettle banner only for free-standing cash rows (no docId/lotId/visitOf/recurId/netOff/ret/ref) and needs a second tap.
+- A capture-phase click resets `_subAt`, so sheets opened by a new tap stack instead of replacing an unsaved form.
+- `dataSig()` (hash of all collections' updated/void/settled, once per tick + `_dv` bumped in markDirty) keys memo for remMap, personBal and autoEntries (returns a copy).
+- gcPlan: «off» wins over alarm; clinic receivables (visitOf) only as «سررسید ویزیت <code>» and only when calClinic is on; calClinic is default-off (`SM_DEFOFF`, prefs.smartOn).
+- Money tx: KPIs count only cash (cashRow + 1101 voucher lines); type filters include vouchers via `vchKinds`; voids hidden (ui.moneyV); chip counts follow the date filter.
+- Person task book uses `ui.tb.person` (taskSel(q,pid)), never the global task filters.
+- Category account codes frozen in CAT_IN_FIX/CAT_OUT_FIX (append-only; new categories get the next code).
+- Accounting sheet tab «سرفصل حساب‌ها» (coa): all accounts with code and balance; coaNew/coaRen for user accounts.
