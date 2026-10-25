@@ -442,3 +442,15 @@
 ## 4.11 — Smart person picker and quick filters
 - `ppSearch` with empty query shows view chips (recent, freq, role by doc type, recv, pay, all), only non-empty, remembered per form context in localStorage `miz.ppV.<ctx+type>`; rows show balance, org, phone. Act `ppV`.
 - `fBar`: the group marked `q` (else the first with counts) renders inline quick chips with counts (zero hidden); act `fbQ` toggles (tap again = default) and persists via `uiKeep`. Applies to every FB list (people, money tx, tasks, deals, docs, cheques, assets, clinic, wins, stock).
+
+## 4.12 — Date filters, single voucher path, packs, inventory diff, alarms, pauses
+- Filters: `DRG(key)` date-range group (presets on Jalali month/year + custom with `fb_f/fb_t`, `drRange/inDR/drLabel`) in money, docs, chq, deals, wins, tasks. `fBar(name,extra,sheetFn)` keeps sheet context (data-s). Money tx shows in/out/net KPIs; docs shows a per-type total table; cheques a sum line.
+- Tasks: new keys tSt (quick), tD, tAr, tPr, tTg, tCt, tPe, tSo; `taskSel()` shared by `vTasks` and `tbookSheet` (old TB_R/tbRange removed).
+- Undo bar only for delete/void/archive (`undoShow`).
+- ثبت مالی: sales/purchase group and jvIn/jvOut/mAdd tiles removed (voucher does it); fav tiles via `favFill` exclude acts already on the sheet; docsSheet hidden from «بیشتر» (lives in biz); Today no longer shows receivable/payable chains.
+- Voucher: inline new person (people + contacts) and new account (`coaGuess`, `coaAdd` → meta `coaX`, merged by `coaSync` in render), new bank (accts meta); person lines get optional due (`j_due` → line.due → vchRem/dueLedger/upcoming/gcal); person account normalised to 1201/2101 by direction. Plain ledger rows open as voucher on edit (`ledPlain`, `ledLines`, `formLedgerV`, hidden f_vfrom → old row voided).
+- Invoice/purchase credit: `data-dcred` due date (f_ddue) + paid-now (f_dnow, f_nacct) → postDoc due and refId-linked received/paid rows.
+- Packs: `packOpts` adds «§new»; `packNew({sel}|{ip})` sheet → profile.packs.
+- `invDiag()/invDiagHtml()` in accAccSheet('1301') + act invAdj (adjusting voucher).
+- Tasks: time + alarm fields → gcal reminders (alarm items auto-approved; 9:00 if no time); asset expiries in gcal.
+- Habits/tasks: `pauseSheet(col,id)` (form «pause»), off habits get reviewAt (60 d) with Today card (hRe/hLater/hNever), pause-end card (pzOk), `missInsights()` (weekday misses, consistent other weekday for weekly tasks → taskDay, 14+ days overdue series → taskPause), dismiss 30 d (insDis).
