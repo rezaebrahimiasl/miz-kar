@@ -464,3 +464,13 @@
 - Person task book uses `ui.tb.person` (taskSel(q,pid)), never the global task filters.
 - Category account codes frozen in CAT_IN_FIX/CAT_OUT_FIX (append-only; new categories get the next code).
 - Accounting sheet tab «سرفصل حساب‌ها» (coa): all accounts with code and balance; coaNew/coaRen for user accounts.
+
+## 4.14 — Audit stage 2 + owner requests
+- Filters: DRG(k,n,{past,dates}) — date options get counts (drCount) and future presets n7/n30 for due-based lists; quick-chip counts respect other filters (tasks via taskSel, docs/deals via date/status); money «باطل‌شده‌ها» toggle (moneyV); tPe persisted; docs empty-filter message; cheque KPIs follow date.
+- popstate listeners yield to the print preview (#hv). Cheque «بابت» options via chqLinkOpts (person-specific, remaining, includes vouchers). upcoming skips credit rows a pending cheque settles. MPACC (1201/2101 only) for person money claims. gcal keys for invoice credit rows use docRoot(redoOf chain). settleTxt shows paid-now and remaining. Books (amt) in exact toman; moneyFull exact when not a round thousand. healthIssues ignores netOff. GL person breakdown only on 12xx/21xx. Ledger table compact (date+no, wrapping description, oneCol).
+- Recurs: bank and category required; editing backfills generated rows; Today card for incomplete programs.
+- Stock page: one list with views stV (sum/lots/mv) + fBar('stock') incl. DRG('stD') + totals (kg, value, sales/cost/margin); docGrid «بیشتر» without letters/contracts/quotes; focused loss/adjust form (formMove kind loss/adj: two kinds, no person/location, reason chips mvWhy).
+- Row price panel (rowSug): party last + previous price with change %, last to anyone, price list, site, cost, net purchase, live margin.
+- Products: prodSync/prodOpts/prodNew (profile.prods), «§newp» option in every product select, ipPrNew chip.
+- Sortable table headers (global click on .tbl thead th; data-v for keys; skipped for grouped tables).
+- taskLinks(): meets, habits, review, trip, fmajeure, occasions, gcal on the tasks tab (hidden from «بیشتر»).
