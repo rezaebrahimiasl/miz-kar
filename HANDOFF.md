@@ -474,3 +474,13 @@
 - Products: prodSync/prodOpts/prodNew (profile.prods), «§newp» option in every product select, ipPrNew chip.
 - Sortable table headers (global click on .tbl thead th; data-v for keys; skipped for grouped tables).
 - taskLinks(): meets, habits, review, trip, fmajeure, occasions, gcal on the tasks tab (hidden from «بیشتر»).
+
+## 4.15 — Drafts, regular in/out, inline categories, reports, units, buy-now, audit suggestions
+- Drafts: DRAFT_FNS wrapped to record `_opener` (fn+args) on the sheet element (`.sheet[data-opener]`); `drSave` (input/change debounce, pagehide, visibilitychange, beforeunload prompt) stores up to 6 drafts in localStorage `miz.drafts` (doc via docRead, voucher via readJV, else field values); `drOpen` restores (auto within 15 min after reload) and Today card `drCard`; drafts drop after a successful submit or «ببند». Quick capture keeps `miz.capDraft`.
+- Recurs: one «وقتی روزش رسید» select (ask/silent/remind → auto/confirm); smart person/account labels by direction; behalf income category `inCat` (e.g. wage); recurSheet split in/out/behalf with monthly KPIs (`recMon`); Today «مبلغ یا حساب دیگر / چند قسمت» → form pendEdit (partial: confirmed copy + remainder stays pending); pendOk no longer flips the program to silent.
+- Categories: `catsSync` (profile.cats in/out/pers → CATS_* and COA with next code), «§newc» in catOptions → `catNew`; any account can be renamed (coaX.names overrides, `name0` keeps the original).
+- periodReport 'custom' (ui.rpF/rpT, quick fy/pfy/90) with adaptive buckets.
+- Units: UNITS extended, `smartUnits(desc,prod)` + PROD_UNITS, unit chips `.di_uch` in the row page; lotKg handles تن/میلی‌گرم.
+- Picker: out-of-stock in a sale → ipBuy/ipBuyD opens a purchase (form dataset.ret) and returns to the sale row with the new lot (`_buyRet`, `_ipNew`).
+- In-app dialogs `askConfirm/askText/typedConfirm` (async) replace confirm/prompt.
+- Money: `agingHtml()` (ppl tab), `forecastHtml()` (sum tab), voucher allocation chips `jvRefs` (sets j_ref), moneyF cash/credit views, saved filter views (localStorage miz.fbViews, fbvSave/fbvApply/fbvDel), doc version restore (docRestore), voucher hist restore (vchRestore), gcal preview list.
