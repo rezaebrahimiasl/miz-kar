@@ -500,3 +500,8 @@
 ## v4.19
 - `ui.dom` is in UIKEEP (refresh on a domain page keeps it); render() falls back to home when dom is unknown and runs spaceRun whenever #space exists.
 - Tap effects `SPC().fx`: fly (default), fade, burst (glow + .spark particles), dash (per-planet extra angle `_ex` over 1.1 s, keeps orbiting), zoom, random, none — chips in spaceSheet (`spcFx`).
+
+## v4.20
+- `buyNow(it,L0,row)`: full purchase form with the one item; used by ipBuy/ipBuyD and by a new row source option `buyNow` (old `buy` direct-purchase option only shown for existing rows). Return: `_buyRet.row` → sheetBack selects the new lot in the row marked `data-buy-row`.
+- Kardex table: columns تاریخ/شرح/طرف حساب/ورود/خروج/مانده (+ارزش), data-v for sort, tfoot totals, `.kx` compact CSS.
+- Doc form rows: ruled paper-invoice grid `.di_hd/.di_sum` = # · شرح · مقدار (.rs_q) · فی (.rs_p) · مبلغ.
