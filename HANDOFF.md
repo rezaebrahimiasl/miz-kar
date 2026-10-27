@@ -490,3 +490,6 @@
 - `DOMS` (tasks, money, trade, apiary, clinic, research, spirit, people, assets, qard). Domain page tab `dom` (vDom, ui.dom): domKpis (apiary production table from lots source own/prod this year), DOMT tools, recent, tasks; sections hideable via ✎ (localStorage `miz.domOff`). qard is display-only, never posts to میز کار accounts.
 - Bottom nav: home | today | tasks | people | money(«مالی»). Biz tab removed: stock/deals are money sub-tabs `ui.ms='stock'|'deals'`; legacy tab 'biz'/'deals'/'stock' and `case'biz'`/`case'tab'` map to money.
 - goTab(same tab) now re-renders (needed for ms/dom changes).
+
+## v4.17
+- spaceRun: rings rotate together (rigid, 150 s); outer ring evenly spaced (ceil n/2), inner planets (top-used, floor n/2) sit mid-gap → no collisions. Orbit area excludes the favorites row; sun follows --cy. Favorites row: one line, scrollable, labels cut at first comma.
