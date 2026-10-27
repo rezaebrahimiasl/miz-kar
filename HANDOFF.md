@@ -505,3 +505,8 @@
 - `buyNow(it,L0,row)`: full purchase form with the one item; used by ipBuy/ipBuyD and by a new row source option `buyNow` (old `buy` direct-purchase option only shown for existing rows). Return: `_buyRet.row` → sheetBack selects the new lot in the row marked `data-buy-row`.
 - Kardex table: columns تاریخ/شرح/طرف حساب/ورود/خروج/مانده (+ارزش), data-v for sort, tfoot totals, `.kx` compact CSS.
 - Doc form rows: ruled paper-invoice grid `.di_hd/.di_sum` = # · شرح · مقدار (.rs_q) · فی (.rs_p) · مبلغ.
+
+## v4.21 — docVerRestore fix, encrypted-only cloud backup, repository tests
+- Version-history button «برگرداندن این نسخه» now uses action `docVerRestore` (opens the old version in `formDoc` with `redoOf`=current; replaced only on save). `docRestore` stays for the count-sheet un-void. Previously the duplicate `case'docRestore'` made both versions live.
+- `ghPush0` refuses to upload when `GH.cfg.pass` is empty (`GH_NOPASS` warning in `GH.cfg.err`, toast + sheet when manual; safety list «پشتیبان ابری متوقف است…»). Sync already required a passphrase; no plaintext fallback remains for GitHub.
+- `tests/` (no runtime dependency; dev machine needs Node 18+ and Playwright/Chromium): `sh tests/run.sh [prefix]`. 00 static (parse, unique action names, version agreement, pre-cache files exist) · 10 smoke · 30 doc versions (D1) · 60 offline (SW install, airplane cold launch, offline create/edit, reopen, reconnect) · 70 backup security (no upload without passphrase; encrypted upload round-trips). Synthetic data only; all external hosts blocked or faked. Whole suite ≈ 7 s.
