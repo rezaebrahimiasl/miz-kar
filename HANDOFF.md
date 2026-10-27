@@ -484,3 +484,9 @@
 - Picker: out-of-stock in a sale → ipBuy/ipBuyD opens a purchase (form dataset.ret) and returns to the sale row with the new lot (`_buyRet`, `_ipNew`).
 - In-app dialogs `askConfirm/askText/typedConfirm` (async) replace confirm/prompt.
 - Money: `agingHtml()` (ppl tab), `forecastHtml()` (sum tab), voucher allocation chips `jvRefs` (sets j_ref), moneyF cash/credit views, saved filter views (localStorage miz.fbViews, fbvSave/fbvApply/fbvDel), doc version restore (docRestore), voucher hist restore (vchRestore), gcal preview list.
+
+## v4.16 — Planets home + domain pages
+- New tab `home` (vHome) is the landing tab per browser session (sessionStorage `miz.sess`); history root is now `home`. `#space` with themes `SPACE_THEMES` (localStorage `miz.space`: theme/still/off), rAF orbits in `spaceRun()` (inner ring = top-4 by `miz.domUse`, 110 s; outer reverse 170 s; tall ellipses fit portrait). `domGo(id,el)` grows → flies out → opens; others keep orbiting. Respect `still`/reduced-motion.
+- `DOMS` (tasks, money, trade, apiary, clinic, research, spirit, people, assets, qard). Domain page tab `dom` (vDom, ui.dom): domKpis (apiary production table from lots source own/prod this year), DOMT tools, recent, tasks; sections hideable via ✎ (localStorage `miz.domOff`). qard is display-only, never posts to میز کار accounts.
+- Bottom nav: home | today | tasks | people | money(«مالی»). Biz tab removed: stock/deals are money sub-tabs `ui.ms='stock'|'deals'`; legacy tab 'biz'/'deals'/'stock' and `case'biz'`/`case'tab'` map to money.
+- goTab(same tab) now re-renders (needed for ms/dom changes).
