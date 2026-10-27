@@ -493,3 +493,6 @@
 
 ## v4.17
 - spaceRun: rings rotate together (rigid, 150 s); outer ring evenly spaced (ceil n/2), inner planets (top-used, floor n/2) sit mid-gap → no collisions. Orbit area excludes the favorites row; sun follows --cy. Favorites row: one line, scrollable, labels cut at first comma.
+
+## v4.18
+- Removed the favorites row from the planets home (user: not needed there). Quick add stays on the FAB.
