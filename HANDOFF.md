@@ -496,3 +496,7 @@
 
 ## v4.18
 - Removed the favorites row from the planets home (user: not needed there). Quick add stays on the FAB.
+
+## v4.19
+- `ui.dom` is in UIKEEP (refresh on a domain page keeps it); render() falls back to home when dom is unknown and runs spaceRun whenever #space exists.
+- Tap effects `SPC().fx`: fly (default), fade, burst (glow + .spark particles), dash (per-planet extra angle `_ex` over 1.1 s, keeps orbiting), zoom, random, none — chips in spaceSheet (`spcFx`).
