@@ -36,4 +36,15 @@ Nothing is installed into the app or the repository.
 - **No network.** Every host other than the local test server is blocked or replaced by a fake inside the test browser.
 - **No fixed sleeps.** Wait for a condition (a selector, the data version, a toast).
 - Every confirmed bug fix adds a test that fails on the version before the fix.
-- `20-accounting` has a golden fingerprint. Change it only in the same reviewed commit as a deliberate accounting change, and say so in the commit message.
+- A hanging test fails with «timed out»; a test file that ends without printing its summary, or with an unhandled rejection, fails.
+- Every browser is closed when a file ends. Each temporary browser profile the tests create (`miz-test-*`, `miz-off-*` in the system temp folder) is deleted after its browser has closed; anything else is never touched, and a profile that cannot be safely removed is reported, not deleted.
+
+## Updating the golden fingerprint (`20-accounting`)
+
+Only when an accounting change is intended:
+
+1. Make the app change on a branch; run `node tests/20-accounting.test.js`. It fails with «fingerprint changed» and shows *now* and *golden*.
+2. Explain every difference (which accounts moved and why) in the review.
+3. `MIZ_GOLDEN_PRINT=1 node tests/20-accounting.test.js` prints the candidate fingerprint. **This run always fails on purpose**; print mode can never make the suite pass.
+4. Paste the candidate into `GOLDEN` in `20-accounting.test.js`, in the **same commit** as the app change, and say so in the commit message.
+5. Run the full suite without the variable: it must pass.

@@ -3,7 +3,7 @@ const { serve, launch, openApp, sig, seedFull, invariants, test, run, assert } =
 let srv, o; const steps = [];
 
 // Golden fingerprint of the seed below (live rows per collection, balance per account, person balances).
-// Recorded on v4.21 (af7854d). If a deliberate accounting change alters it, update it in the same reviewed commit.
+// Recorded on v4.21 (af7854d). To change it deliberately, follow «Updating the golden fingerprint» in tests/README.md.
 const GOLDEN = process.env.MIZ_GOLDEN_PRINT ? null : {"rows":{"people":4,"ledger":8,"lots":3,"moves":4,"vouchers":3,"meta":2,"docs":6},"gl":{"1101":186000000,"1201":6450000,"1301":53900000,"2101":-36000000,"2201":-450000,"3101":-200000000,"4101":-41500000,"4990":3500000,"5001":23100000,"5106":5000000},"pb":{"p_b":{"تومان":-36000000},"p_a":{"تومان":1500000},"p_c":{"تومان":4950000}}};
 
 test('full cycle: invariants hold after every step', async () => {
@@ -26,7 +26,8 @@ test('edited sale replaced the old version; voided gift has no live stock or mon
 
 test('golden fingerprint unchanged', async () => {
   const fp = JSON.parse(await sig(o.page));
-  if (!GOLDEN) { console.log(JSON.stringify(fp)); return; }
+  if (!GOLDEN) { console.log('  candidate fingerprint: ' + JSON.stringify(fp));
+    throw new Error('MIZ_GOLDEN_PRINT is set: fingerprint printed, comparison NOT performed — this run fails by design'); }
   assert(JSON.stringify(fp) === JSON.stringify(GOLDEN), 'fingerprint changed:\n      now    ' + JSON.stringify(fp) + '\n      golden ' + JSON.stringify(GOLDEN));
 });
 

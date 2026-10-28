@@ -47,7 +47,9 @@ test('R-D1b count sheet: void then «برگرداندن برگه» restores shee
   await o.page.waitForFunction(() => document.querySelector('#sheetRoot [data-act=docDel]').dataset.sure === '1');
   await o.page.evaluate(() => document.querySelector('#sheetRoot [data-act=docDel]').click());
   await o.page.waitForFunction(() => byId('docs', 'cnt_t').void && byId('lots', 'lot_cnt').void);
-  await o.page.evaluate(() => { closeSheet(); viewCount('cnt_t'); }); await o.page.evaluate(() => document.querySelector('#sheetRoot [data-act=docRestore]').click());
+  // the app's void handler marks the records first and closes the sheet last; reopening before that close races with it
+  await o.page.waitForFunction(() => document.getElementById('sheetRoot').hidden);
+  await o.page.evaluate(() => { closeSheet(); viewCount('cnt_t'); }); await o.page.waitForSelector('#sheetRoot [data-act=docRestore]'); await o.page.evaluate(() => document.querySelector('#sheetRoot [data-act=docRestore]').click());
   await o.page.waitForFunction(() => !byId('docs', 'cnt_t').void && !byId('lots', 'lot_cnt').void, null, { timeout: 4000 });
 });
 

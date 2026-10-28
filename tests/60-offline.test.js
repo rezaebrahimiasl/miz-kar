@@ -1,11 +1,11 @@
 // Offline-first guarantees. Service worker enabled; the browser is put in airplane mode with setOffline(true).
 const fs = require('fs'), path = require('path'), os = require('os');
-const { serve, launch, openApp, ready, openDoc, submit, sig, test, run, assert } = require('./lib');
+const { serve, launch, openApp, ready, openDoc, submit, sig, test, run, assert, tempProfile } = require('./lib');
 let srv, profile, before;
 const reopen = async offline => { const o = await launch({ sw: true, offline, profile }); await o.page.goto(srv.url).catch(() => {}); return o; };
 
 test('install: first online visit caches the app shell', async () => {
-  srv = await serve(); profile = fs.mkdtempSync(path.join(os.tmpdir(), 'miz-off-'));
+  srv = await serve(); profile = tempProfile('miz-off-');   // reused across launches; removed by lib.js when the file ends
   const o = await launch({ sw: true, profile }); await openApp(o, srv.url);
   await o.page.evaluate(() => navigator.serviceWorker.ready); await o.page.reload(); await ready(o.page);
   assert(await o.page.evaluate(() => !!navigator.serviceWorker.controller), 'page not controlled by the service worker');

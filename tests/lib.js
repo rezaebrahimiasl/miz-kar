@@ -19,10 +19,37 @@ function serve(root = ROOT) {
   });
 }
 
+// ---- Temporary browser profiles: only directories created here are ever deleted, and only once no browser uses them ----
+const TMP = fs.realpathSync(os.tmpdir());
+const OWNED = new Map();          // dir → { open: number of live browser contexts, single: delete as soon as its one context closes }
+const CONTEXTS = new Set();       // live browser contexts (closed before the forced exit in run())
+const OWN_NAME = /^miz-(test|off)-[A-Za-z0-9]{6}$/;
+function tempProfile(prefix = 'miz-test-') {   // a profile a test file wants to reuse across several launches
+  const dir = fs.mkdtempSync(path.join(TMP, prefix)); OWNED.set(dir, { open: 0, single: false }); return dir;
+}
+function removeProfile(dir) {     // returns '' when removed, otherwise the reason it was left untouched
+  const o = OWNED.get(dir); if (!o) return 'not created by this test run';
+  if (o.open > 0) return 'browser still open';
+  const real = path.resolve(dir);
+  if (path.dirname(real) !== TMP || !OWN_NAME.test(path.basename(real))) return 'outside the test temp area';
+  let st; try { st = fs.lstatSync(real); } catch (_) { OWNED.delete(dir); return ''; }
+  if (!st.isDirectory() || st.isSymbolicLink()) return 'not a plain directory';
+  try { fs.rmSync(real, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch (e) { return 'could not remove (' + e.code + ')'; }
+  OWNED.delete(dir); return '';
+}
+
 // Launch a phone-sized browser with its own throw-away profile.
 async function launch({ sw = false, offline = false, profile } = {}) {
-  const dir = profile || fs.mkdtempSync(path.join(os.tmpdir(), 'miz-test-'));
+  const dir = profile || fs.mkdtempSync(path.join(TMP, 'miz-test-'));
+  if (!profile) OWNED.set(dir, { open: 0, single: true });
   const ctx = await chromium.launchPersistentContext(dir, { viewport: { width: 390, height: 844 }, locale: 'fa-IR', serviceWorkers: sw ? 'allow' : 'block' });
+  const own = OWNED.get(dir); if (own) own.open++; CONTEXTS.add(ctx);
+  // 'close' can fire before the browser process has finished writing its profile, so only the bookkeeping happens here;
+  // the profile is removed after ctx.close() has resolved (the browser has exited) or, at the latest, when the file ends.
+  let counted = true; const done = () => { if (!counted) return; counted = false; CONTEXTS.delete(ctx); const o = OWNED.get(dir); if (o) o.open--; };
+  ctx.on('close', done);
+  const close0 = ctx.close.bind(ctx);
+  ctx.close = async (...a) => { await close0(...a); done(); const o = OWNED.get(dir); if (o && o.single && o.open === 0) removeProfile(dir); };
   const net = { external: [] };
   // Nothing may leave the machine: fonts are stubbed, every other external host is recorded and blocked.
   await ctx.route(u => !/^http:\/\/127\.0\.0\.1/.test(u.href), r => {
@@ -67,14 +94,24 @@ async function seedSmall(p) {
 }
 
 // Minimal test runner: test(name, fn) → prints ✓/✗, returns failures.
+// A test file that ends without printing its summary (crash, forgotten run(), or nothing left to wait on) must fail.
+let reported = false, stray = 0;   // stray = unhandled rejections outside any test
+process.on('exit', () => {
+  if (!reported) { console.log('  ✗ test file ended before reporting a result'); process.exitCode = 1; }
+  const left = []; for (const dir of [...OWNED.keys()]) { const why = removeProfile(dir); if (why) left.push(`${dir} (${why})`); }
+  if (left.length) console.log('  ! temporary profile left untouched: ' + left.join(', '));
+});
+process.on('unhandledRejection', e => { stray++; console.log('  ✗ unhandled rejection: ' + String(e && e.message || e).split('\n')[0]); process.exitCode = 1; });
 const T = []; const test = (name, fn, opt = {}) => T.push({ name, fn, ...opt });
 async function run(file) {
   let fail = 0, known = 0;
-  for (const t of T) { const t0 = Date.now();
-    try { await Promise.race([t.fn(), new Promise((_, rej) => setTimeout(() => rej(new Error('timed out after ' + (t.timeout || 60000) / 1000 + ' s')), t.timeout || 60000).unref())]); console.log(`  ✓ ${t.name} (${Date.now() - t0} ms)`); }
-    catch (e) { if (t.known) { known++; console.log(`  ~ ${t.name} — known issue: ${e.message.split('\n')[0]}`); } else { fail++; console.log(`  ✗ ${t.name}\n      ${e.message.split('\n')[0]}`); } } }
-  console.log(`${path.basename(file)}: ${T.length - fail - known} passed, ${fail} failed, ${known} known`); process.exitCode = fail ? 1 : 0;
-  // a failed test may leave a browser open; never hang after reporting
+  for (const t of T) { const t0 = Date.now(); let timer;
+    try { await Promise.race([t.fn(), new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('timed out after ' + (t.timeout || 60000) / 1000 + ' s')), t.timeout || 60000); })]); console.log(`  ✓ ${t.name} (${Date.now() - t0} ms)`); }
+    catch (e) { if (t.known) { known++; console.log(`  ~ ${t.name} — known issue: ${e.message.split('\n')[0]}`); } else { fail++; console.log(`  ✗ ${t.name}\n      ${e.message.split('\n')[0]}`); } }
+    finally { clearTimeout(timer); } }
+  console.log(`${path.basename(file)}: ${T.length - fail - known} passed, ${fail} failed, ${known} known${stray ? `, ${stray} unhandled rejection(s)` : ''}`); reported = true; process.exitCode = fail || stray ? 1 : 0;
+  // a failed test may leave browsers open: close them (max 5 s) so their temporary profiles can be removed, then never hang
+  await Promise.race([Promise.all([...CONTEXTS].map(c => c.close().catch(() => {}))), new Promise(r => setTimeout(r, 5000).unref())]);
   setTimeout(() => process.exit(process.exitCode), 500).unref();
 }
 const assert = (c, m) => { if (!c) throw new Error(m); };
@@ -152,4 +189,4 @@ async function seedFull(p, step = async () => {}) {
   await p.waitForFunction(id => byId('docs', id).void, gid); await settle(p); await step('void the gift');
 }
 
-module.exports = { ROOT, serve, launch, openApp, ready, openDoc, submit, sig, seedSmall, test, run, assert, fill, submitForm, settle, invariants, seedFull };
+module.exports = { tempProfile, ROOT, serve, launch, openApp, ready, openDoc, submit, sig, seedSmall, test, run, assert, fill, submitForm, settle, invariants, seedFull };
