@@ -28,8 +28,8 @@ Nothing is installed into the app or the repository.
 | `40-backup-restore.test.js` | backup → clean device → identical data (plain and encrypted) · wrong passphrase and non-backup files rejected · restore keeps newer local edits, does not resurrect deletions, never removes local rows, takes a snapshot first · Excel export round trip |
 | `60-offline.test.js` | service worker install, airplane-mode cold launch, offline create/edit, reopen, reconnect without duplicates or uploads |
 | `70-backup-security.test.js` | no cloud upload without the encryption passphrase; encrypted upload decrypts to the same data |
-| `80-sw-shell.test.js` | O2: the service worker may only store and serve the real app as the offline shell (navigation refresh, `stashLatest()`, ordinary fetch of `index.html`, new-worker install, upgrade from caches poisoned earlier); the real `index.html` is accepted byte-for-byte; 404/500/dropped responses never replace the shell. **Expected to fail until the O2 fix lands.** |
-| `81-sw-shell-static.test.js` | O2: `isShellUrl()` matches only the app's own `/` and `index.html` (any query), `isApp()` accepts the real page and rejects pages without the version declaration — including the validation code itself. **Expected to fail until the O2 fix lands.** |
+| `80-sw-shell.test.js` | O2: the service worker may only store and serve the real app as the offline shell (navigation refresh, `stashLatest()`, ordinary fetch of `index.html`, new-worker install, upgrade from caches poisoned earlier); the real `index.html` is accepted byte-for-byte; 404/500/dropped responses never replace the shell. |
+| `81-sw-shell-static.test.js` | O2: `isShellUrl()` matches only the app's own `/` and `index.html` (any query), `isApp()` accepts the real page and rejects pages without the version declaration — including the validation code itself. |
 | `lib.js` | local static server, browser launch, condition-based waits, synthetic seeds, invariants |
 
 ## Rules

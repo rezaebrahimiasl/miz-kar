@@ -10,6 +10,7 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 | D1 | «برگرداندن این نسخه» (restore a document version) made two versions live | 4.21 | `tests/30-docs.test.js`; phone checks |
 | O1 | Cloud backup uploads only with an encryption passphrase | 4.21 | `tests/70-backup-security.test.js`; phone checks |
 | T0 | Repository test suite: static, smoke, documents, offline, backup security | 4.21 | `tests/` |
+| O2 | Service worker stores and serves only the real app as the offline shell | 4.22 | `tests/80-sw-shell.test.js`, `tests/81-sw-shell-static.test.js`; phone checks pending |
 
 ## In review
 
@@ -22,7 +23,6 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 
 | ID | Item | Priority | Prerequisite |
 |---|---|---|---|
-| O2 | Service worker: store a page as the offline shell only if it is really the app | 1 | WP-1 |
 | O3 | Service worker: install a new version only if every pre-cached file downloaded | 1 | O2 confirmed on the phone |
 | WP-3 | Read-only data-integrity page, including documents affected by D1 before 4.21 | 3 | WP-1 |
 | P-x | Privacy hardening items (tracked privately) | 1–3 | owner decisions |

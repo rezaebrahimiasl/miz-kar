@@ -89,13 +89,14 @@ Statements marked **[unverified]** were not confirmed against the code.
 |---|---|
 | Cache names | `miz-kar-v<version>` (the versioned app shell), `miz-shell` (last-resort copy of `index.html`), `miz-share` (incoming shares) |
 | Pre-cached files (`SHELL`) | `./`, `index.html`, `manifest.webmanifest`, `icon2-192.png`, `icon2-512.png`, `icon2-maskable-512.png`, `logo.webp`, `qr.js` |
-| Install | fetches `SHELL` with `cache:'reload'`, then calls the browser's `self.skipWaiting` |
+| Install | fetches `SHELL` with `cache:'reload'`; `./` and `index.html` are stored only if `appOnly()` accepts them; then calls the browser's `self.skipWaiting` |
+| Shell rule (v4.22) | the offline shell is only ever the real app: `isApp()` requires the version declaration, `isShellUrl()` is the scope's own `/` or `index.html`; `shellFromCache()` reads this version's cache first and `miz-shell` only if it passes `isApp()` |
 | Activate | deletes every cache not in `KEEP`, then claims clients |
-| Navigation | answers from the cached shell first and refreshes it from the network in the background |
-| Other requests | cache first; same-origin and Google-font responses are added to the versioned cache |
+| Navigation | answers from the cached shell first and refreshes it from the network in the background through `saveShell()` (validated) |
+| Other requests | cache first; same-origin and Google-font responses are added to the versioned cache, except shell URLs, which are never cached on this path |
 | Share target | `POST ./share-target` is stored in `miz-share` and redirected to `./?share=1` |
 
-Known hardening work on install and shell validation is listed in `docs/BACKLOG.md`.
+Remaining hardening work on install (atomic update) is listed in `docs/BACKLOG.md`.
 
 ## 4. Code regions inside `index.html`
 

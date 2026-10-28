@@ -510,3 +510,10 @@
 - Version-history button «برگرداندن این نسخه» now uses action `docVerRestore` (opens the old version in `formDoc` with `redoOf`=current; replaced only on save). `docRestore` stays for the count-sheet un-void. Previously the duplicate `case'docRestore'` made both versions live.
 - `ghPush0` refuses to upload when `GH.cfg.pass` is empty (`GH_NOPASS` warning in `GH.cfg.err`, toast + sheet when manual; safety list «پشتیبان ابری متوقف است…»). Sync already required a passphrase; no plaintext fallback remains for GitHub.
 - `tests/` (no runtime dependency; dev machine needs Node 18+ and Playwright/Chromium): `sh tests/run.sh [prefix]`. 00 static (parse, unique action names, version agreement, pre-cache files exist) · 10 smoke · 30 doc versions (D1) · 60 offline (SW install, airplane cold launch, offline create/edit, reopen, reconnect) · 70 backup security (no upload without passphrase; encrypted upload round-trips). Synthetic data only; all external hosts blocked or faked. Whole suite ≈ 7 s.
+
+## v4.22 — O2: the offline shell can only be the real app
+- `sw.js`: `isApp(t)` = the version declaration `/const APP_VER='\d+(?:\.\d+)*';/` (never matches the validation code itself); `isShellUrl(u)` = the worker scope's own `/` or `index.html` (any query); `appOnly(res)` = OK, not redirected, HTML, and `isApp`.
+- Install stores `./` and `index.html` only if `appOnly` accepts them; `saveShell()` stores only `appOnly` text; the generic fetch handler never caches shell URLs (network, else `shellFromCache()`).
+- `shellFromCache()`: this version's cache first (validated on write), then `miz-shell` only if `isApp` — so copies poisoned under ≤4.21 are not served once 4.22 is active.
+- `index.html` `stashLatest()` always requires the declaration (also when `v` is empty).
+- Tests: `tests/80-sw-shell.test.js` (14) and `tests/81-sw-shell-static.test.js` (4); full suite 61.
