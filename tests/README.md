@@ -6,7 +6,7 @@ They are developer tools only: the app never loads anything from this folder.
 ## Run
 
 ```sh
-sh tests/run.sh          # everything (about 2½ minutes)
+sh tests/run.sh          # everything (about 4 minutes)
 sh tests/run.sh 20       # only tests/20-*.test.js
 node tests/30-docs.test.js
 ```
@@ -32,6 +32,7 @@ Nothing is installed into the app or the repository.
 | `80-sw-shell.test.js` | O2: the service worker may only store and serve the real app as the offline shell (navigation refresh, `stashLatest()`, ordinary fetch of `index.html`, new-worker install, upgrade from caches poisoned earlier) · O3: a new version whose shell is not the app or whose files fail to download (404, dropped) never activates and the last working cache stays complete; the real `index.html` is accepted byte-for-byte; 404/500/dropped responses never replace the shell. |
 | `81-sw-shell-static.test.js` | O2: `isShellUrl()` matches only the app's own `/` and `index.html` (any query), `isApp()` accepts the real page and rejects pages without the version declaration — including the validation code itself. |
 | `90-menu.test.js` | every menu entry opens without a page error (empty device and after a business cycle) · the Help page lists every entry with a description |
+| `91-whatsnew.test.js` | «تازه‌ها»: every «امتحان کن» button opens exactly the page or tab its item names (same result as opening it directly); items without a destination show «فقط برای اطلاع» and no button |
 | `lib.js` | local static server, browser launch, condition-based waits, synthetic seeds, invariants |
 
 ## Rules

@@ -27,7 +27,7 @@ Update all of these together:
 
 ## 3. Verification before push
 
-1. `sh tests/run.sh` must pass in full (about 2½ minutes). Record the output for the exact commit.
+1. `sh tests/run.sh` must pass in full (about 4 minutes). Record the output for the exact commit.
 2. Review `git diff` for:
    - unrelated changes
    - real names, phone numbers, amounts, keys or tokens

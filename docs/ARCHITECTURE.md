@@ -118,4 +118,4 @@ The script is divided by banner comments of the form `/* ---------- Title ------
 
 ## 5. Tests
 
-See `tests/README.md`. The full suite runs in about 2½ minutes and must pass before every push.
+See `tests/README.md`. The full suite runs in about 4 minutes and must pass before every push.

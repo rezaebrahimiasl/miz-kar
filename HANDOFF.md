@@ -526,3 +526,9 @@
 - `sw.js` install: `fetchAll()` downloads and validates all `SHELL` files first; any failure rejects the install, so the old worker and cache stay (a failed install of a new version name deletes its partial cache).
 - Tests: `75-privacy` (6 + close; S3/S4 also checked on the intercepted outbound gist and Gemini requests), `90-menu` (3 + close), `80-sw-shell` 16; `lib.js` `settle()` also waits for writes in flight (`trackWrites`), one cause of the intermittent `40-backup-restore` failure (a rarer residual case remains, see BACKLOG T3); `40` takes fingerprint and backup in one step (`sigAndBackup`) and names the differing parts on a mismatch. Full suite 72.
 
+## v4.24 — «تازه‌ها» buttons open their own destination
+- Root cause: `whatsNew()` built cards as `[...item, version]`, so an item without a destination (4 fields) got the version string as its destination: «امتحان کن» dispatched an action named e.g. `4.23` and nothing happened. Also the 3.99 item named the non-existent action `tasks`.
+- Cards are now `[area, icon, title, text, destination, version]`; `wnOk(g)` decides whether an item is actionable (non-empty; `licAdmin` only on the owner's phone). Non-actionable items show «فقط برای اطلاع» instead of a button, in the pop-up and on the changes page.
+- Data: 3.99 `tasks` → `tab|tasks`; 4.23 Help item → `helpAll`.
+- Test: `tests/91-whatsnew.test.js` compares every destination opened from «تازه‌ها» with the same destination opened directly.
+
