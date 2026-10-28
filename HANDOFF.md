@@ -517,3 +517,12 @@
 - `shellFromCache()`: this version's cache first (validated on write), then `miz-shell` only if `isApp` — so copies poisoned under ≤4.21 are not served once 4.22 is active.
 - `index.html` `stashLatest()` always requires the declaration (also when `v` is empty).
 - Tests: `tests/80-sw-shell.test.js` (14) and `tests/81-sw-shell-static.test.js` (4); full suite 61.
+
+## v4.23 — privacy, Help page, atomic service-worker install
+- Calendar feed: `calPatients()` = people linked to a case; their tasks, deals and receivables get generic titles («نوبت درمانگاه», «سررسید طلب (درمانگاه)») with no description; their birthdays are left out; `calScrubber()` removes every client name and phone from all remaining feed text (fail-closed backstop). Ordinary people's events unchanged.
+- `deid()`: replaces every registered person's name (client → «مراجع», others → «فرد»), names after a title or kinship word, phone-like numbers (also with spaces), e-mail, links and street addresses. Best effort; the Help text says so.
+- `delDoc()` drops unsaved drafts (`miz.drafts`) whose form arguments contain the deleted id. Trash, snapshots and backups unchanged (recovery policy untouched).
+- Help page: `HELP` entries for `marketers`, `tbook`, `ai`, `aiask`; `helpSheet()` tolerates a missing entry.
+- `sw.js` install: `fetchAll()` downloads and validates all `SHELL` files first; any failure rejects the install, so the old worker and cache stay (a failed install of a new version name deletes its partial cache).
+- Tests: `75-privacy` (4 + close), `90-menu` (3 + close), `80-sw-shell` 16; `lib.js` `settle()` also waits for writes in flight (`trackWrites`), one cause of the intermittent `40-backup-restore` failure (a rarer residual case remains, see BACKLOG T3); `40` takes fingerprint and backup in one step (`sigAndBackup`) and names the differing parts on a mismatch. Full suite 72.
+

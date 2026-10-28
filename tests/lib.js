@@ -67,7 +67,7 @@ async function launch({ sw = false, offline = false, profile } = {}) {
 async function openApp(o, url) {
   await o.page.goto(url);
   await o.page.evaluate(() => { localStorage.setItem('miz.onb', 'x'); localStorage.setItem('miz.seenVer', APP_VER); sessionStorage.setItem('mizSpl', '1'); });
-  await o.page.reload(); await ready(o.page);
+  await o.page.reload(); await ready(o.page); await trackWrites(o.page);
 }
 const ready = (p, timeout = 15000) => p.waitForFunction(() => typeof LOAD_OK !== 'undefined' && LOAD_OK && document.getElementById('view') && document.getElementById('view').children.length > 0, null, { timeout });
 
@@ -81,9 +81,13 @@ async function submit(p) {
   await p.waitForFunction(() => !document.querySelector('#sheetRoot form[data-form=doc]') || document.getElementById('sheetRoot').hidden, null, { timeout: 8000 }).catch(() => {});
 }
 // Accounting fingerprint: live rows per collection, GL balance per account, person balances.
-const sig = p => p.evaluate(() => { const B = balancesByAcc(autoEntries(), 'تومان');
+const SIG = () => { const B = balancesByAcc(autoEntries(), 'تومان');
   return JSON.stringify({ rows: Object.fromEntries(COLS.map(c => [c, S[c].filter(x => !x.void).length]).filter(x => x[1])),
-    gl: Object.fromEntries(Object.entries(B).map(([k, r]) => [k, Math.round(r.dr - r.cr)])), pb: personBal() }); });
+    gl: Object.fromEntries(Object.entries(B).map(([k, r]) => [k, Math.round(r.dr - r.cr)])), pb: personBal() }); };
+const sig = p => p.evaluate(SIG);
+// Fingerprint and full backup taken in ONE synchronous step, so both describe exactly the same data even if the app is
+// still finishing background writes.
+const sigAndBackup = p => p.evaluate(src => { const f = (0, eval)('(' + src + ')'); return [f(), JSON.stringify(backupData())]; }, SIG.toString());
 
 // Synthetic people + one purchase lot.
 async function seedSmall(p) {
@@ -138,7 +142,14 @@ async function submitForm(p) {
   throw new Error('form did not save; dialogs: ' + dialogs.join(' / '));
 }
 // Wait until no save is in flight: the data version stops changing for 150 ms.
-async function settle(p) { let last = -1; for (let i = 0; i < 40; i++) { const v = await p.evaluate(() => window._dv || 0); if (v === last) return; last = v; await p.waitForTimeout(150); } }
+// Wait until the app has finished writing: the data version is unchanged between two polls AND no write is in flight.
+// (A data-version check alone returned early whenever one storage write took longer than the 150 ms poll; under load the
+// next step then ran against a half-finished save, e.g. «no form to submit» or a backup fingerprint taken mid-write.)
+async function settle(p) { let last = -1; for (let i = 0; i < 80; i++) { const [v, busy] = await p.evaluate(() => [window._dv || 0, window.__mizBusy || 0]); if (v === last && !busy) return; last = v; await p.waitForTimeout(150); } }
+// Count the app's own write operations in flight (test-side wrapper; app behaviour unchanged).
+const trackWrites = p => p.evaluate(() => { if (window.__mizTrack) return; window.__mizTrack = 1; window.__mizBusy = 0;
+  for (const n of ['save', 'putRaw', 'delDoc', 'snapTake', 'idbPut', 'idbDel']) { const f = window[n]; if (typeof f !== 'function') continue;
+    window[n] = async function (...a) { window.__mizBusy++; try { return await f.apply(this, a); } finally { window.__mizBusy--; } }; } });
 
 // Accounting and inventory invariants. Returns a list of violations (empty = all hold).
 const invariants = p => p.evaluate(() => {
@@ -189,4 +200,4 @@ async function seedFull(p, step = async () => {}) {
   await p.waitForFunction(id => byId('docs', id).void, gid); await settle(p); await step('void the gift');
 }
 
-module.exports = { tempProfile, ROOT, serve, launch, openApp, ready, openDoc, submit, sig, seedSmall, test, run, assert, fill, submitForm, settle, invariants, seedFull };
+module.exports = { sigAndBackup, trackWrites, tempProfile, ROOT, serve, launch, openApp, ready, openDoc, submit, sig, seedSmall, test, run, assert, fill, submitForm, settle, invariants, seedFull };

@@ -1,6 +1,6 @@
 # Reza Desk (میز کار رضا): Architecture
 
-This document describes repository state `af7854d` (app v4.21).
+This document describes app v4.23.
 Line numbers drift with every change, so code is referred to by **function name**.
 `tests/05-docs.test.js` checks that every name written as `name()` here still exists.
 Statements marked **[unverified]** were not confirmed against the code.
@@ -78,7 +78,7 @@ Statements marked **[unverified]** were not confirmed against the code.
 | GitHub backup | `ghPush()` → `ghPush0()`; payload `backupData()` packed by `ghPack()` | access token and backup passphrase kept in the phone's browser storage only; excluded from backups; never in the repository | refuses to upload without a passphrase |
 | Multi-device sync | `ghSync()`, `syncMerge()` | same | requires a passphrase |
 | Restore | `doRestore()` (file), `restoreJson()` → preview → `restoreApply()`; decrypt with `ghUnpack()` | — | additive; snapshot taken first |
-| Calendar feed (legacy) | `calFeed()`, `calPush()` | same as GitHub backup | only when the user enables it |
+| Calendar feed (legacy) | `calFeed()`, `calPush()` | same as GitHub backup | only when the user enables it; events about clinic clients get generic titles (`calPatients()`, `calScrubber()`) |
 | Google Calendar | `gcItems()`, `gcSync()` | sign-in token kept for the current browser session only (the non-secret OAuth client ID is an ordinary setting and is included in backups) | per-item or bulk approval |
 | Gemini AI | `aiCall()`; clinical text passes through `deid()` | the user's own key, kept in the phone's browser storage only; excluded from backups | only with the user's key |
 | Update check | `checkUpdate()`, `stashLatest()`, `doUpdate()` | — | updates only to a **higher** version |
@@ -89,14 +89,13 @@ Statements marked **[unverified]** were not confirmed against the code.
 |---|---|
 | Cache names | `miz-kar-v<version>` (the versioned app shell), `miz-shell` (last-resort copy of `index.html`), `miz-share` (incoming shares) |
 | Pre-cached files (`SHELL`) | `./`, `index.html`, `manifest.webmanifest`, `icon2-192.png`, `icon2-512.png`, `icon2-maskable-512.png`, `logo.webp`, `qr.js` |
-| Install | fetches `SHELL` with `cache:'reload'`; `./` and `index.html` are stored only if `appOnly()` accepts them; then calls the browser's `self.skipWaiting` |
+| Install | `fetchAll()` downloads every `SHELL` file with `cache:'reload'`; `./` and `index.html` must pass `appOnly()`. Only if every file succeeds is the new cache written and the browser's `self.skipWaiting` called; otherwise the install fails and the current version and its cache stay in use |
 | Shell rule (v4.22) | the offline shell is only ever the real app: `isApp()` requires the version declaration, `isShellUrl()` is the scope's own `/` or `index.html`; `shellFromCache()` reads this version's cache first and `miz-shell` only if it passes `isApp()` |
 | Activate | deletes every cache not in `KEEP`, then claims clients |
 | Navigation | answers from the cached shell first and refreshes it from the network in the background through `saveShell()` (validated) |
 | Other requests | cache first; same-origin and Google-font responses are added to the versioned cache, except shell URLs, which are never cached on this path |
 | Share target | `POST ./share-target` is stored in `miz-share` and redirected to `./?share=1` |
 
-Remaining hardening work on install (atomic update) is listed in `docs/BACKLOG.md`.
 
 ## 4. Code regions inside `index.html`
 
@@ -119,4 +118,4 @@ The script is divided by banner comments of the form `/* ---------- Title ------
 
 ## 5. Tests
 
-See `tests/README.md`. The full suite runs in about 20 s and must pass before every push.
+See `tests/README.md`. The full suite runs in about 2½ minutes and must pass before every push.

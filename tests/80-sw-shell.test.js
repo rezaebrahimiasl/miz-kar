@@ -16,7 +16,7 @@ const PAGES = {
 };
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.webp': 'image/webp' };
 function shellServer() {
-  const st = { mode: 'normal', sw: null, hits: 0 };          // hits = shell requests answered in a non-normal mode
+  const st = { mode: 'normal', sw: null, hits: 0, fail: null, swHits: 0, failHits: 0 };   // fail = {path, how:'404'|'drop'} for one non-shell file          // hits = shell requests answered in a non-normal mode
   const srv = http.createServer((q, r) => {
     let p = decodeURIComponent(q.url.split('?')[0]); const isShell = p === '/' || p === '/index.html';
     if (isShell && st.mode !== 'normal') {
@@ -26,7 +26,9 @@ function shellServer() {
       if (st.mode === 'error') { r.writeHead(500, { 'Content-Type': 'text/html' }); return r.end('<h1>500</h1>'); }
       r.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); return r.end(PAGES[st.mode]);
     }
+    if (st.fail && p === st.fail.path) { st.failHits++; if (st.fail.how === 'drop') return q.socket.destroy(); r.writeHead(404); return r.end('not found'); }
     if (p.endsWith('/')) p += 'index.html';
+    if (p === '/sw.js') st.swHits++;
     if (p === '/sw.js' && st.sw) { r.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' }); return r.end(st.sw); }
     const f = path.join(ROOT, p); if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end('not found'); }
     r.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' }); fs.createReadStream(f).pipe(r);
@@ -140,19 +142,42 @@ test('ordinary fetch of index.html (the request stashLatest makes) does not stor
   const b = bad(after); assert(!b.length && !off, [b.length ? 'non-app HTML stored under a shell key: ' + b.join('; ') : '', off].filter(Boolean).join(' · '));
 });
 
-test('installing a new worker version while the network returns a non-app page does not store it as the shell', async () => {
-  const env = await installed(); const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
-  env.s.st.sw = sw.replace(/const V='miz-kar-v[^']+'/, "const V='miz-kar-v0.0-o2test'"); env.s.st.mode = 'portal';
-  await env.o.page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); });
-  // wait until the new worker has requested both shell URLs ('./' and 'index.html') and finished writing its cache
-  for (let t = 0; env.s.st.hits < 2; t++) { assert(t < 100, 'new worker never fetched the shell'); await env.o.page.waitForTimeout(100); }
-  // activation of the new worker deletes the old versioned cache, so this means: installed and activated
-  await until(env.o.page, async () => { const r = await navigator.serviceWorker.getRegistration(); const ks = await caches.keys();
-    return ks.includes('miz-kar-v0.0-o2test') && !ks.some(k => /^miz-kar-v\d/.test(k) && k !== 'miz-kar-v0.0-o2test') && !r.installing && !r.waiting; }, null, 15000, 'the new worker to install and activate');
-  env.s.st.mode = 'normal';
-  const after = await settleShell(env.o.page, {}); const off = await opensOffline(env); await done(env);
-  const b = bad(after); assert(!b.length && !off, [b.length ? 'non-app HTML stored as shell during install: ' + b.join('; ') : '', off].filter(Boolean).join(' · '));
+// ---------- O3: an incomplete or invalid install must not activate or remove the last working cache ----------
+// Publish a new worker version and let the browser try to install it; returns once the attempt is over.
+async function tryUpgrade(env, tag, until1) {
+  const p = env.o.page, sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8'); const NEW = 'miz-kar-v0.0-' + tag;
+  const old = await p.evaluate(async () => (await caches.keys()).find(k => /^miz-kar-v\d/.test(k)));
+  const oldEntries = await p.evaluate(async k => (await (await caches.open(k)).keys()).map(r => new URL(r.url).pathname).sort(), old);
+  env.s.st.sw = sw.replace(/const V='miz-kar-v[^']+'/, `const V='${NEW}'`); const h0 = env.s.st.swHits;
+  await p.evaluate(async () => { try { await (await navigator.serviceWorker.getRegistration()).update(); } catch (_) {} });
+  for (let t = 0; env.s.st.swHits === h0 || !until1(); t++) { assert(t < 150, 'the new worker never requested its files'); await p.waitForTimeout(100); }
+  await until(p, async () => { const r = await navigator.serviceWorker.getRegistration(); return !r.installing && !r.waiting; }, null, 15000, 'the install attempt to finish');
+  await p.waitForTimeout(300);
+  const keys = await p.evaluate(() => caches.keys());
+  const kept = keys.includes(old) ? await p.evaluate(async k => (await (await caches.open(k)).keys()).map(r => new URL(r.url).pathname).sort(), old) : [];
+  return { NEW, old, oldEntries, keys, kept };
+}
+const rejected = (u, what) => [
+  u.keys.includes(u.NEW) ? `new cache ${u.NEW} exists (${what})` : '',
+  !u.keys.includes(u.old) ? `last working cache ${u.old} was deleted (${what})` : '',
+  u.keys.includes(u.old) && JSON.stringify(u.kept) !== JSON.stringify(u.oldEntries) ? `last working cache changed: ${JSON.stringify(u.oldEntries)} → ${JSON.stringify(u.kept)}` : ''].filter(Boolean);
+
+test('installing a new worker version while the network returns a non-app page: install refused, last working app kept', async () => {
+  const env = await installed(); env.s.st.mode = 'portal';
+  const u = await tryUpgrade(env, 'o3portal', () => env.s.st.hits >= 1);
+  env.s.st.mode = 'normal'; const after = await shellEntries(env.o.page); const off = await opensOffline(env); await done(env);
+  const b = bad(after); const r = rejected(u, 'portal shell');
+  assert(!b.length && !r.length && !off, [b.length ? 'non-app HTML stored as shell during install: ' + b.join('; ') : '', ...r, off].filter(Boolean).join(' · '));
 });
+
+for (const [file, how] of [['/logo.webp', '404'], ['/qr.js', 'drop']]) {
+  test(`a new version whose ${file} download fails (${how}) does not activate; the last working app stays complete and opens offline`, async () => {
+    const env = await installed(); env.s.st.fail = { path: file, how };
+    const u = await tryUpgrade(env, 'o3' + how, () => env.s.st.failHits >= 1);
+    env.s.st.fail = null; const off = await opensOffline(env); await done(env);
+    const r = rejected(u, file + ' ' + how); assert(!r.length && !off, [...r, off].filter(Boolean).join(' · '));
+  });
+}
 
 // ---------- upgrade from a phone whose caches were poisoned before the fix ----------
 test('upgrade from previously poisoned caches: once the new worker is active, airplane mode opens the app (not the old poisoned page)', async () => {

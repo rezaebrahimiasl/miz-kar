@@ -1,9 +1,16 @@
-const V='miz-kar-v4.22';const KEEP=[V,'miz-shell','miz-share'];const SHELL=['./','index.html','manifest.webmanifest','icon2-192.png','icon2-512.png','icon2-maskable-512.png','logo.webp','qr.js'];
-// Install: cache the app shell fresh from the network (bypassing the HTTP cache)
+const V='miz-kar-v4.23';const KEEP=[V,'miz-shell','miz-share'];const SHELL=['./','index.html','manifest.webmanifest','icon2-192.png','icon2-512.png','icon2-maskable-512.png','logo.webp','qr.js'];
+// Install (O3): download and validate EVERY file first; only then write the new cache and take over.
+// If any file fails (offline, 404, captive portal, broken download) the install fails, the browser keeps the current
+// worker, and activation, which is what deletes old caches, never happens: the last working offline app stays intact.
 // The offline shell may only ever be the real app: an HTML page that contains the app's version marker
 const isApp=t=>typeof t==='string'&&/const APP_VER='\d+(?:\.\d+)*';/.test(t);const SCOPE=new URL('./',self.location).pathname;const isShellUrl=u=>{const p=new URL(u,self.location).pathname;return p===SCOPE||p===SCOPE+'index.html'};
 async function appOnly(res){if(!res||!res.ok||res.redirected||!/text\/html/i.test(res.headers.get('content-type')||''))return null;const t=await res.clone().text();return isApp(t)?t:null}
-self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>Promise.all(SHELL.map(u=>fetch(u,{cache:'reload'}).then(async r=>{if(!r.ok)return;if(isShellUrl(u)){const t=await appOnly(r);if(t)return c.put(u,new Response(t,{headers:{'Content-Type':'text/html; charset=utf-8'}}));return}return c.put(u,r)}).catch(()=>{})))).then(()=>self.skipWaiting()))});
+async function fetchAll(){return Promise.all(SHELL.map(async u=>{const r=await fetch(u,{cache:'reload'});if(!r.ok||r.redirected)throw new Error('install: '+u+' '+r.status);
+  if(isShellUrl(u)){const t=await appOnly(r);if(!t)throw new Error('install: '+u+' is not the app');return [u,new Response(t,{headers:{'Content-Type':'text/html; charset=utf-8'}})]}
+  const b=await r.blob();return [u,new Response(b,{headers:{'Content-Type':r.headers.get('content-type')||''}})]}))}
+self.addEventListener('install',e=>{e.waitUntil((async()=>{const had=await caches.has(V);const got=await fetchAll();
+  try{const c=await caches.open(V);for(const [u,r] of got)await c.put(u,r)}catch(err){if(!had)await caches.delete(V).catch(()=>{});throw err}
+  await self.skipWaiting()})())});
 // Activate: remove only old versioned caches; the shell copy and shared items are kept so the app always opens offline
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>!KEEP.includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 // This version's cache first (its shell entries were validated when stored); the long-lived copy only if it is really the app
