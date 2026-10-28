@@ -41,15 +41,53 @@ test('S4: deid removes the patient, other registered people, unregistered names 
   assert(out.includes('مراجع') && out.includes('SYN-CLIN-9') && out.includes('سردرد کمتر شده'), 'clinical content lost or patient not marked: ' + out);
 });
 
+// ('علی' alone is not checked in the Gemini body: it occurs inside the ordinary word «فعلی» of the app's prompt)
+// ---------- what actually leaves the phone: requests intercepted at the browser, nothing reaches the network ----------
+const LEAKS_FEED = [PT, 'زهرا', 'آزمونی', PT_PH, '۰۹۱۲۰۰۰۰۰۰۳', 'SYN-CODE-7', 'SYN-CLIN-1', 'SYN-CLIN-2', 'SYN-CLIN-3'];
+test('S3 outbound: the calendar upload request (gist body) carries no patient identifiers', async () => {
+  const sent = [];
+  await o.page.route('https://api.github.com/**', async r => { sent.push({ m: r.request().method(), u: r.request().url(), b: r.request().postData() || '' });
+    await r.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ id: 'synthetic-gist', files: { 'miz-kar.ics': { raw_url: 'https://example.invalid/x' } } }) }); });
+  await o.page.evaluate(() => { localStorage.setItem('miz.gh', JSON.stringify({ token: 'SYNTHETIC-NOT-A-TOKEN', cal: true })); });
+  await o.page.evaluate(() => calPush(true));
+  await o.page.unroute('https://api.github.com/**'); await o.page.evaluate(() => localStorage.removeItem('miz.gh'));
+  const g = sent.filter(x => /\/gists/.test(x.u) && x.b); assert(g.length >= 1, 'no calendar upload request captured: ' + JSON.stringify(sent.map(x => x.m + ' ' + x.u)));
+  const body = g.map(x => x.b).join('\n'); const ics = g.map(x => (JSON.parse(x.b).files || {})['miz-kar.ics']).filter(Boolean).map(f => f.content).join('\n');
+  assert(ics.includes('BEGIN:VCALENDAR') && ics.includes('نوبت درمانگاه'), 'upload did not contain the feed');
+  const leaks = LEAKS_FEED.filter(m => body.includes(m)); assert(!leaks.length, 'upload request contains: ' + leaks.join(', '));
+});
+
+test('S4 outbound: the Gemini requests (case summary and visit note) carry no names, phones or addresses', async () => {
+  const sent = [];
+  await o.page.route('https://generativelanguage.googleapis.com/**', async r => { sent.push(r.request().postData() || '');
+    await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ summary: 'x', obs: 'x' }) }] } }] }) }); });
+  await o.page.evaluate(async ([PT, OTHER]) => { const now = nowTs(); localStorage.setItem('miz.ai', JSON.stringify({ key: 'SYNTHETIC-NOT-A-KEY', on: true }));
+    await putRaw('visits', { id: 'v_1', caseId: 'c_1', no: 1, date: today(), obs: `SYN-CLIN-4 ${PT} با همسرش ${OTHER} آمد، تلفن ۰۹۱۲ ۰۰۰ ۰۰۰۴، خیابان آزمون پلاک ۱۲`, interp: 'SYN-CLIN-5', created: now, updated: now }); }, [PT, OTHER]);
+  await o.page.evaluate(() => cAiSum('c_1'));
+  for (let t = 0; sent.length < 1 && t < 50; t++) await o.page.waitForTimeout(100);
+  await o.page.evaluate(() => { closeSheet(); formVisit('c_1'); });
+  await o.page.waitForSelector('#f_vfree', { state: 'attached', timeout: 5000 });
+  await o.page.evaluate(([PT]) => { document.getElementById('f_vfree').value = `SYN-CLIN-6 ${PT} با دخترش مریم صالحی آمد؛ کد ملی ۱۲۳۴۵۶۷۸۹۰`; return cAiNote('c_1'); }, [PT]);
+  for (let t = 0; sent.length < 2 && t < 50; t++) await o.page.waitForTimeout(100);
+  await o.page.evaluate(() => { document.getElementById('sheetRoot').dataset.dirty = ''; closeSheet(); localStorage.removeItem('miz.ai'); });
+  await o.page.unroute('https://generativelanguage.googleapis.com/**');
+  assert(sent.length >= 2, 'expected 2 Gemini requests, captured ' + sent.length);
+  const body = sent.join('\n');
+  assert(body.includes('SYN-CLIN-4') && body.includes('SYN-CLIN-6'), 'clinical text not in the requests (test would be vacuous)');
+  const leaks = ['زهرا', 'آزمونی', OTHER, 'کریمی', 'مریم', 'صالحی', PT_PH, '۰۹۱۲', '۱۲۳۴۵۶۷۸۹۰', 'خیابان آزمون', 'پلاک ۱۲'].filter(m => body.includes(m));
+  assert(!leaks.length, 'Gemini request contains: ' + leaks.map(m => m + ' «…' + body.slice(Math.max(0, body.indexOf(m) - 25), body.indexOf(m) + 25) + '…»').join(', '));
+});
+
 test('S1: deleting a record drops its unsaved drafts (other drafts kept); the record stays restorable from the trash', async () => {
   await o.page.evaluate(() => { const L = drGet(); L.unshift({ k: 'formCase:c_1', op: { fn: 'formCase', args: [{ id: 'c_1' }] }, title: 'x', at: Date.now(), data: { v: { f: 'SYN-CLIN-5' } } },
     { k: 'formVisit:', op: { fn: 'formVisit', args: ['c_1'] }, title: 'x', at: Date.now(), data: { v: { f: 'SYN-CLIN-6' } } },
-    { k: 'formPerson:p_cu', op: { fn: 'formPerson', args: [{ id: 'p_cu' }] }, title: 'x', at: Date.now(), data: { v: { f: 'SYN-KEEP' } } }); drSet(L); });
+    { k: 'formPerson:p_cu', op: { fn: 'formPerson', args: [{ id: 'p_cu' }] }, title: 'x', at: Date.now(), data: { v: { f: 'SYN-KEEP' } } },
+    { k: 'formTask:', op: { fn: 'formTask', args: [{ caseId: 'c_1', title: 'x' }] }, title: 'x', at: Date.now(), data: { v: { f: 'SYN-KEEP-REF' } } }); drSet(L); });   // a different, unsaved record that only refers to the case
   await o.page.evaluate(() => delDoc('cases', 'c_1'));
   const r = await o.page.evaluate(() => ({ dr: localStorage.getItem('miz.drafts') || '', trash: JSON.parse(localStorage.getItem('miz.trash') || '[]').some(x => x.col === 'cases' && x.doc.id === 'c_1'), live: !!byId('cases', 'c_1') }));
   assert(!r.live, 'case not deleted');
   assert(!r.dr.includes('SYN-CLIN-5') && !r.dr.includes('SYN-CLIN-6'), 'draft of the deleted case kept');
-  assert(r.dr.includes('SYN-KEEP'), 'unrelated draft removed');
+  assert(r.dr.includes('SYN-KEEP') && r.dr.includes('SYN-KEEP-REF'), 'draft of another record removed');
   assert(r.trash, 'deleted case not in the trash (recovery policy changed)');
   assert(!o.errors.length, o.errors.join(' | '));
 });

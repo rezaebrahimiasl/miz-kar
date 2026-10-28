@@ -1260,7 +1260,7 @@ const simTitle=(a,b)=>{a=nrm(a);b=nrm(b);return a&&b&&(a===b||(Math.min(a.length
 /* ---------- Activity log: every record in the order it was written; tap to open, fix, finish, delete or restore ---------- */
 function idbDel(col,id){return new Promise((res,rej)=>{const t=idb.transaction('docs','readwrite');t.objectStore('docs').delete(col+'/'+id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
 async function delDoc(col,id){const d=byId(col,id);if(!d)return false;await snapTake('del',10);undoRec(col,id);try{let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}tr.unshift({col,doc:d,at:nowTs()});try{localStorage.setItem('miz.trash',JSON.stringify(tr.slice(0,60)))}catch(_){}
-  try{const q='"'+id+'"';drSet(drGet().filter(x=>!JSON.stringify((x.op&&x.op.args)||[]).includes(q)))}catch(_){} // unsaved drafts of a deleted record are dropped with it
+  try{drSet(drGet().filter(x=>{const a0=((x.op&&x.op.args)||[])[0];return !(a0===id||(a0&&a0.id===id))}))}catch(_){} // drafts of forms opened FOR the deleted record go with it; drafts of other records that merely refer to it are kept
   if(mode==='cloud')await db.collection(col).doc(id).delete();else{await idbDel(col,id);S[col]=S[col].filter(x=>x.id!==id);if(!(col==='meta'&&id==='tomb'))await tombAdd(col,id);render()}return true}catch(e){toast('حذف نشد: '+(e.message||''));return false}}
 async function undoDel(i){let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}const x=tr[i];if(!x)return;await putRaw(x.col,{...x.doc,updated:nowTs()});tr.splice(i,1);try{localStorage.setItem('miz.trash',JSON.stringify(tr))}catch(_){}if(mode==='local')render();toast('برگردانده شد ✓');logSheet()}
 const LOGT2={
