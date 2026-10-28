@@ -12,6 +12,7 @@ const PAGES = {
   portal: '<!doctype html><html><head><meta charset="utf-8"><title>Wi-Fi login</title></head><body><!--SYNTH-PORTAL--><h1>Please sign in to use this network</h1></body></html>',
   nomarker: APP.replace(DECL, "const APP_VERSION_REMOVED_FOR_TEST='0';").replace('</body>', '<!--SYNTH-NOMARKER--></body>'),
   valid: APP.replace('</body>', '<!--SYNTH-NEW-SHELL--></body>'),
+  nomarkerpure: APP.replace(DECL, ''),                     // the real page with only its version declaration removed, nothing added
 };
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.webp': 'image/webp' };
 function shellServer() {
@@ -34,6 +35,10 @@ function shellServer() {
 }
 
 // ---------- helpers ----------
+// Playwright's waitForFunction does not await an async predicate (a returned Promise counts as truthy), so async
+// conditions (Cache Storage, service-worker registration) are polled with page.evaluate instead.
+async function until(p, fn, arg, timeout = 10000, what = 'condition') { const t0 = Date.now();
+  for (;;) { if (await p.evaluate(fn, arg).catch(() => false)) return; if (Date.now() - t0 > timeout) throw new Error('timed out waiting for ' + what); await p.waitForTimeout(100); } }
 // Every cache entry the service worker can serve as the shell (shellFromCache uses ignoreSearch on 'index.html' and './').
 const shellEntries = p => p.evaluate(async src => { const DECL = new RegExp(src); const out = {};
   for (const k of await caches.keys()) { const c = await caches.open(k);
@@ -53,7 +58,7 @@ async function installed() {
   const o = await launch({ sw: true, profile }); await openApp(o, s.url);
   await o.page.evaluate(() => navigator.serviceWorker.ready); await o.page.reload(); await ready(o.page);
   await o.page.waitForFunction(() => !!navigator.serviceWorker.controller);
-  await o.page.waitForFunction(async () => !!(await (await caches.open('miz-shell')).match('index.html')), null, { timeout: 5000 });
+  await until(o.page, async () => !!(await (await caches.open('miz-shell')).match('index.html')), null, 5000, 'miz-shell to hold index.html');
   const e = await shellEntries(o.page); assert(DECL.test(APP), 'app index.html has no version declaration');
   assert(!bad(e).length && Object.keys(e).length >= 2, 'baseline install not clean: ' + JSON.stringify(e));
   return { s, o, profile };
@@ -68,7 +73,8 @@ async function opensOffline(env) {
 async function done(env) { await env.o.ctx.close(); await env.s.close(); }
 
 // ---------- 1, 2: navigation refresh must not accept non-app HTML ----------
-for (const [mode, label] of [['portal', 'an unrelated HTML page (HTTP 200, e.g. a Wi-Fi sign-in page)'], ['nomarker', `app-like HTML without the version marker «${MARK}»`]]) {
+for (const [mode, label] of [['portal', 'an unrelated HTML page (HTTP 200, e.g. a Wi-Fi sign-in page)'], ['nomarker', `app-like HTML without the version marker «${MARK}»`],
+  ['nomarkerpure', 'the real index.html with only its APP_VER declaration removed (no other change)']]) {
   test(`navigation refresh: ${label} is not accepted as the shell`, async () => {
     const env = await installed(); const before = await shellEntries(env.o.page);
     env.s.st.mode = mode; await env.o.page.goto(env.s.url); await env.o.page.waitForFunction(() => true);
@@ -88,6 +94,18 @@ test('navigation refresh: a valid app page (with the marker) is accepted into bo
   const fresh = Object.entries(after).filter(([k, v]) => /^(miz-kar-v[\d.]+|miz-shell) \/index\.html$/.test(k) && v === 'app-new');
   assert(fresh.length === 2, 'valid update not stored in both caches: ' + JSON.stringify(after));
   assert(!off, off);
+});
+
+// ---------- 3b: authentic positive control — the real, unmodified repository index.html is accepted byte-for-byte ----------
+test('the real, unmodified index.html is accepted into both shell caches byte-for-byte', async () => {
+  const env = await installed();
+  await env.o.page.evaluate(async () => { for (const k of await caches.keys()) { const c = await caches.open(k); for (const q of await c.keys()) if (/\/(index\.html)?$/.test(new URL(q.url).pathname)) await c.delete(q); } });
+  await env.o.page.goto(env.s.url); await ready(env.o.page);
+  await until(env.o.page, async () => !!(await (await caches.open('miz-shell')).match('index.html')), null, 5000, 'miz-shell to hold index.html');
+  const got = await env.o.page.evaluate(async () => { const out = {}; for (const k of await caches.keys()) { const r = await (await caches.open(k)).match('index.html'); if (r) out[k] = await r.text(); } return out; });
+  const off = await opensOffline(env); await done(env);
+  const same = Object.entries(got).filter(([, t]) => t === APP).map(([k]) => k);
+  assert(same.includes('miz-shell') && same.some(k => k.startsWith('miz-kar-v')) && !off, `byte-identical copies in: ${JSON.stringify(same)} · ${off}`);
 });
 
 // ---------- 4: a missing or failing index.html never replaces the cached shell ----------
@@ -116,7 +134,7 @@ for (const [mode, v, label] of [['portal', '', 'an unrelated page with an empty 
 test('ordinary fetch of index.html (the request stashLatest makes) does not store non-app HTML where the shell lookup can find it', async () => {
   const env = await installed(); env.s.st.mode = 'portal';
   await env.o.page.evaluate(() => fetch('index.html?fresh=1', { cache: 'no-store' }).then(r => r.text()));
-  await env.o.page.waitForFunction(async () => (await caches.keys()).length > 0);
+  await until(env.o.page, async () => !!(await caches.match('index.html?fresh=1')), null, 3000, 'the fetched page to be cached').catch(() => {});   // absent once fixed
   env.s.st.mode = 'normal';
   const after = await settleShell(env.o.page, {}); const off = await opensOffline(env); await done(env);
   const b = bad(after); assert(!b.length && !off, [b.length ? 'non-app HTML stored under a shell key: ' + b.join('; ') : '', off].filter(Boolean).join(' · '));
@@ -128,11 +146,28 @@ test('installing a new worker version while the network returns a non-app page d
   await env.o.page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); });
   // wait until the new worker has requested both shell URLs ('./' and 'index.html') and finished writing its cache
   for (let t = 0; env.s.st.hits < 2; t++) { assert(t < 100, 'new worker never fetched the shell'); await env.o.page.waitForTimeout(100); }
-  await env.o.page.waitForFunction(async () => { const c = await caches.open('miz-kar-v0.0-o2test'); const r = await navigator.serviceWorker.getRegistration();
-    return !r.installing && (await c.keys()).length >= 7; }, null, { timeout: 10000 });
+  // activation of the new worker deletes the old versioned cache, so this means: installed and activated
+  await until(env.o.page, async () => { const r = await navigator.serviceWorker.getRegistration(); const ks = await caches.keys();
+    return ks.includes('miz-kar-v0.0-o2test') && !ks.some(k => /^miz-kar-v\d/.test(k) && k !== 'miz-kar-v0.0-o2test') && !r.installing && !r.waiting; }, null, 15000, 'the new worker to install and activate');
   env.s.st.mode = 'normal';
   const after = await settleShell(env.o.page, {}); const off = await opensOffline(env); await done(env);
   const b = bad(after); assert(!b.length && !off, [b.length ? 'non-app HTML stored as shell during install: ' + b.join('; ') : '', off].filter(Boolean).join(' · '));
+});
+
+// ---------- upgrade from a phone whose caches were poisoned before the fix ----------
+test('upgrade from previously poisoned caches: once the new worker is active, airplane mode opens the app (not the old poisoned page)', async () => {
+  const env = await installed(); const p = env.o.page;
+  // what the current code allows: an unrelated page stored as 'index.html' in every shell cache and as './' in the versioned one
+  await p.evaluate(async page => { const mk = () => new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    for (const k of await caches.keys()) { if (!/^miz-(kar-v|shell)/.test(k)) continue; const c = await caches.open(k); await c.put('index.html', mk()); if (k.startsWith('miz-kar-v')) await c.put('./', mk()); } }, PAGES.portal);
+  // a new version is published and installed (good network), without any page navigation in between
+  const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8'); env.s.st.sw = sw.replace(/const V='miz-kar-v[^']+'/, "const V='miz-kar-v0.0-o2upgrade'");
+  await p.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
+  await until(p, async () => { const r = await navigator.serviceWorker.getRegistration(); const ks = await caches.keys();
+    return ks.includes('miz-kar-v0.0-o2upgrade') && !ks.some(k => /^miz-kar-v\d/.test(k) && k !== 'miz-kar-v0.0-o2upgrade') && !r.installing && !r.waiting; }, null, 15000, 'the new worker to install and activate (old versioned cache deleted)');
+  const order = await p.evaluate(async () => caches.keys()); const entries = await shellEntries(p);
+  const off = await opensOffline(env); await done(env);
+  assert(!off, `${off} · cache order: ${JSON.stringify(order)} · shell entries: ${JSON.stringify(entries)}`);
 });
 
 run(__filename);
