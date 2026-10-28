@@ -71,9 +71,85 @@ const T = []; const test = (name, fn, opt = {}) => T.push({ name, fn, ...opt });
 async function run(file) {
   let fail = 0, known = 0;
   for (const t of T) { const t0 = Date.now();
-    try { await t.fn(); console.log(`  ✓ ${t.name} (${Date.now() - t0} ms)`); }
+    try { await Promise.race([t.fn(), new Promise((_, rej) => setTimeout(() => rej(new Error('timed out after ' + (t.timeout || 60000) / 1000 + ' s')), t.timeout || 60000).unref())]); console.log(`  ✓ ${t.name} (${Date.now() - t0} ms)`); }
     catch (e) { if (t.known) { known++; console.log(`  ~ ${t.name} — known issue: ${e.message.split('\n')[0]}`); } else { fail++; console.log(`  ✗ ${t.name}\n      ${e.message.split('\n')[0]}`); } } }
   console.log(`${path.basename(file)}: ${T.length - fail - known} passed, ${fail} failed, ${known} known`); process.exitCode = fail ? 1 : 0;
+  // a failed test may leave a browser open; never hang after reporting
+  setTimeout(() => process.exit(process.exitCode), 500).unref();
 }
 const assert = (c, m) => { if (!c) throw new Error(m); };
-module.exports = { ROOT, serve, launch, openApp, ready, openDoc, submit, sig, seedSmall, test, run, assert };
+
+// ---------- WP-1 helpers (accounting, inventory, backup) ----------
+// Set form fields by id and fire the events the app listens to.
+const fill = (p, f) => p.evaluate(f => { for (const [k, v] of Object.entries(f)) { const e = document.getElementById(k); if (!e) throw new Error('no field ' + k);
+  if (e.type === 'checkbox') e.checked = v; else e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); } }, f);
+// Submit the top form; confirm in-app dialogs (recorded) and re-submit when the app asks for a second tap.
+async function submitForm(p) {
+  const dialogs = [];
+  for (let i = 0; i < 4; i++) {
+    const v0 = await p.evaluate(() => window._dv || 0);
+    const r = await p.evaluate(() => { const f = [...document.querySelectorAll('#sheetRoot:not([hidden]) form[data-form]')].pop(); if (!f) return 'none';
+      (f.querySelector('button[type=submit]') || [...f.querySelectorAll('button.pri:not([type=button])')].pop() || { click: () => f.requestSubmit() }).click(); return f.dataset.form; });
+    if (r === 'none') throw new Error('no form to submit');
+    for (let t = 0; t < 30; t++) {
+      const st = await p.evaluate(v0 => ({ dv: (window._dv || 0) > v0, dlg: (() => { const d = document.getElementById('dlgRoot'); return d && !d.hidden && d.innerText.trim() ? d.innerText.trim().slice(0, 120) : ''; })() }), v0);
+      if (st.dlg) { dialogs.push(st.dlg); await p.evaluate(() => document.querySelector('#dlgRoot [data-dv=ok]').click()); continue; }
+      if (st.dv) return dialogs;
+      await p.waitForTimeout(100);
+    }
+  }
+  throw new Error('form did not save; dialogs: ' + dialogs.join(' / '));
+}
+// Wait until no save is in flight: the data version stops changing for 150 ms.
+async function settle(p) { let last = -1; for (let i = 0; i < 40; i++) { const v = await p.evaluate(() => window._dv || 0); if (v === last) return; last = v; await p.waitForTimeout(150); } }
+
+// Accounting and inventory invariants. Returns a list of violations (empty = all hold).
+const invariants = p => p.evaluate(() => {
+  const bad = [], E = autoEntries(), B = balancesByAcc(E, 'تومان'), nat = c => { const x = B[c]; return x ? x.dr - x.cr : 0; };
+  const tb = Object.values(B).reduce((a, x) => a + x.dr - x.cr, 0); if (Math.abs(tb) > 1) bad.push('trial balance ≠ 0: ' + tb);
+  const ub = E.filter(e => Math.abs(e.lines.reduce((a, l) => a + l.dr - l.cr, 0)) > 0.5); if (ub.length) bad.push(ub.length + ' unbalanced entries');
+  const pb = Object.values(personBal()).reduce((a, m) => a + (m['تومان'] || 0), 0), arap = nat('1201') + nat('2101');
+  if (Math.abs(pb - arap) > 1) bad.push(`person balances ${pb} ≠ receivables−payables ${arap}`);
+  const sv = S.lots.filter(l => !l.void).reduce((a, l) => { const q = lotStat(l).rem; return q > 1e-4 ? a + q * lotCost(l) : a; }, 0);
+  if (Math.abs(sv - nat('1301')) > 1) bad.push(`stock value ${sv} ≠ inventory account ${nat('1301')}`);
+  S.lots.filter(l => !l.void).forEach(l => { const st = lotStat(l); if (st.rem < -1e-9) bad.push('negative lot ' + lotName(l));
+    const out = lotMoves(l.id).filter(m => !m.void).reduce((a, m) => a + ((MOVE[m.kind] || { s: -1 }).s < 0 ? Number(m.qty) : -Number(m.qty)), 0);
+    if (Math.abs(Number(l.qty) - out - st.rem) > 1e-6) bad.push('lot quantity mismatch ' + lotName(l)); });
+  if (S.docs.some(d => !d.void && S.docs.some(n => !n.void && n.redoOf === d.id))) bad.push('two live versions of one document');
+  return bad;
+});
+
+// Full synthetic business seed through the real forms. step(name) is called after every step.
+async function seedFull(p, step = async () => {}) {
+  await p.evaluate(async () => { for (const [id, name] of [['p_a', 'علی آزمون'], ['p_b', 'بهرام نمونه'], ['p_c', 'کریم تستی'], ['p_d', 'داوود فرضی']]) await putRaw('people', { id, name, created: nowTs(), updated: nowTs() });
+    await putRaw('meta', { id: 'accts', a: { 'بانک الف': { open: 200e6, openDate: '2026-09-23', setAt: nowTs() } }, created: nowTs(), updated: nowTs() }); render(); });
+  await step('people + bank account');
+  const doc = async (d, f, name) => { await openDoc(p, d); if (f) await fill(p, f); await submitForm(p); await settle(p); await step(name); };
+  await doc({ type: 'purchase', personId: 'p_b', date: '2026-09-25', led: 'payable', discP: 10, items: [{ desc: 'عسل گون', qty: 100, unit: 'کیلو', price: 0.5e6 }, { desc: 'عسل کنار', qty: 50, unit: 'کیلو', price: 0.4e6 }, { desc: 'کرایه حمل', qty: 1, unit: 'خدمت', price: 3e6, src: 'svc' }] }, { f_dnow: '۱۰', f_nacct: 'بانک الف' }, 'purchase, 10% discount, transport, part paid');
+  await doc({ type: 'purchase', personId: 'p_c', date: '2026-09-26', led: 'paid', tax: 10, items: [{ desc: 'عسل آویشن', qty: 10, unit: 'کیلو', price: 1e6 }] }, { f_acct: 'بانک الف' }, 'cash purchase with 10% tax');
+  const L = await p.evaluate(() => Object.fromEntries(S.lots.filter(l => !l.void).map(l => [l.variety, l.id])));
+  await doc({ type: 'invoice', personId: 'p_a', date: '2026-09-28', led: 'received', items: [{ desc: 'عسل گون', qty: 30, unit: 'کیلو', price: 0.8e6, src: 'lot', lotId: L['گون'] }] }, { f_acct: 'بانک الف' }, 'cash sale');
+  await doc({ type: 'invoice', personId: 'p_a', date: '2026-10-01', led: 'receivable', disc: 1e6, items: [{ desc: 'عسل کنار', qty: 20, unit: 'کیلو', price: 0.7e6, src: 'lot', lotId: L['کنار'] }] }, { f_dnow: '۳', f_nacct: 'بانک الف' }, 'credit sale, discount, part received');
+  await doc({ type: 'invoice', personId: 'p_d', date: '2026-10-02', led: 'gift', items: [{ desc: 'عسل گون', qty: 2, unit: 'کیلو', src: 'lot', lotId: L['گون'] }] }, null, 'gift');
+  await doc({ type: 'sret', personId: 'p_a', date: '2026-10-05', led: 'payable', items: [{ desc: 'عسل کنار', qty: 5, unit: 'کیلو', price: 0.7e6, src: 'lot', lotId: L['کنار'] }] }, null, 'sale return');
+  await doc({ type: 'invoice', personId: 'p_c', date: '2026-10-06', led: 'receivable', tax: 10, items: [{ desc: 'عسل آویشن', qty: 4, unit: 'کیلو', price: 1.5e6, src: 'lot', lotId: L['آویشن'] }] }, null, 'credit sale with tax');
+  const vch = async (fn, name) => { await p.evaluate(fn); await p.waitForSelector('#sheetRoot form[data-form]'); await submitForm(p); await settle(p); await step(name); };
+  await vch(() => { closeSheet(); payVoucher({ inn: true, personId: 'p_a', amount: 5e6, desc: 'دریافت آزمون' }); }, 'payment received');
+  await vch(() => { closeSheet(); payVoucher({ inn: false, personId: 'p_b', amount: 20e6, desc: 'پرداخت آزمون' }); }, 'payment made');
+  await vch(() => { closeSheet(); formVoucher({ desc: 'اجاره آزمون', lines: [{ acc: '5106', dr: 5e6 }, { acc: '1101', bank: 'بانک الف', cr: 5e6 }] }); }, 'manual voucher');
+  // edit the credit sale with tax (4 kg → 3 kg) through the replacement path
+  const sid = await p.evaluate(() => S.docs.find(d => !d.void && d.type === 'invoice' && d.personId === 'p_c').id);
+  await p.evaluate(id => { closeSheet(); const d = byId('docs', id); const { id: _i, posted, void: _v, created, updated, ...cp } = d; formDoc({ ...cp, inv: d.inv, redoOf: id }); }, sid);
+  await p.waitForSelector('#sheetRoot form[data-form=doc]');
+  await p.evaluate(() => { const q = document.querySelector('#ditems .di_q'); q.value = '3'; q.dispatchEvent(new Event('input', { bubbles: true })); });
+  await submitForm(p); await settle(p); await step('edit sale 4 kg → 3 kg');
+  // void the gift
+  const gid = await p.evaluate(() => S.docs.find(d => !d.void && d.type === 'invoice' && d.led === 'gift').id);
+  await p.evaluate(id => { closeSheet(); viewDoc(id); }, gid);
+  await p.evaluate(() => document.querySelector('#sheetRoot [data-act=docDel]').click());
+  await p.waitForFunction(() => document.querySelector('#sheetRoot [data-act=docDel]').dataset.sure === '1');
+  await p.evaluate(() => document.querySelector('#sheetRoot [data-act=docDel]').click());
+  await p.waitForFunction(id => byId('docs', id).void, gid); await settle(p); await step('void the gift');
+}
+
+module.exports = { ROOT, serve, launch, openApp, ready, openDoc, submit, sig, seedSmall, test, run, assert, fill, submitForm, settle, invariants, seedFull };
