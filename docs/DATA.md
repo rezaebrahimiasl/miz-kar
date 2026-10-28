@@ -89,7 +89,7 @@ Accounts the user adds inside a voucher are stored in `meta` record `coaX` and m
 | Store | Content |
 |---|---|
 | IndexedDB `miz-kar-snap` | the last 10 full local snapshots (`snapTake()`, `snapList()`) |
-| `localStorage` `miz.*` | settings, filter memory (`miz.uiF`), drafts (`miz.drafts`), recently deleted records (`miz.trash`), usage statistics, integration settings (`miz.gh`, `miz.ai`, `miz.gc`), licence (`miz.lic`) |
-| `sessionStorage` | per-session flags and the Google Calendar token |
+| `localStorage` `miz.*` | settings, filter memory (`miz.uiF`), drafts (`miz.drafts`), recently deleted records (`miz.trash`), usage statistics, integration settings and credentials, licence |
+| `sessionStorage` | per-session flags and short-lived sign-in state |
 
-`lsBackup()` includes the `miz.*` keys in backups, except those listed in `LS_SKIP` (credentials and device-specific keys).
+`lsBackup()` includes the `miz.*` keys in backups, except credentials and device-specific keys (the exclusion list `LS_SKIP`).

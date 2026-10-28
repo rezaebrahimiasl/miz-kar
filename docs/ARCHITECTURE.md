@@ -73,14 +73,14 @@ Statements marked **[unverified]** were not confirmed against the code.
 
 ### 3.4 Optional integrations
 
-| Integration | Entry points | Credential location | Notes |
+| Integration | Entry points | Credentials | Notes |
 |---|---|---|---|
-| GitHub backup | `ghPush()` → `ghPush0()`; payload `backupData()` packed by `ghPack()` | `localStorage` `miz.gh` | refuses to upload without a passphrase |
+| GitHub backup | `ghPush()` → `ghPush0()`; payload `backupData()` packed by `ghPack()` | access token and backup passphrase kept in the phone's browser storage only; excluded from backups; never in the repository | refuses to upload without a passphrase |
 | Multi-device sync | `ghSync()`, `syncMerge()` | same | requires a passphrase |
 | Restore | `doRestore()` (file), `restoreJson()` → preview → `restoreApply()`; decrypt with `ghUnpack()` | — | additive; snapshot taken first |
-| Calendar feed (legacy) | `calFeed()`, `calPush()` | `miz.gh` | only when the user enables it |
-| Google Calendar | `gcItems()`, `gcSync()` | OAuth token in `sessionStorage` | per-item or bulk approval |
-| Gemini AI | `aiCall()`; clinical text passes through `deid()` | `localStorage` `miz.ai` | only with the user's key |
+| Calendar feed (legacy) | `calFeed()`, `calPush()` | same as GitHub backup | only when the user enables it |
+| Google Calendar | `gcItems()`, `gcSync()` | sign-in token kept for the current browser session only (the non-secret OAuth client ID is an ordinary setting and is included in backups) | per-item or bulk approval |
+| Gemini AI | `aiCall()`; clinical text passes through `deid()` | the user's own key, kept in the phone's browser storage only; excluded from backups | only with the user's key |
 | Update check | `checkUpdate()`, `stashLatest()`, `doUpdate()` | — | updates only to a **higher** version |
 
 ### 3.5 Service worker (`sw.js`)
