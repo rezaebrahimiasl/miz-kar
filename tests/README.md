@@ -26,6 +26,7 @@ Nothing is installed into the app or the repository.
 | `10-smoke.test.js` | every tab, «مالی» sub-tab and domain page renders without errors or network |
 | `20-accounting.test.js` | a full synthetic business cycle through the real forms; after **every** step: trial balance = 0, every entry balanced, person balances = receivables − payables, stock value = inventory account, no negative lot, lot quantities consistent, no two live versions of a document; final golden fingerprint |
 | `25-money-stock-actions.test.js` | the click actions that write money or stock outside documents (`lotVoid`, `lotFixShort`, `lotMine`, `lotMineH`, `lotFixMine`, `chqUndo`, `pendOk`, `pendNo`, `lgSettle`, `logRestore`, `acctMerge`, `acctFix`): exact state change and invariants after each |
+| `26-money-forms.test.js` | money forms «تسویه», «تسویهٔ همه», «وصول چک», «واگذاری چک»: exact ledger rows, settled flags, cheque status and invariants (`formSettle()`, `formSettleAll()`, `formChqClear()`, `formChqEndorse()`, `ledSettleIfPaid()`) |
 | `30-docs.test.js` | document version restore and count-sheet restore |
 | `40-backup-restore.test.js` | backup → clean device → identical data (plain and encrypted) · wrong passphrase and non-backup files rejected · restore keeps newer local edits, does not resurrect deletions, never removes local rows, takes a snapshot first · Excel export round trip |
 | `50-workflows.test.js` | clinic visit with a fee (`visitOf`) and deleting it · beekeeping harvest → lot → sale · task paid with a voucher; invariants after each step |
@@ -38,6 +39,7 @@ Nothing is installed into the app or the repository.
 | `91-whatsnew.test.js` | «تازه‌ها»: every «امتحان کن» button opens exactly the page or tab its item names (same result as opening it directly); items without a destination show «فقط برای اطلاع» and no button |
 | `92-ux.test.js` | v4.26: «امروز» as the start tab of a new session; message duration by length and tap-to-close; undo bar, message and quick-entry button never overlap (also inside the search sheet); search finds documents and cheques but never vault items or visit notes; «ابزارها» in Tasks and the «بعداً» filter; no automatic print preview after saving a document |
 | `93-fixes427.test.js` | v4.27: search matches Persian and Latin digits (shared `nrm()` unchanged) and opens from «فاکتورها و اسناد» limited to documents; the automatic Google Calendar sign-in stays in the app when the internet does not answer (failed, portal HTML, no answer) and still signs in when it does; manual sign-in unchanged |
+| `94-today-nav.test.js` | v4.28: «امروز» order (prayers → tasks → follow-ups → reminders → tip; first overdue task on the first screen; weekly-review reminder shown); «فاکتورها و اسناد» on the money tab and in «بیشتر»; display settings under «تنظیمات»; search placeholder; AI button only for questions and only with a key |
 | `lib.js` | local static server, browser launch, condition-based waits, synthetic seeds, invariants |
 
 ## Finding code (instead of reading index.html)
@@ -67,6 +69,8 @@ Run the rows that match what you changed, plus `00` and `01` (both take seconds)
 | documents, posting (`postDoc`, `docVoid`), stock, lots, kardex | `20`, `30` |
 | ledger, vouchers, accounting (`autoEntries`), person balances | `20`, `25` |
 | «Stock & money actions» (`actLotVoid` … `actAcctFix`), cheques, own accounts | `25` |
+| «Money forms» (settle, settle all, clear/endorse cheque) | `26` |
+| «امروز» (`vToday`), menu (`menuSheet`, `MENU_HIDE`, `REGROUP`), money tab header | `94`, `10`, `90` |
 | clinic visits and fees, apiary/harvest lots, task payments | `50` |
 | backup, restore, export (`backupData`, `restoreApply`, `ghPack`) | `40`, `70` |
 | calendar feed (`calFeed`), AI (`deid`, `aiCall`), deleting records, drafts | `75` |

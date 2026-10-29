@@ -1,6 +1,6 @@
 # Reza Desk (میز کار رضا): Architecture
 
-This document describes app v4.25.
+This document describes app v4.28.
 Line numbers drift with every change, so code is referred to by **function name**.
 `tests/05-docs.test.js` checks that every name written as `name()` here still exists.
 Statements marked **[unverified]** were not confirmed against the code.
@@ -61,7 +61,7 @@ Statements marked **[unverified]** were not confirmed against the code.
 | Views | `render()` rebuilds `#view` from the current `tab`: `vHome()` (planets), `vDom()` (domain page), `vToday()`, `vTasks()`, `vPeople()`, `vMoney()` |
 | Navigation | `goTab()` with `history.pushState`; the phone back button goes one step |
 | Sheets (pages over the view) | `openSheet()` pushes onto a stack (`SST`); `sheetBack()` and `closeSheet()` pop it |
-| Actions | one delegated click handler with one `switch(a)` over `data-act` values (about 580 cases). `tests/00-static.test.js` enforces that every action name is unique; `tests/01-wiring.test.js` that every `data-act` and `data-form` has a handler. Click actions that write money or stock outside documents live in the region «Stock & money actions» as named functions (`actLotVoid()` … `actAcctFix()`); their cases only delegate. To find code without reading the whole file: `node tools/q.js` (see `tests/README.md`). |
+| Actions | one delegated click handler with one `switch(a)` over `data-act` values (about 580 cases). `tests/00-static.test.js` enforces that every action name is unique; `tests/01-wiring.test.js` that every `data-act` and `data-form` has a handler. Click actions that write money or stock outside documents live in the region «Stock & money actions» as named functions (`actLotVoid()` … `actAcctFix()`); their cases only delegate. Submit branches that settle debts and clear cheques live in «Money forms» (`formSettle()`, `formSettleAll()`, `formChqClear()`, `formChqEndorse()`, sharing `ledSettleIfPaid()`). To find code without reading the whole file: `node tools/q.js` (see `tests/README.md`). |
 | Forms | one delegated submit handler keyed on `data-form` |
 | Modules on and off | `MODS` plus `on()` (profile setting combined with edition licence, `licOK()`) |
 

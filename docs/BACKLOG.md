@@ -19,6 +19,9 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 | P-1 | Privacy hardening, first part | 4.23 | `tests/75-privacy.test.js` |
 | T4 | «تازه‌ها»: «امتحان کن» opens its own destination; items without one are labelled «فقط برای اطلاع» | 4.24 | `tests/91-whatsnew.test.js` |
 | WP-8 | Code-finding tool (`tools/q.js`) and static wiring test | — | `tests/01-wiring.test.js` |
+| WP-6 | Dead code removed (`vBiz`, `myAcctsOld`, `restoreJsonOld`, `fHint`, the unused `tgJump` action); the unused icons `icon-192.png`, `icon-512.png` are kept (old installs may still ask for them) | 4.28 (not yet released) | `tests/05-docs.test.js` |
+| WP-10a | Money forms moved into named functions (`formSettle`, `formSettleAll`, `formChqClear`, `formChqEndorse`) with one shared `ledSettleIfPaid()` instead of three copies | 4.28 (not yet released) | `tests/26-money-forms.test.js` |
+| UX-1 | «امروز» shows work before system reminders; weekly-review reminder fixed; «فاکتورها و اسناد» on the money tab and in «بیشتر»; display settings in «تنظیمات»; AI question button in search | 4.28 (not yet released) | `tests/94-today-nav.test.js` |
 | WP-9 | Money and stock click actions moved out of `switch(a)` into named functions («Stock & money actions») | 4.25 (not yet released) | `tests/25-money-stock-actions.test.js`, `tests/50-workflows.test.js` |
 
 ## Decisions needed (owner)
@@ -38,9 +41,8 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 | O4 | Bundle the Vazirmatn font locally (no remote font) | 2 | — |
 | O5 | Voice input: clear message when offline | 4 | — |
 | O6 | Show whether the browser granted persistent storage | 3 | — |
-| WP-6 | Remove dead code (`vBiz`, `myAcctsOld`, `restoreJsonOld`, `fHint`) and unused icons (`icon-192.png`, `icon-512.png`) | 4 | WP-1, WP-3 |
 | WP-7 | First module boundary: one writer for document postings | 4 | WP-1 to WP-3 |
-| WP-10 | Form submit branches that write `ledger` directly: 51 calls in 21 branches (`chqClear` 3, `chqEndorse` 4, `comm` 1, `doc` 5, `ledger` 2, `ledgerEdit` 1, `lot` 6, `lotExtra` 1, `move` 1, `moveEdit` 2, `net` 5, `pendEdit` 3, `prod` 2, `recur` 1, `refsale` 6, `repack` 1, `settle` 2, `settleall` 2, `void` 1, `voidMove` 1, `voucher` 1; `node tools/q.js writers ledger`). Scope: move each branch's writes into a named function in groups, as WP-9 did, with a test per group before the move. Not a rewrite of the rules. | 3 | WP-9 |
+| WP-10 | Form submit branches that still write `ledger` directly: 40 calls in 17 branches (`doc` 5, `lot` 6, `refsale` 6, `net` 5, `pendEdit` 3, `ledger` 2, `moveEdit` 2, `prod` 2, `comm`, `ledgerEdit`, `lotExtra`, `move`, `recur`, `repack`, `void`, `voidMove`, `voucher` 1 each; `node tools/q.js writers ledger`). Same method as WP-10a: a test per group first, then move. | 3 | WP-10a |
 
 ## Known structural facts (not defects by themselves)
 

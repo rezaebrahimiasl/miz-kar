@@ -1,3 +1,5 @@
+> **Out of date (written for v4.20).** Current architecture, data model, release process and backlog: `docs/`. Kept only as a historical record.
+
 # Reza Desk (میز کار رضا): Discovery Report
 
 - **Date:** 2026-10-27

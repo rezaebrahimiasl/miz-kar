@@ -553,3 +553,11 @@
 - Google Calendar: `gcBoot()`'s automatic silent sign-in (`gcAuth(true)`) used to navigate the whole page to accounts.google.com whenever `navigator.onLine` was true, which on Wi-Fi without internet ended on Chrome's «can't be reached» page. It now first calls `gcNetOk()`: one `version.json?net=…` request (`no-store`, not answered by the service worker), at most 3 s; only an OK, non-redirected JSON with `v` counts as online. `miz.gc.tried` is set only when the sign-in really starts. Manual sign-in and sync with a token are unchanged.
 - Tests: `tests/93-fixes427.test.js` (6; 4 fail on 4.26); `92` E updated to the new start-tab rule.
 
+## v4.28 — Today puts work first; documents easy to find; money forms as functions; dead code removed
+- `vToday()` order: capture, trip, muhasaba and prayer row, here-city tasks, «سه کار مهم امروز», due follow-ups, then «نیاز به توجه» (still folded to 3), then the tip, then contacts/occasions/insights/habits/recent/stock/chains/money/deals/inbox. Every block and every `TS()` toggle is unchanged; only the order moved. Bug fixed: the weekly-review reminder was added to the attention list after it had been drawn, so it never showed.
+- Navigation: `docsSheet` is no longer in `MENU_HIDE` (shown under «پول و کسب‌وکار»); the money tab has «فاکتورها و اسناد» beside «ثبت مالی»; `viewPanel` (the header's display icon) is also listed under «تنظیمات»; the search placeholder names invoices and cheques.
+- Search: for a question (؟, چقدر, چند, کدام, …) and only when the AI key is set (`aiOn()`), a button «این را از دستیار هوشمند بپرس» calls the existing `aiAsk(q)`; nothing is sent unless tapped.
+- New region «Money forms»: `formSettle`, `formSettleAll`, `formChqClear`, `formChqEndorse` (bodies moved unchanged from the submit handler; each branch is `await formX(f,id);return`), and `ledSettleIfPaid(refId)` replacing three identical blocks. Ledger write calls 78 → 76, same behaviour (`tests/26-money-forms.test.js`, 6, also passes on 4.27).
+- Dead code removed: `vBiz`, `myAcctsOld`, `restoreJsonOld`, `fHint`, the `tgJump` action and its anchors; `tests/05-docs` now checks they stay removed.
+- `REZA_DESK_DISCOVERY.md` marked out of date (docs/ is current).
+
