@@ -1,4 +1,4 @@
-const V='miz-kar-v4.24';const KEEP=[V,'miz-shell','miz-share'];const SHELL=['./','index.html','manifest.webmanifest','icon2-192.png','icon2-512.png','icon2-maskable-512.png','logo.webp','qr.js'];
+const V='miz-kar-v4.25';const KEEP=[V,'miz-shell','miz-share'];const SHELL=['./','index.html','manifest.webmanifest','icon2-192.png','icon2-512.png','icon2-maskable-512.png','logo.webp','qr.js'];
 // Install (O3): download and validate EVERY file first; only then write the new cache and take over.
 // If any file fails (offline, 404, captive portal, broken download) the install fails, the browser keeps the current
 // worker, and activation, which is what deletes old caches, never happens: the last working offline app stays intact.

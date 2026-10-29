@@ -387,7 +387,7 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[],meets:[]};
 const COLS=Object.keys(S);
-const APP_VER='4.24';
+const APP_VER='4.25';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 const UIKEEP=['dom','stV','stD','stDF','stDT','tPe','moneyV','tSt','tD','tDF','tDT','tAr','tPr','tTg','tCt','tSo','dealD','dealDF','dealDT','moneyD','moneyDF','moneyDT','docD','docDF','docDT','chqD','chqDF','chqDT','winD','winDF','winDT','stX','stP','stK','stS','taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
 try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
@@ -2375,6 +2375,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['4.25',[['finance','check','پایه‌ای محکم‌تر برای انبار و حساب‌ها','کارهایی مثل حذف محموله، اصلاح کسری انبار، برگشت چک، تأیید پرداخت خودکار و ادغام حساب‌ها حالا هر کدام جدا آزموده می‌شوند. رفتارشان تغییری نکرده است.']]],
  ['4.24',[['affairs','check','«تازه‌ها» درست باز می‌شوند','دکمهٔ «امتحان کن» فقط کنار تازه‌هایی می‌آید که صفحه‌ای برای باز کردن دارند و همان صفحه را باز می‌کند؛ بقیه با برچسب «فقط برای اطلاع» نشان داده می‌شوند.','whatsNew']]],
  ['4.23',[['affairs','check','تقویم بدون نام مراجعان','در فید تقویم (فایل ‎.ics‎) کارها، نوبت‌ها و سررسیدهای مربوط به مراجعان درمانگاه فقط با عنوان کلی «نوبت درمانگاه» یا «سررسید طلب (درمانگاه)» می‌آیند؛ نام، تلفن، یادداشت و کد پرونده در آن نیست.'],['affairs','check','حریم خصوصی بیشتر در دستیار هوشمند','پیش از ارسال متن درمانی به جمینای، نام همهٔ افراد ثبت‌شده، شماره‌ها، نشانی و پیوندها برداشته می‌شود. این کار خودکار است و تضمین کامل نمی‌دهد.'],['affairs','check','به‌روزرسانی ناقص نصب نمی‌شود','اگر هنگام به‌روزرسانی حتی یک فایل کامل نرسد، نسخهٔ قبلی دست‌نخورده می‌ماند و برنامه بدون اینترنت هم باز می‌شود.'],['affairs','book','راهنما دوباره باز می‌شود','صفحهٔ «راهنما و فهرست امکانات» درست شد؛ پیش‌نویس ذخیره‌نشدهٔ یک رکورد هم با حذف آن رکورد پاک می‌شود.','helpAll']]],
  ['4.22',[['affairs','check','باز شدن مطمئن بدون اینترنت','نسخهٔ ذخیره‌شدهٔ برنامه روی گوشی فقط با خود برنامه جایگزین می‌شود؛ صفحه‌های دیگر (مثل صفحهٔ ورود وای‌فای عمومی یا صفحهٔ خطا) دیگر جای آن را نمی‌گیرند و برنامه همیشه بدون اینترنت باز می‌شود. اگر قبلاً چنین صفحه‌ای ذخیره شده بود، با این نسخه کنار گذاشته می‌شود.','']]],

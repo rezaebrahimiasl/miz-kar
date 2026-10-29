@@ -25,8 +25,10 @@ Nothing is installed into the app or the repository.
 | `00-static.test.js` | script parses · action names unique · version numbers agree · every pre-cached file exists |
 | `10-smoke.test.js` | every tab, «مالی» sub-tab and domain page renders without errors or network |
 | `20-accounting.test.js` | a full synthetic business cycle through the real forms; after **every** step: trial balance = 0, every entry balanced, person balances = receivables − payables, stock value = inventory account, no negative lot, lot quantities consistent, no two live versions of a document; final golden fingerprint |
+| `25-money-stock-actions.test.js` | the click actions that write money or stock outside documents (`lotVoid`, `lotFixShort`, `lotMine`, `lotMineH`, `lotFixMine`, `chqUndo`, `pendOk`, `pendNo`, `lgSettle`, `logRestore`, `acctMerge`, `acctFix`): exact state change and invariants after each |
 | `30-docs.test.js` | document version restore and count-sheet restore |
 | `40-backup-restore.test.js` | backup → clean device → identical data (plain and encrypted) · wrong passphrase and non-backup files rejected · restore keeps newer local edits, does not resurrect deletions, never removes local rows, takes a snapshot first · Excel export round trip |
+| `50-workflows.test.js` | clinic visit with a fee (`visitOf`) and deleting it · beekeeping harvest → lot → sale · task paid with a voucher; invariants after each step |
 | `60-offline.test.js` | service worker install, airplane-mode cold launch, offline create/edit, reopen, reconnect without duplicates or uploads |
 | `70-backup-security.test.js` | no cloud upload without the encryption passphrase; encrypted upload decrypts to the same data |
 | `75-privacy.test.js` | calendar feed carries no clinic-client names, phones, notes or case codes · AI de-identification removes names, phones, e-mail, links and addresses · deleting a record drops its unsaved drafts and keeps it in the trash |
@@ -61,7 +63,9 @@ Run the rows that match what you changed, plus `00` and `01` (both take seconds)
 |---|---|
 | any button, form, menu, «تازه‌ها» or help entry | `01`, then `90` (menu) or `91` («تازه‌ها») |
 | documents, posting (`postDoc`, `docVoid`), stock, lots, kardex | `20`, `30` |
-| ledger, vouchers, accounting (`autoEntries`), person balances | `20` |
+| ledger, vouchers, accounting (`autoEntries`), person balances | `20`, `25` |
+| «Stock & money actions» (`actLotVoid` … `actAcctFix`), cheques, own accounts | `25` |
+| clinic visits and fees, apiary/harvest lots, task payments | `50` |
 | backup, restore, export (`backupData`, `restoreApply`, `ghPack`) | `40`, `70` |
 | calendar feed (`calFeed`), AI (`deid`, `aiCall`), deleting records, drafts | `75` |
 | `sw.js`, `stashLatest`, `checkUpdate`, start-up and loading | `60`, `80`, `81` |

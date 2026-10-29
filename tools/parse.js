@@ -72,9 +72,10 @@ function build(html, off, js) {
     const po = at + m[0].length - 1, pc = P.matchClose(po), bo = P.nextCode(pc + 1, '{'), bc = bo < 0 ? -1 : P.matchClose(bo);
     if (bc > 0) fns.push({ name: m[1], start: at, end: bc + 1, kind: 'function' }); }
   for (const { at, m } of P.find(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\(|[A-Za-z_$][\w$]*\s*=>)/g)) {
-    let j = at + m[0].length - 1; if (js[j] === '(') { j = P.matchClose(j); if (j < 0) continue; j++; } else j = at + m[0].length - 1;
-    const arrow = js.slice(j, j + 40).match(/^\s*[A-Za-z_$]?[\w$]*\s*=>\s*/) || js.slice(j, j + 40).match(/^\s*=>\s*/); if (!arrow) continue;
-    let b = j + arrow[0].length; let end;
+    let j = at + m[0].length - 1, b;
+    if (js[j] === '(') { j = P.matchClose(j); if (j < 0) continue; const arrow = js.slice(j + 1, j + 40).match(/^\s*=>\s*/); if (!arrow) continue; b = j + 1 + arrow[0].length; }
+    else { b = at + m[0].length; while (/\s/.test(js[b])) b++; }   // single parameter without parentheses: «x=>…»
+    let end;
     if (js[b] === '{') end = P.matchClose(b) + 1;
     else { const d0 = sc.depth[at]; end = b; let k = 0; for (; end < js.length; end++) { if (!sc.code[end]) continue; const c = js[end];
         if ('([{'.includes(c)) k++; else if (')]}'.includes(c)) { if (k === 0) break; k--; } else if ((c === ';' || c === ',' || c === '\n') && k === 0 && sc.depth[end] === d0) break; } }

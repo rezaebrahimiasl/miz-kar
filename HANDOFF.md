@@ -532,3 +532,9 @@
 - Data: 3.99 `tasks` → `tab|tasks`; 4.23 Help item → `helpAll`.
 - Test: `tests/91-whatsnew.test.js` compares every destination opened from «تازه‌ها» with the same destination opened directly.
 
+## v4.25 — money and stock click actions as named functions
+- New region «Stock & money actions» (just before «Actions»): `actLotVoid`, `actLotFixShort`, `actLotMine`, `actLotMineH`, `actLotFixMine`, `actChqUndo`, `actPendOk`, `actPendNo`, `actLgSettle`, `actLogRestore`, `actAcctMerge`, `actAcctFix`, each `(b,id)` (b = the clicked button, id = `b.dataset.id`). The `switch(a)` cases only delegate.
+- Bodies moved unchanged; `break` became `return` (nothing follows `switch(a)` in the click listener, so behaviour is identical). No `ledger`, `lots` or `moves` write is left inside `switch(a)` (`node tools/q.js writers ledger|lots|moves`).
+- Tests: `25-money-stock-actions` (13, also passes on 4.24 unchanged), `50-workflows` (5: clinic visit fee, harvest → sale, task paid with a voucher). `tools/parse.js` now also finds single-parameter arrow functions (`const f=x=>…`).
+- Observed, unchanged: deleting a visit (`voidVisit`) keeps its fee row (`visitOf`); the books stay consistent.
+
