@@ -27,6 +27,7 @@ Nothing is installed into the app or the repository.
 | `20-accounting.test.js` | a full synthetic business cycle through the real forms; after **every** step: trial balance = 0, every entry balanced, person balances = receivables − payables, stock value = inventory account, no negative lot, lot quantities consistent, no two live versions of a document; final golden fingerprint |
 | `25-money-stock-actions.test.js` | the click actions that write money or stock outside documents (`lotVoid`, `lotFixShort`, `lotMine`, `lotMineH`, `lotFixMine`, `chqUndo`, `pendOk`, `pendNo`, `lgSettle`, `logRestore`, `acctMerge`, `acctFix`): exact state change and invariants after each |
 | `26-money-forms.test.js` | money forms «تسویه», «تسویهٔ همه», «وصول چک», «واگذاری چک»: exact ledger rows, settled flags, cheque status and invariants (`formSettle()`, `formSettleAll()`, `formChqClear()`, `formChqEndorse()`, `ledSettleIfPaid()`) |
+| `27-doc-lot-ref-net.test.js` | WP-10: net profit (in, due, debt, asset, cost row), referral sale and its edit (partial payment carried over), lots (opening stock, consigned, edit of a bought lot with purchase-row history), pro-forma and letter without postings (`formNetSave()`, `formRefSale()`, `formLotSave()`, `formDocSave()`) |
 | `30-docs.test.js` | document version restore and count-sheet restore |
 | `40-backup-restore.test.js` | backup → clean device → identical data (plain and encrypted) · wrong passphrase and non-backup files rejected · restore keeps newer local edits, does not resurrect deletions, never removes local rows, takes a snapshot first · Excel export round trip |
 | `50-workflows.test.js` | clinic visit with a fee (`visitOf`) and deleting it · beekeeping harvest → lot → sale · task paid with a voucher; invariants after each step |
@@ -70,6 +71,7 @@ Run the rows that match what you changed, plus `00` and `01` (both take seconds)
 | ledger, vouchers, accounting (`autoEntries`), person balances | `20`, `25` |
 | «Stock & money actions» (`actLotVoid` … `actAcctFix`), cheques, own accounts | `25` |
 | «Money forms» (settle, settle all, clear/endorse cheque) | `26` |
+| document, lot, referral-sale and net-profit forms (`formDocSave` … `formNetSave`) | `27`, `20`, `30`, `50` |
 | «امروز» (`vToday`), menu (`menuSheet`, `MENU_HIDE`, `REGROUP`), money tab header | `94`, `10`, `90` |
 | clinic visits and fees, apiary/harvest lots, task payments | `50` |
 | backup, restore, export (`backupData`, `restoreApply`, `ghPack`) | `40`, `70` |

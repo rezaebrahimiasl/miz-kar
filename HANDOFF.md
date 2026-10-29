@@ -561,3 +561,8 @@
 - Dead code removed: `vBiz`, `myAcctsOld`, `restoreJsonOld`, `fHint`, the `tgJump` action and its anchors; `tests/05-docs` now checks they stay removed.
 - `REZA_DESK_DISCOVERY.md` marked out of date (docs/ is current).
 
+## v4.29 — WP-10b: document, lot, referral-sale and net-profit forms as named functions
+- New region «Document, lot, referral-sale and net-profit forms»: `formDocSave(f,id)`, `formLotSave(f,id)`, `formRefSale(f,id)`, `formNetSave(f,id)`. Bodies moved byte-for-byte from the submit handler (all four always ended in `return`); the branches are now `if(k==='doc'){await formDocSave(f,id);return}` etc. The only handler variables they use are `f` and `id`.
+- Write totals unchanged (ledger 76 calls, lots 20, moves 22, docs 16); direct ledger writes left in submit branches: 18 in 13 small branches (BACKLOG WP-10).
+- Test: `tests/27-doc-lot-ref-net.test.js` (6; written and passing on 4.28 before the move). Sales/purchases/returns/edits through «doc» stay covered by 20 (golden fingerprint), 30 and 50.
+
