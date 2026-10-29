@@ -590,7 +590,7 @@ function recoverySheet(){openSheet(`<h3>${badge('finance','warn')} حالت با
 const CONF=()=>(S.meta.find(x=>x.id==='conflicts')||{list:[]}).list||[];
 const openConf=()=>CONF().filter(x=>x.open);
 const docLabel=(c,d)=>d?(d.name||d.title||d.desc||d.about||d.product&&lotName(d)||(d.no?docTitle(d)+' '+d.no:'')||d.id):'';
-async function confSave(list){const cd=S.meta.find(x=>x.id==='conflicts')||{id:'conflicts'};window._noUnsent=true;try{await putRaw('meta',{...cd,id:'conflicts',list:list.slice(0,80),updated:nowTs(),created:cd.created||nowTs()})}finally{window._noUnsent=false}}
+async function confSave(list){const cd=S.meta.find(x=>x.id==='conflicts')||{id:'conflicts'};const pv=window._noUnsent;window._noUnsent=true;try{await putRaw('meta',{...cd,id:'conflicts',list:list.slice(0,80),updated:nowTs(),created:cd.created||nowTs()})}finally{window._noUnsent=pv}}
 function conflictsSheet(){const L=openConf();if(!L.length){closeSheet();return toast('تعارضی نمانده ✓')}const T=c=>(LOGT2[c]||{}).n||c;
   const diff=(a,b)=>[...new Set(Object.keys(a||{}).concat(Object.keys(b||{})))].filter(k=>!['updated','created','id'].includes(k)&&JSON.stringify((a||{})[k])!==JSON.stringify((b||{})[k]));
   const v=x=>x==null?'—':typeof x==='object'?JSON.stringify(x).slice(0,80):String(x).slice(0,80);
@@ -2928,11 +2928,13 @@ async function ghSync(manual){const c=GH.cfg;if(!c.token||!c.repo){if(manual)ghS
   catch(e){const m=e instanceof TypeError?'به گیت‌هاب وصل نشد؛ اینترنت یا فیلترشکن را بررسی کن.':(e.message||'خطا');GH.cfg={...GH.cfg,err:m};if(manual)toast(m)}finally{syncBusy=false;ghBusy=false}}
 async function syncMerge(data){window._noUnsent=true;try{return await syncMerge0(data)}finally{window._noUnsent=false}}
 async function syncMerge0(data){UB=null;const last=GH.cfg.syncAt||'';let n=0;const OC=new Set(openConf().map(x=>x.key));const NC=[];const T={...(tombDoc().items||{})};const rT=((data.meta||[]).find(x=>x.id==='tomb')||{}).items||{};Object.entries(rT).forEach(([k,v])=>{if(!T[k]||v>T[k])T[k]=v});const conf=[];
-  for(const c of COLS){for(const d of (data[c]||[])){if(!d||!d.id||(c==='vault'&&d.id==='bio')||(c==='meta'&&(d.id==='tomb'||d.id==='conflicts')))continue;const tk=T[c+'/'+d.id];if(tk&&tk>=(d.updated||''))continue;if(OC.has(c+'/'+d.id))continue;const cur=S[c].find(x=>x.id===d.id);
+  for(const c of COLS){const DM=new Map();for(const d of (data[c]||[]))if(d&&d.id){const o=DM.get(d.id);if(!o||(d.updated||'')>(o.updated||''))DM.set(d.id,d)}// the same id twice in a payload: only its newest copy
+    for(const d of DM.values()){if(!d||!d.id||(c==='vault'&&d.id==='bio')||(c==='meta'&&(d.id==='tomb'||d.id==='conflicts')))continue;const tk=T[c+'/'+d.id];if(tk&&tk>=(d.updated||''))continue;if(OC.has(c+'/'+d.id))continue;const cur=S[c].find(x=>x.id===d.id);
       if(!cur){await putRaw(c,d);n++;continue}if((d.updated||'')>(cur.updated||'')){if(last&&(cur.updated||'')>last&&JSON.stringify(cur)!==JSON.stringify(d)){NC.push({key:c+'/'+d.id,col:c,id:d.id,local:cur,remote:d,at:nowTs(),open:true});continue}await putRaw(c,d);n++}
       else if(last&&(d.updated||'')>last&&(cur.updated||'')>last&&JSON.stringify(cur)!==JSON.stringify(d))NC.push({key:c+'/'+d.id,col:c,id:d.id,local:cur,remote:d,at:nowTs(),open:true})}}
   if(NC.length){const L=CONF().filter(x=>!NC.some(y=>y.key===x.key));await confSave([...NC,...L])}
-  for(const [k,v] of Object.entries(T)){const [c,id]=k.split('/');if(!S[c])continue;const cur=S[c].find(x=>x.id===id);if(cur&&v>=(cur.updated||'')){try{if(mode==='local')await idbDel(c,id);S[c]=S[c].filter(x=>x.id!==id);n++}catch(_){}}}
+  for(const [k,v] of Object.entries(T)){const [c,id]=k.split('/');if(!S[c]||k==='vault/bio'||k==='meta/tomb'||k==='meta/conflicts')continue;// device-only records are never deleted by another device's tombstone
+    const cur=S[c].find(x=>x.id===id);if(cur&&v>=(cur.updated||'')){try{if(mode==='local')await idbDel(c,id);S[c]=S[c].filter(x=>x.id!==id);n++}catch(_){}}}
   const t=tombDoc();if(JSON.stringify(t.items||{})!==JSON.stringify(T))await putRaw('meta',{...t,items:T,updated:nowTs(),created:t.created||nowTs()});
   if(conf.length){const cd=S.meta.find(x=>x.id==='conflicts')||{id:'conflicts',list:[]};await putRaw('meta',{...cd,list:[...conf,...(cd.list||[])].slice(0,50),updated:nowTs(),created:cd.created||nowTs()})}
   if(n)rebuildContacts();return n}

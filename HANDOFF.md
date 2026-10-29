@@ -566,4 +566,10 @@
 - Write totals unchanged (ledger 76 calls, lots 20, moves 22, docs 16); direct ledger writes left in submit branches: 18 in 13 small branches (BACKLOG WP-10).
 - Test: `tests/27-doc-lot-ref-net.test.js` (6; written and passing on 4.28 before the move). Sales/purchases/returns/edits through «doc» stay covered by 20 (golden fingerprint), 30 and 50.
 - WP-10c (same release): the last 13 branches that wrote `ledger` directly — `ledger`, `ledgerEdit`, `void`, `voidMove`, `moveEdit`, `comm`, `lotExtra`, `move`, `recur`, `repack`, `prod`, `voucher` (each `formXSave(f,id)` style) and `pendEdit` (`formPendEdit(e)`, in the first submit block; `e.preventDefault()` still runs before the first await). Bodies byte-for-byte; `node tools/q.js writers ledger` shows no `form:` writer left. Test: `tests/28-small-money-forms.test.js` (12, passing on the code before the move).
+- Sync merge (same release, round 2): `tests/41-sync-merge.test.js` (10) calls `syncMerge()` with synthetic payloads around a fixed «last sync» time. Three defects found and fixed, each guarded by that test (each check fails with its fix reverted):
+  1. `vault/bio` (this device's fingerprint unlock) was deleted when another device switched its own fingerprint off: its tombstone reached the tombstone loop, which did not skip device-only keys. The loop now skips `vault/bio`, `meta/tomb`, `meta/conflicts`, like the record loop and `restorePlan`.
+  2. The same id twice in a payload: the first copy was stored, then counted as a local change, so the newer second copy became a spurious conflict and was not applied. Each collection is now reduced to the newest copy per id before merging.
+  3. `confSave()` reset `window._noUnsent` to false inside `syncMerge`, so deletions merged after a conflict counted as unsent local changes. It now restores the previous value.
+- Recorded, not changed (policy): a remote deletion newer than an unsynced local edit deletes the record without a conflict (the `snapTake('sync')` snapshot taken before every merge still holds it); on a device's first sync (no `syncAt`) the newer copy wins without a conflict.
+
 

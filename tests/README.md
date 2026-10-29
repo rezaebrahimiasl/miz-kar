@@ -31,6 +31,7 @@ Nothing is installed into the app or the repository.
 | `28-small-money-forms.test.js` | WP-10: ledger row new/correction/edit/void, pending-payment split, commission, extra lot cost, sale from a lot and its price edit, packing and voiding it, production, recurring fill-in, voucher from a ledger row: exact rows and invariants |
 | `30-docs.test.js` | document version restore and count-sheet restore |
 | `40-backup-restore.test.js` | backup → clean device → identical data (plain and encrypted) · wrong passphrase and non-backup files rejected · restore keeps newer local edits, does not resurrect deletions, never removes local rows, takes a snapshot first · Excel export round trip |
+| `41-sync-merge.test.js` | `syncMerge()` with synthetic payloads: one-sided edits (newer wins), both-sided edits (local kept + conflict with both copies, also at equal times; identical copies no conflict; open conflicts not overwritten), first sync, tombstones both ways against older/newer copies and their merge, records missing on either side, id-less entries, duplicate ids, idempotence, device-only `vault/bio` and conflicts list untouched, unsent counter, invariants, persistence after reload |
 | `50-workflows.test.js` | clinic visit with a fee (`visitOf`) and deleting it · beekeeping harvest → lot → sale · task paid with a voucher; invariants after each step |
 | `60-offline.test.js` | service worker install, airplane-mode cold launch, offline create/edit, reopen, reconnect without duplicates or uploads |
 | `70-backup-security.test.js` | no cloud upload without the encryption passphrase; encrypted upload decrypts to the same data |
@@ -77,6 +78,7 @@ Run the rows that match what you changed, plus `00` and `01` (both take seconds)
 | «امروز» (`vToday`), menu (`menuSheet`, `MENU_HIDE`, `REGROUP`), money tab header | `94`, `10`, `90` |
 | clinic visits and fees, apiary/harvest lots, task payments | `50` |
 | backup, restore, export (`backupData`, `restoreApply`, `ghPack`) | `40`, `70` |
+| sync (`syncMerge`, `ghSync`, tombstones, conflicts, `confSave`) | `41`, `40`, `70` |
 | calendar feed (`calFeed`), AI (`deid`, `aiCall`), deleting records, drafts | `75` |
 | `sw.js`, `stashLatest`, `checkUpdate`, start-up and loading | `60`, `80`, `81` |
 | render, tabs, domain pages | `10`, `90` |
