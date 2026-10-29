@@ -392,12 +392,12 @@ const APT={move:{n:'کوچ',f:['from','to','hives']},harvest:{n:'برداشت ع
 /* ---------- State & data ---------- */
 const S={people:[],deals:[],tasks:[],ledger:[],inbox:[],notes:[],apiary:[],lots:[],moves:[],quotes:[],contacts:[],habits:[],checkins:[],vouchers:[],cases:[],visits:[],qtopics:[],qverses:[],campaigns:[],trips:[],recurs:[],vault:[],assets:[],meta:[],ibadat:[],wins:[],docs:[],cheques:[],meets:[]};
 const COLS=Object.keys(S);
-const APP_VER='4.26';
+const APP_VER='4.27';
 let db=null, mode=null, idb=null, loaded=new Set(), tab='today', ui={dealF:'open',dealP:'all',peopleQ:'',peopleR:'all',moneyF:'all'};
 const UIKEEP=['dom','stV','stD','stDF','stDT','tPe','moneyV','tSt','tD','tDF','tDT','tAr','tPr','tTg','tCt','tSo','dealD','dealDF','dealDT','moneyD','moneyDF','moneyDT','docD','docDF','docDT','chqD','chqDF','chqDT','winD','winDF','winDT','stX','stP','stK','stS','taskF','dealF','dealP','peopleR','peopleS','pSort','moneyF','moneyA','ms','docF','cF','clF','winF','chqF','asF','chA','biz','cPriv'];
 try{const o=JSON.parse(localStorage.getItem('miz.uiF')||'{}');UIKEEP.forEach(k=>{if(o[k]!==undefined)ui[k]=o[k]})}catch(_){}
 function uiKeep(){try{const o={};UIKEEP.forEach(k=>{if(ui[k]!==undefined)o[k]=ui[k]});localStorage.setItem('miz.uiF',JSON.stringify(o))}catch(_){}}
-try{const t=localStorage.getItem('miz.tab');if(t)tab=t;if(!sessionStorage.getItem('miz.sess')){tab='today';sessionStorage.setItem('miz.sess','1')}}catch(e){}
+// every full start of the app (also a reload, an update or a return from Google sign-in) opens «امروز»; switching tabs and returning from the background keep the chosen tab
 if(tab==='deals'||tab==='stock'){ui.biz=tab;tab='biz'}
 const byId=(c,id)=>S[c].find(x=>x.id===id);
 const pname=id=>{const p=id&&byId('people',id);return p?p.name:''};
@@ -1457,7 +1457,10 @@ function gcBoot(){if(!LOAD_OK)return setTimeout(gcBoot,800);const b=window._gcBa
   if(b&&b.err){try{sessionStorage.setItem('miz.gc.tried','1')}catch(_){}if(!b.silent){toast('ورود به گوگل انجام نشد ('+b.err+')');gcalSheet()}return}
   if(!gcOn())return;if(gcTok())return gcSync(false);
   let tried='';try{tried=sessionStorage.getItem('miz.gc.tried')||''}catch(_){}
-  if(!tried&&GCFG().autoLogin!==false&&navigator.onLine&&!location.search&&!location.hash){const r=document.getElementById('sheetRoot');const P=gcPlan();if((P.ups.length||P.dels.length)&&(!r||r.hidden)){try{sessionStorage.setItem('miz.gc.tried','1')}catch(_){}gcAuth(true,'')}}}
+  if(!tried&&GCFG().autoLogin!==false&&navigator.onLine&&!location.search&&!location.hash){const r=document.getElementById('sheetRoot');const P=gcPlan();if((P.ups.length||P.dels.length)&&(!r||r.hidden))gcNetOk().then(ok=>{const r2=document.getElementById('sheetRoot');if(!ok||(r2&&!r2.hidden))return;try{sessionStorage.setItem('miz.gc.tried','1')}catch(_){}gcAuth(true,'')})}}
+// One request, at most 3 s: the app's own version.json, fetched past every cache (the service worker never answers it).
+// A sign-in page or redirect from a Wi-Fi portal, an error or a timeout all mean «no internet», so the automatic sign-in waits.
+async function gcNetOk(){const ac=new AbortController();const t=setTimeout(()=>ac.abort(),3000);try{const r=await fetch('version.json?net='+Date.now(),{cache:'no-store',signal:ac.signal});if(!r.ok||r.redirected)return false;const j=await r.json();return !!(j&&j.v)}catch(_){return false}finally{clearTimeout(t)}}
 addEventListener('load',()=>setTimeout(gcBoot,1200));setInterval(()=>{if(gcTok())gcKick(100)},5*60*1000);addEventListener('online',()=>gcKick(1500));
 /* Status of one record in the calendar, for its own page */
 function gcPill(key){if(!gcOn())return null;const id=gcId(key),c=GCFG(),L=gcLoc();if((c.no||{})[id])return `<button class="pill" data-act="gcOk1" data-id="${id}">${svg('cal')} ردشده؛ افزودن به تقویم</button>`;
@@ -2372,7 +2375,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
     const d=x.d,st=ST[d.posted&&(!d.status||d.status==='draft')?'posted':d.status||'draft'],t=docTotal(d);return `<button class="row" data-act="docView" data-id="${d.id}">${badge(...DOCC[x.g])}<div class="main"><div class="ttl">${docTitle(d)} <bdi dir="ltr">${esc(d.no||'')}</bdi>${d.subject?' · '+esc(d.subject):''}</div><div class="sub"><span>${esc(d.toName||pname(d.personId)||'—')}</span><span>${jShort(d.date)}</span>${d.type==='prod'?`<span>از ${fa((d.items||[]).length)} ماده</span>`:d.type==='count'?`<span>${fa((d.items||[]).length)} قلم</span>`:`<span class="pill ${st[1]}">${st[0]}</span>`}${d.inv===false?'<span class="pill">بدون فاکتور چاپی</span>':''}${(()=>{const L=S.ledger.find(l=>!l.void&&l.docId===d.id&&(l.kind==='receivable'||l.kind==='payable'));if(!L)return'';const r=remOf(L);return r<0.5?'<span class="pill ok">تسویه</span>':r<Number(L.amount)-0.5?`<span class="pill warn">مانده ${money(r,'تومان')}</span>`:'<span class="pill warn">نسیه</span>'})()}${profOpen(d)?(()=>{const e=profExp(d);return e<today()?`<span class="pill warn">اعتبار گذشت ${jNice(e)}</span>`:`<span class="pill">معتبر تا ${jNice(e)}</span>`})():''}</div></div>${t.total?`<div class="end ${x.g==='buy'||d.type==='sret'?'amt-neg':''}">${money(t.total,'تومان')}</div>`:''}</button>`};
   const sum=R.filter(x=>x.d&&x.g!=='letter'&&x.g!=='count').reduce((a,x)=>a+docTotal(x.d).total,0);
   openSheet(`<h3>${badge('sales','note')} فاکتورها و اسناد${helpBtn('docs')}</h3>
-  <button class="btn pri" data-act="newDocSheet" style="width:100%;margin:0 0 10px">+ سند تازه</button>
+  <div class="acts" style="margin:0 0 10px"><button class="btn pri" data-act="newDocSheet" style="flex:1">+ سند تازه</button><button class="btn" data-act="docSearch">${svg('search')} جستجو در اسناد</button></div>
   ${(()=>{const c=docNoCheck();return c.length?`<div class="banner" style="margin:0 0 10px">${svg('warn')} <span style="flex:1;font-size:13px">${c.map(esc).join('<br>')}</span></div>`:''})()}
   ${fBar('docs')}
   ${(()=>{const G={};R.filter(x=>x.d&&!['letter','count','prod'].includes(x.d.type)).forEach(x=>{const k=docTitle(x.d).split(' — ')[0];const t=docTotal(x.d).total;G[k]=G[k]||{n:0,t:0};G[k].n++;G[k].t+=t});const E=Object.entries(G).filter(([,v])=>v.t);return E.length?`<div class="tbl stmt" style="border-radius:12px;margin:0 0 8px"><table><thead><tr><th class="ds">جمع‌بندی ${ui.docD&&ui.docD!=='all'?'('+esc(drLabel('docD'))+')':''}</th><th>تعداد</th><th>جمع (میلیون تومان)</th></tr></thead><tbody>${E.map(([k,v])=>`<tr><td class="ds">${esc(k)}</td><td>${fa(v.n)}</td><td>${money(v.t,'تومان')}</td></tr>`).join('')}</tbody></table></div>`:''})()}
@@ -2380,6 +2383,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['4.27',[['affairs','check','همیشه با «امروز» شروع می‌شود','هر بار که برنامه از نو باز یا بارگذاری می‌شود «امروز» می‌آید؛ وقتی فقط از پس‌زمینه برمی‌گردی، همان صفحه‌ای که بودی می‌ماند.'],['finance','search','جستجوی شمارهٔ سند با هر نوع رقم','«1405-001» و «۱۴۰۵-۰۰۱» هر دو پیدا می‌شوند. در «فاکتورها و اسناد» هم دکمهٔ «جستجو در اسناد» آمد.','docsSheet'],['affairs','check','بدون اینترنت از برنامه بیرون نمی‌روی','ورود خودکار به تقویم گوگل فقط وقتی انجام می‌شود که اینترنت واقعاً جواب بدهد؛ با وای‌فای بدون اینترنت، برنامه باز می‌ماند.']]],
  ['4.26',[['affairs','check','برنامه با «امروز» باز می‌شود','هر بار که برنامه را باز می‌کنی، اول کارهای امروز را می‌بینی؛ منظومه همچنان یک ضربه فاصله دارد.','tab|today'],['affairs','search','جستجوی فاکتور، نامه و چک','در جستجو حالا شمارهٔ سند، طرف حساب، موضوع نامه و شرح ردیف‌ها، و شماره و بانک چک هم پیدا می‌شود.','search'],['affairs','check','کارها خلوت‌تر شد','ابزارهای کارها (چند کار با هم، دفتر کارها، جلسه‌ها، عادت‌ها، مرور هفتگی و …) زیر «ابزارها» آمده‌اند؛ فیلتر «بعداً» هم اضافه شد.','tab|tasks'],['finance','note','بعد از ثبت سند، صفحهٔ خود سند باز می‌شود','دیگر پیش‌نمایش چاپ خودبه‌خود باز نمی‌شود؛ هر وقت خواستی «چاپ» را بزن.'],['affairs','check','پیام‌ها خواناتر شد','پیام‌های بلند بیشتر می‌مانند و با یک ضربه بسته می‌شوند؛ نوار «برگردان» دیگر دکمهٔ ثبت سریع یا کادر جستجو را نمی‌پوشاند.']]],
  ['4.25',[['finance','check','پایه‌ای محکم‌تر برای انبار و حساب‌ها','کارهایی مثل حذف محموله، اصلاح کسری انبار، برگشت چک، تأیید پرداخت خودکار و ادغام حساب‌ها حالا هر کدام جدا آزموده می‌شوند. رفتارشان تغییری نکرده است.']]],
  ['4.24',[['affairs','check','«تازه‌ها» درست باز می‌شوند','دکمهٔ «امتحان کن» فقط کنار تازه‌هایی می‌آید که صفحه‌ای برای باز کردن دارند و همان صفحه را باز می‌کند؛ بقیه با برچسب «فقط برای اطلاع» نشان داده می‌شوند.','whatsNew']]],
@@ -3851,7 +3855,8 @@ function askAnswer(q0){const q=q0.replace(/‌/g,' ');if(!/[؟?]|چقدر|چه �
 // one search result row for a document: title and number, party, date (opens the document page)
 function gsDocRow(d){return `<button class="row" data-act="docView" data-id="${esc(d.id)}">${badge('finance','note')}<div class="main"><div class="ttl">${esc(docTitle(d))} <bdi dir="ltr">${esc(d.no||'')}</bdi>${d.subject?' · '+esc(d.subject):''}</div><div class="sub"><span>${esc(d.toName||pname(d.personId)||'—')}</span><span>${d.date?jShort(d.date):''}</span></div></div></button>`}
 function runSearch(q){q=q.trim().toLowerCase();const out=document.getElementById('gres');if(!out)return;const adv=gsActive();if(!q&&!adv){out.innerHTML='';return}
-  const qn=nrm(q),qw=q.split(/\s+/).map(nrm).filter(Boolean);const m0=(...xs)=>{if(!q)return true;const k=nrm(xs.join(' '));return k.includes(qn)||qw.every(w=>k.includes(w))};let _ty='';const m=(...xs)=>m0(...xs);
+  const nd=s=>en(nrm(s));   // ۱۴۰۵ = 1405: digits compared in one form
+  const qn=nd(q),qw=q.split(/\s+/).map(nd).filter(Boolean);const m0=(...xs)=>{if(!q)return true;const k=nd(xs.join(' '));return k.includes(qn)||qw.every(w=>k.includes(w))};let _ty='';const m=(...xs)=>m0(...xs);
   const F=(type,arr,fn)=>arr.filter(x=>gsPass(type,x)&&fn(x));
   const P=F('people',S.people,x=>m(x.name,x.org,x.note,x.phone,x.email)),D=F('deals',S.deals,x=>m(x.title,x.nextStep,x.note,pname(x.personId))),T=F('tasks',S.tasks,x=>m(x.title,x.note,pname(x.personId),x.city,x.tag,AREAS[x.area])),L=F('ledger',S.ledger,x=>m(x.about,x.ref,pname(x.personId),fa(x.amount))),N=F('notes',S.notes,x=>m(x.title,x.body)),A=F('apiary',S.apiary,x=>m((APT[x.type]||{}).n,x.loc,x.from,x.to,x.what,x.note,jShort(x.date))),LO=F('stock',S.lots,x=>m(lotName(x),x.code,x.note,pname(x.supplierId))),MO=F('stock',S.moves,x=>m(pname(x.personId),lotName(byId('lots',x.lotId)),x.note,(MOVE[x.kind]||{}).n)),QU=F('stock',S.quotes,x=>m(pname(x.personId),x.product,x.variety,x.note)),CTm=q&&(!ui.gs||!ui.gs.on||['all','contacts',''].includes(ui.gs.t||''))&&!(ui.gs&&ui.gs.on&&(ui.gs.from||ui.gs.to||ui.gs.a1!=null||ui.gs.area))?matchContacts(q,10):[];window._ctm=CTm;const QT=F('quran',S.qtopics,x=>m(x.title,x.desc,(x.kw||[]).map(k=>k.w).join(' '))),QV=F('quran',S.qverses,x=>m(x.note,x.text,(x.kws||[]).join(' '),SURAH[x.s-1])),CS=F('cases',S.cases,x=>m(x.code,x.complaint)),
     DC=F('docs',S.docs,x=>m(x.no,docTitle(x),x.subject,x.toName,pname(x.personId),(x.items||[]).map(r=>r&&r.desc).join(' '),x.note)),CQ=F('cheques',S.cheques||[],x=>m(x.no,x.sayad,x.bank,x.about,x.toName,pname(x.personId),fa(x.amount)));
@@ -4976,6 +4981,7 @@ document.addEventListener('click',async e=>{
     case'docF':ui.docF=b.dataset.v;docsSheet();break;
     case'docNew':if(b.dataset.v==='count')countSheet();else formDoc({type:b.dataset.v||'invoice'});break;
     case'docEdit':editRoute('doc',id);break;
+    case'docSearch':ui.gs={on:true,t:'docs'};searchSheet();break;   // global search, limited to documents (the «کجا» filter shows it and can be cleared)
     case'docView':viewDoc(id);break;
     case'viewCount':viewCount(id);break;
     case'docRestore':if(await docVoid(id,false)){toast('برگشت ✓ موجودی و حساب‌ها هم برگشت');closeSheet()}break;

@@ -37,6 +37,7 @@ Nothing is installed into the app or the repository.
 | `90-menu.test.js` | every menu entry opens without a page error (empty device and after a business cycle) · the Help page lists every entry with a description |
 | `91-whatsnew.test.js` | «تازه‌ها»: every «امتحان کن» button opens exactly the page or tab its item names (same result as opening it directly); items without a destination show «فقط برای اطلاع» and no button |
 | `92-ux.test.js` | v4.26: «امروز» as the start tab of a new session; message duration by length and tap-to-close; undo bar, message and quick-entry button never overlap (also inside the search sheet); search finds documents and cheques but never vault items or visit notes; «ابزارها» in Tasks and the «بعداً» filter; no automatic print preview after saving a document |
+| `93-fixes427.test.js` | v4.27: search matches Persian and Latin digits (shared `nrm()` unchanged) and opens from «فاکتورها و اسناد» limited to documents; the automatic Google Calendar sign-in stays in the app when the internet does not answer (failed, portal HTML, no answer) and still signs in when it does; manual sign-in unchanged |
 | `lib.js` | local static server, browser launch, condition-based waits, synthetic seeds, invariants |
 
 ## Finding code (instead of reading index.html)
@@ -71,7 +72,8 @@ Run the rows that match what you changed, plus `00` and `01` (both take seconds)
 | calendar feed (`calFeed`), AI (`deid`, `aiCall`), deleting records, drafts | `75` |
 | `sw.js`, `stashLatest`, `checkUpdate`, start-up and loading | `60`, `80`, `81` |
 | render, tabs, domain pages | `10`, `90` |
-| `toast()`, undo bar, global search (`runSearch`), Tasks header, start tab, saving documents | `92` |
+| `toast()`, undo bar, global search (`runSearch`), Tasks header, start tab, saving documents | `92`, `93` |
+| Google Calendar sign-in (`gcBoot`, `gcAuth`, `gcNetOk`) | `93` |
 | documentation in `docs/` | `05` |
 
 ## Rules

@@ -547,3 +547,9 @@
 - Saving a formal document no longer calls `docPrint()`: it opens `viewDoc()` (which has «چاپ») and shows «… ثبت شد؛ برای چاپ یا PDF «چاپ» را بزن». Sales/purchases saved without a printed invoice behave as before.
 - Test: `tests/92-ux.test.js` (7; 6 fail on 4.25).
 
+## v4.27 — start tab, digits in search, no automatic Google sign-in without internet
+- Start tab: every full load opens `today` (the start-up line that restored `miz.tab` and the `miz.sess` session marker are gone); `goTab()` still remembers the tab during use, and returning from the background does not reload, so the chosen tab stays. Before, a reload in the same session (update, return from Google sign-in) restored the last tab, e.g. «مالی».
+- Search: `runSearch` compares `en(nrm(…))` on both sides, so Persian/Arabic and Latin digits match; the shared `nrm()` is unchanged. «فاکتورها و اسناد» has «جستجو در اسناد» (`docSearch`): `ui.gs={on:true,t:'docs'}` and the global search sheet (the «کجا» filter shows it and can be cleared).
+- Google Calendar: `gcBoot()`'s automatic silent sign-in (`gcAuth(true)`) used to navigate the whole page to accounts.google.com whenever `navigator.onLine` was true, which on Wi-Fi without internet ended on Chrome's «can't be reached» page. It now first calls `gcNetOk()`: one `version.json?net=…` request (`no-store`, not answered by the service worker), at most 3 s; only an OK, non-redirected JSON with `v` counts as online. `miz.gc.tried` is set only when the sign-in really starts. Manual sign-in and sync with a token are unchanged.
+- Tests: `tests/93-fixes427.test.js` (6; 4 fail on 4.26); `92` E updated to the new start-tab rule.
+

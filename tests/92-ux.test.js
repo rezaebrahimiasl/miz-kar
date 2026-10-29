@@ -9,14 +9,17 @@ const clickAct = (act, data = {}) => p.evaluate(([act, data]) => { const b = doc
   const r = document.getElementById('sheetRoot'); (r.hidden ? document.body : r).appendChild(b); b.click(); b.remove(); }, [act, data]);
 const N = () => p.evaluate(() => nowTs());
 
-test('E: a new session starts on «امروز» even if another tab was last used; within a session the tab is kept', async () => {
+test('E: every full start opens «امروز» (new session, reload in the same session, return from Google sign-in); switching tabs and background/foreground keep the chosen tab', async () => {
   srv = await serve(); o = await launch(); p = o.page;
   await p.goto(srv.url); await ready(p);
   assert((await p.evaluate(() => tab)) === 'today', 'first launch tab: ' + await p.evaluate(() => tab));
   await p.evaluate(() => { localStorage.setItem('miz.onb', 'x'); localStorage.setItem('miz.seenVer', APP_VER); sessionStorage.setItem('mizSpl', '1'); goTab('money'); });
-  await p.reload(); await ready(p); assert((await p.evaluate(() => tab)) === 'money', 'same session should keep «مالی»');
-  await p.evaluate(() => sessionStorage.removeItem('miz.sess')); await p.reload(); await ready(p);   // a new session (app reopened)
-  const r = await p.evaluate(() => ({ tab, kept: localStorage.getItem('miz.tab') })); assert(r.tab === 'today', 'new session tab: ' + JSON.stringify(r));
+  // background → foreground without a reload keeps «مالی»
+  await p.evaluate(() => { for (const v of ['hidden', 'visible']) { Object.defineProperty(document, 'visibilityState', { value: v, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); } });
+  await p.waitForTimeout(300); assert((await p.evaluate(() => tab)) === 'money', 'background/foreground changed the tab');
+  await p.reload(); await ready(p); assert((await p.evaluate(() => tab)) === 'today', 'reload in the same session: ' + await p.evaluate(() => tab));
+  await p.evaluate(() => goTab('money')); await p.goto('about:blank'); await p.goto(srv.url + '#state=synthetic&error=interaction_required'); await ready(p);   // a full load, like the page Google sends back to
+  assert((await p.evaluate(() => tab)) === 'today', 'after returning from Google sign-in: ' + await p.evaluate(() => tab));
   await p.evaluate(() => goTab('home')); assert((await p.evaluate(() => tab)) === 'home' && await p.evaluate(() => !!document.querySelector('#tabs [data-tab=home]')), 'منظومه not reachable');
 });
 
