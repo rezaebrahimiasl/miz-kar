@@ -21,6 +21,7 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 | WP-8 | Code-finding tool (`tools/q.js`) and static wiring test | — | `tests/01-wiring.test.js` |
 | WP-6 | Dead code removed (`vBiz`, `myAcctsOld`, `restoreJsonOld`, `fHint`, the unused `tgJump` action); the unused icons `icon-192.png`, `icon-512.png` are kept (old installs may still ask for them) | 4.28 | `tests/05-docs.test.js` |
 | WP-10a | Money forms moved into named functions (`formSettle`, `formSettleAll`, `formChqClear`, `formChqEndorse`) with one shared `ledSettleIfPaid()` instead of three copies | 4.28 | `tests/26-money-forms.test.js` |
+| WP-10c | The last 13 submit branches that wrote `ledger` directly moved into named functions (`formLedgerSave`, `formLedgerEditSave`, `formVoidLedger`, `formVoidMove`, `formMoveEditSave`, `formCommPay`, `formLotExtra`, `formMoveSave`, `formRecurSave`, `formRepackSave`, `formProdSave`, `formVoucherSave`, `formPendEdit`); no submit branch writes `ledger` any more | 4.29 (not yet released) | `tests/28-small-money-forms.test.js` |
 | WP-10b | Document, lot, referral-sale and net-profit forms moved into named functions (`formDocSave`, `formLotSave`, `formRefSale`, `formNetSave`); bodies unchanged | 4.29 (not yet released) | `tests/27-doc-lot-ref-net.test.js` |
 | UX-1 | «امروز» shows work before system reminders; weekly-review reminder fixed; «فاکتورها و اسناد» on the money tab and in «بیشتر»; display settings in «تنظیمات»; AI question button in search | 4.28 | `tests/94-today-nav.test.js` |
 | WP-9 | Money and stock click actions moved out of `switch(a)` into named functions («Stock & money actions») | 4.25 (not yet released) | `tests/25-money-stock-actions.test.js`, `tests/50-workflows.test.js` |
@@ -43,7 +44,6 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 | O5 | Voice input: clear message when offline | 4 | — |
 | O6 | Show whether the browser granted persistent storage | 3 | — |
 | WP-7 | First module boundary: one writer for document postings | 4 | WP-1 to WP-3 |
-| WP-10 | Form submit branches that still write `ledger` directly: 18 calls in 13 smaller branches (`pendEdit` 3, `ledger` 2, `moveEdit` 2, `prod` 2, `comm`, `ledgerEdit`, `lotExtra`, `move`, `recur`, `repack`, `void`, `voidMove`, `voucher` 1 each; `node tools/q.js writers ledger`). Same method: a test per group first, then move. | 3 | WP-10b |
 
 ## Known structural facts (not defects by themselves)
 
