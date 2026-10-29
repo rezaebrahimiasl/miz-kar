@@ -4915,6 +4915,15 @@ async function actPendOk(b,id){{const l=byId('ledger',id);for(const x of S.ledge
 async function actPendNo(b,id){{const l=byId('ledger',id);if(l&&l.pairId)for(const x of S.ledger.filter(y=>y.pairId===l.pairId&&y.id!==id))await save('ledger',x.id,{void:true,pending:false,voidReason:'انجام نشد',voidAt:nowTs()})}if(await save('ledger',id,{void:true,pending:false,voidReason:'پرداخت خودکار انجام نشد',voidAt:nowTs()})){toast('ثبت شد که انجام نشد')}return;}
 async function actLgSettle(b,id){{if(b.dataset.arm!=='1'){b.dataset.arm='1';b.textContent='مطمئنی؟ این پول دیگر درآمد نیست و از مانده کم می‌شود — دوباره بزن';return}if(await save('ledger',id,{settles:true})){toast('از مانده کم شد ✓');viewLedger(id)}return}}
 async function actLogRestore(b,id){{const T=LOGT2[b.dataset.c];const x=byId(b.dataset.c,id);if(b.dataset.c==='docs'){if(await docVoid(id,false)){toast('برگردانده شد ✓');document.getElementById('logRes').innerHTML=logList()}return}if(b.dataset.c==='lots'&&x)for(const z of S.ledger.filter(z=>z.void&&z.lotId===id&&(z.voidReason||'').startsWith('حذف محموله')))await save('ledger',z.id,{void:false});if(x&&T.restore&&await save(b.dataset.c,id,T.restore(x))){toast('برگردانده شد ✓');document.getElementById('logRes').innerHTML=logList()}return}}
+// own accounts: merge two accounts, record a reconciliation difference
+async function actAcctMerge(b,id){{const from=b.dataset.v,to=val('f_amg');if(!to||to===from)return;const rows=S.ledger.filter(l=>l.acct===from),rc=S.recurs.filter(r=>r.bank===from);if(!await askConfirm(`همهٔ ${fa(rows.length)} ثبت «${from}» به «${to}» منتقل شود و این دو یک حساب شوند؟`))return;
+      const A={...acctInfo()};const f0=A[from]||{},t0=A[to]||{};A[to]={...t0,open:Number(t0.open||0)+Number(f0.open||0),openDate:[t0.openDate,f0.openDate].filter(Boolean).sort()[0]||today(),alias:[...new Set([...(t0.alias||[]),...(f0.alias||[]),from])].filter(x=>x!==to),merged:[...(t0.merged||[]),{from,date:today(),n:rows.length}]};delete A[from];
+      await putRaw('meta',{id:'accts',a:A,updated:nowTs()});
+      for(const l of rows)await putRaw('ledger',{...l,acct:to,acctOld:l.acctOld||from,updated:nowTs()});
+      for(const r of rc)await putRaw('recurs',{...r,bank:to,updated:nowTs()});
+      const P=S.meta.find(x=>x.id==='profile');if(P&&(P.accounts||[]).includes(from))await putRaw('meta',{...P,accounts:[...new Set(P.accounts.map(x=>x===from?to:x))],updated:nowTs()});
+      if(ui.moneyA===from)ui.moneyA=to;closeSheet();toast(`ادغام شد ✓ ${fa(rows.length)} ثبت به «${to}» رفت`);render();return}}
+async function actAcctFix(b,id){{const name=b.dataset.v,d=Number(b.dataset.d);await save('ledger',null,{kind:d>0?'received':'paid',amount:Math.abs(d),currency:'تومان',about:'اختلاف تطبیق با بانک',category:d>0?'سایر درآمد':'شخصی: سایر',acct:name,date:today(),instrument:'نقد/کارت',settled:false,void:false});const A={...acctInfo()};A[name]={...(A[name]||{}),rec:today(),recStale:false};await putRaw('meta',{id:'accts',a:A,updated:nowTs()});closeSheet();toast('اختلاف ثبت شد؛ حساب تطبیق خورد ✓');render();return}}
 /* ---------- Actions ---------- */
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id;if(a!=='undoDo'&&a!=='undoEdit'){if(UNDO_SELF.includes(a)){UB=null;const ub=document.getElementById('undoBar');if(ub)ub.remove()}else undoOpen()}markUsed(a);try{useCount(b)}catch(_){}
@@ -4996,14 +5005,8 @@ document.addEventListener('click',async e=>{
     case'recurEdit':formRecur(byId('recurs',id));break;
     case'accVoucher':formVoucher({});break;
     case'acctSet':acctSheet(b.dataset.v);break;
-    case'acctMerge':{const from=b.dataset.v,to=val('f_amg');if(!to||to===from)return;const rows=S.ledger.filter(l=>l.acct===from),rc=S.recurs.filter(r=>r.bank===from);if(!await askConfirm(`همهٔ ${fa(rows.length)} ثبت «${from}» به «${to}» منتقل شود و این دو یک حساب شوند؟`))return;
-      const A={...acctInfo()};const f0=A[from]||{},t0=A[to]||{};A[to]={...t0,open:Number(t0.open||0)+Number(f0.open||0),openDate:[t0.openDate,f0.openDate].filter(Boolean).sort()[0]||today(),alias:[...new Set([...(t0.alias||[]),...(f0.alias||[]),from])].filter(x=>x!==to),merged:[...(t0.merged||[]),{from,date:today(),n:rows.length}]};delete A[from];
-      await putRaw('meta',{id:'accts',a:A,updated:nowTs()});
-      for(const l of rows)await putRaw('ledger',{...l,acct:to,acctOld:l.acctOld||from,updated:nowTs()});
-      for(const r of rc)await putRaw('recurs',{...r,bank:to,updated:nowTs()});
-      const P=S.meta.find(x=>x.id==='profile');if(P&&(P.accounts||[]).includes(from))await putRaw('meta',{...P,accounts:[...new Set(P.accounts.map(x=>x===from?to:x))],updated:nowTs()});
-      if(ui.moneyA===from)ui.moneyA=to;closeSheet();toast(`ادغام شد ✓ ${fa(rows.length)} ثبت به «${to}» رفت`);render();break}
-    case'acctFix':{const name=b.dataset.v,d=Number(b.dataset.d);await save('ledger',null,{kind:d>0?'received':'paid',amount:Math.abs(d),currency:'تومان',about:'اختلاف تطبیق با بانک',category:d>0?'سایر درآمد':'شخصی: سایر',acct:name,date:today(),instrument:'نقد/کارت',settled:false,void:false});const A={...acctInfo()};A[name]={...(A[name]||{}),rec:today(),recStale:false};await putRaw('meta',{id:'accts',a:A,updated:nowTs()});closeSheet();toast('اختلاف ثبت شد؛ حساب تطبیق خورد ✓');render();break}
+    case'acctMerge':await actAcctMerge(b,id);break
+    case'acctFix':await actAcctFix(b,id);break
     case'marketers':marketersSheet();break;
     case'commSettle':commSheet(id);break;
     case'noInvAsk':try{localStorage.setItem('miz.noInvAsk','1')}catch(_){}closeSheet();toast('دیگر نمی‌پرسم؛ از صفحهٔ هر فروش «فاکتور» را بزن');break;
