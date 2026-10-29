@@ -1,6 +1,6 @@
 // The click actions that write money or stock outside documents: each one through the real click dispatcher, on
 // synthetic fixtures, with its exact state change and the accounting/inventory invariants checked. Synthetic data only.
-const { serve, launch, openApp, settle, invariants, test, run, assert } = require('./lib');
+const { serve, launch, openApp, settle, invariants, openDoc, submit, test, run, assert } = require('./lib');
 let srv, o, p;
 const D0 = '2026-10-01';
 // Click a data-act button the way the app does (inside the open sheet if there is one) and wait for its writes.
@@ -119,6 +119,20 @@ test('acctMerge: after confirmation every row, recurring payment and opening bal
   assert(r.left === 0 && r.rows.every(([a, o]) => a === 'بانک الف' && o === 'بانک ب'), 'rows: ' + JSON.stringify(r.rows));
   assert(r.rec === 'بانک الف' && !r.A['بانک ب'] && r.A['بانک الف'].open === before.A['بانک الف'].open + before.A['بانک ب'].open && r.A['بانک الف'].alias.includes('بانک ب') && r.A['بانک الف'].merged.at(-1).n === before.rows.length, 'accounts: ' + JSON.stringify(r.A));
   assert(r.gl === before.gl, `bank total changed ${before.gl} → ${r.gl}`); await inv('after acctMerge');
+});
+
+test('logRestore (docs): restoring a deleted purchase document brings back its lot and money rows', async () => {
+  await openDoc(p, { type: 'purchase', personId: 'p_s', date: D0, led: 'payable', items: [{ desc: 'عسل سند آزمون', qty: 5, unit: 'کیلو', price: 1e6 }] }); await submit(p); await settle(p);
+  const id = await p.evaluate(() => S.docs.find(d => !d.void && d.type === 'purchase').id);
+  const live = () => p.evaluate(id => { const d = byId('docs', id); return { doc: !d.void, lots: S.lots.filter(l => !l.void && l.docId === id).length, rows: S.ledger.filter(l => !l.void && l.docId === id).length,
+    owed: (personBal()['p_s'] || {})['تومان'] || 0 }; }, id);
+  const before = await live(); assert(before.doc && before.lots === 1 && before.rows >= 1, 'document not posted: ' + JSON.stringify(before)); await inv('after posting');
+  await p.evaluate(id => docVoid(id, true), id); await settle(p); const gone = await live();
+  assert(!gone.doc && gone.lots === 0 && gone.rows === 0, 'document not deleted with its rows: ' + JSON.stringify(gone)); await inv('after deleting the document');
+  await p.evaluate(() => { closeSheet(); logSheet(); }); await p.waitForSelector('#logRes');
+  const r = await act('logRestore', { id, c: 'docs' }); const back = await live();
+  assert(JSON.stringify(back) === JSON.stringify(before) && r.toast.startsWith('برگردانده شد'), `restored ${JSON.stringify(back)} ≠ before ${JSON.stringify(before)} · ${r.toast}`);
+  await inv('after logRestore (docs)');
 });
 
 test('no page errors', async () => { assert(!o.errors.length, o.errors.join(' | ')); await o.ctx.close(); await srv.close(); });
