@@ -4898,6 +4898,17 @@ function readVLines(){const c=val('f_vcur')||'تومان';return [...document.qu
 function vSum(){const b=document.getElementById('vsum');if(!b)return;const ls=readVLines();const d=ls.reduce((s,x)=>s+x.dr,0),c=ls.reduce((s,x)=>s+x.cr,0);const ok=Math.abs(d-c)<0.01&&d>0;
   b.style.background=ok?'var(--ok-soft)':'';b.style.color=ok?'var(--ok)':'';b.textContent=`جمع بدهکار ${amt(d)} · جمع بستانکار ${amt(c)}`+(ok?' ✓ تراز است':d||c?` · اختلاف ${amt(Math.abs(d-c))} (ردیف تازه خودش این را پیشنهاد می‌کند)`:'')}
 
+/* ---------- Stock & money actions: click actions that write money or stock outside documents (dispatched from switch(a) below; b = the button, id = b.dataset.id) ---------- */
+// lots and stock moves
+async function actLotVoid(b,id){{if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='مطمئنی؟ حذف شود';return}const l=byId('lots',id);if(!l)return;const mv=lotMoves(id);if(mv.length){toast(`این محموله ${fa(mv.length)} گردش دارد (فروش، ارسال، شمارش یا بسته‌بندی)؛ اول آن‌ها را از پایین همین صفحه باطل کن`);return}const at=nowTs(),why='حذف محموله '+(l.code||'');for(const x of S.ledger.filter(x=>!x.void&&x.lotId===id&&!x.docId))await save('ledger',x.id,{void:true,voidReason:why,voidAt:at});if(l.parentMove){await save('moves',l.parentMove,{void:true,voidReason:why,voidAt:at});for(const u of S.moves.filter(x=>!x.void&&x.packMove===l.parentMove))await save('moves',u.id,{void:true,voidReason:why,voidAt:at})}await save('lots',id,{void:true,voidReason:why,voidAt:at});closeSheet();toast('حذف شد؛ موجودی و حساب‌ها هم به‌روز شد');return}}
+async function actLotFixShort(b,id){{const l=byId('lots',id);if(!l)return;const r=lotStat(l).rem;if(r>=-1e-9)return;const q=-r;
+      if(l.source==='loan'||l.consign){await save('lots',id,{qty:Number(l.qty)+q,hist:[...(l.hist||[]),{at:nowTs(),from:Number(l.qty),to:Number(l.qty)+q,why:'کسری؛ بیشتر از صاحب کالا گرفته شده بود'}]});if(l.consign&&Number(l.cost))await putRaw('ledger',{id:newId(),kind:'payable',personId:l.supplierId||'',amount:Number(l.cost)*q,currency:'تومان',about:'سهم صاحب کالای امانی (اصلاح کسری): '+fmtQ(q,l.unit)+' '+lotName(l),category:'خرید و تأمین کالا',lotId:id,instrument:'نسیه',date:today(),due:addDays(today(),30),settled:false,void:false,created:nowTs(),updated:nowTs()});toast('امانی از '+(pname(l.supplierId)||'صاحبش')+' شد '+fmtQ(Number(l.qty)+q,l.unit)+' ✓')}
+      else{await save('moves',null,{kind:'adj',lotId:id,personId:'',date:today(),qty:q,price:0,currency:'تومان',note:'اصلاح کسری انبار',void:false});toast('کسری با اضافهٔ شمارش صاف شد ✓')}
+      viewLot(id);return}}
+async function actLotMine(b,id){{const m=byId('moves',id);if(!m)return;if(await save('moves',id,{kind:'mine',note:((m.note||'')+' · از کالای خودم').trim()})){toast('ثبت شد: کالای خودت؛ بدهی کالایی دست نخورد ✓');viewLot(m.lotId)}return}}
+async function actLotMineH(b,id){{const l=byId('lots',id);if(!l)return;const i=Number(b.dataset.i);const h=(l.hist||[])[i];if(!h)return;const q=h.to-h.from;const H=(l.hist||[]).map((x,k)=>k===i?{...x,undone:nowTs()}:x);
+      await save('lots',id,{qty:Number(l.qty)-q,hist:[...H,{at:nowTs(),from:Number(l.qty),to:Number(l.qty)-q,why:'برگشت: آن مقدار از کالای خودم بود'}]});await save('moves',null,{kind:'mine',lotId:id,personId:'',date:(h.at||nowTs()).slice(0,10),qty:q,price:0,currency:'تومان',note:'کالای خودم (اصلاح)',void:false});toast('امانی/قرضی به مقدار اصلی برگشت و '+fmtQ(q,l.unit)+' مال خودت ثبت شد ✓');viewLot(id);return}}
+async function actLotFixMine(b,id){{const l=byId('lots',id);if(!l)return;const r=lotStat(l).rem;if(r>=-1e-9)return;await save('moves',null,{kind:'mine',lotId:id,personId:'',date:today(),qty:-r,price:0,currency:'تومان',note:'کسری با کالای خودم صاف شد',void:false});toast('ثبت شد: '+fmtQ(-r,l.unit)+' از کالای خودت ✓');viewLot(id);return}}
 /* ---------- Actions ---------- */
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id;if(a!=='undoDo'&&a!=='undoEdit'){if(UNDO_SELF.includes(a)){UB=null;const ub=document.getElementById('undoBar');if(ub)ub.remove()}else undoOpen()}markUsed(a);try{useCount(b)}catch(_){}
@@ -4942,7 +4953,7 @@ document.addEventListener('click',async e=>{
     case'viewCount':viewCount(id);break;
     case'docRestore':if(await docVoid(id,false)){toast('برگشت ✓ موجودی و حساب‌ها هم برگشت');closeSheet()}break;
     case'repack':formRepack(id);break;
-    case'lotVoid':{if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='مطمئنی؟ حذف شود';break}const l=byId('lots',id);if(!l)break;const mv=lotMoves(id);if(mv.length){toast(`این محموله ${fa(mv.length)} گردش دارد (فروش، ارسال، شمارش یا بسته‌بندی)؛ اول آن‌ها را از پایین همین صفحه باطل کن`);break}const at=nowTs(),why='حذف محموله '+(l.code||'');for(const x of S.ledger.filter(x=>!x.void&&x.lotId===id&&!x.docId))await save('ledger',x.id,{void:true,voidReason:why,voidAt:at});if(l.parentMove){await save('moves',l.parentMove,{void:true,voidReason:why,voidAt:at});for(const u of S.moves.filter(x=>!x.void&&x.packMove===l.parentMove))await save('moves',u.id,{void:true,voidReason:why,voidAt:at})}await save('lots',id,{void:true,voidReason:why,voidAt:at});closeSheet();toast('حذف شد؛ موجودی و حساب‌ها هم به‌روز شد');break}
+    case'lotVoid':await actLotVoid(b,id);break
     case'docPrint':docPrint(id);break;
     case'docType':{const f=b.closest('form');const keep={personId:val('f_person'),toName:val('f_dto'),date:parseJ(val('f_date'))||today()};formDoc({...keep,type:b.dataset.v});break}
     case'diDel':{const r=b.closest('.ditem');const box=document.getElementById('ditems');if(box&&box.children.length>1){r.remove();docSum()}else toast('دست‌کم یک ردیف لازم است');break}
@@ -5492,14 +5503,10 @@ document.addEventListener('click',async e=>{
     case'commCfg':commCfgSheet();break;
     case'cctAdd':document.getElementById('cctiers').insertAdjacentHTML('beforeend','<div class="row2 cct" style="margin-bottom:6px"><input class="cct_u" inputmode="decimal" placeholder="تا (میلیون در ماه؛ خالی = بیشتر)"><input class="cct_p" inputmode="decimal" placeholder="سهم (٪ از فروش)"></div>');break;
     case'settleAll':settleAllSheet(id,b.dataset.v);break;
-    case'lotMine':{const m=byId('moves',id);if(!m)break;if(await save('moves',id,{kind:'mine',note:((m.note||'')+' · از کالای خودم').trim()})){toast('ثبت شد: کالای خودت؛ بدهی کالایی دست نخورد ✓');viewLot(m.lotId)}break}
-    case'lotMineH':{const l=byId('lots',id);if(!l)break;const i=Number(b.dataset.i);const h=(l.hist||[])[i];if(!h)break;const q=h.to-h.from;const H=(l.hist||[]).map((x,k)=>k===i?{...x,undone:nowTs()}:x);
-      await save('lots',id,{qty:Number(l.qty)-q,hist:[...H,{at:nowTs(),from:Number(l.qty),to:Number(l.qty)-q,why:'برگشت: آن مقدار از کالای خودم بود'}]});await save('moves',null,{kind:'mine',lotId:id,personId:'',date:(h.at||nowTs()).slice(0,10),qty:q,price:0,currency:'تومان',note:'کالای خودم (اصلاح)',void:false});toast('امانی/قرضی به مقدار اصلی برگشت و '+fmtQ(q,l.unit)+' مال خودت ثبت شد ✓');viewLot(id);break}
-    case'lotFixMine':{const l=byId('lots',id);if(!l)break;const r=lotStat(l).rem;if(r>=-1e-9)break;await save('moves',null,{kind:'mine',lotId:id,personId:'',date:today(),qty:-r,price:0,currency:'تومان',note:'کسری با کالای خودم صاف شد',void:false});toast('ثبت شد: '+fmtQ(-r,l.unit)+' از کالای خودت ✓');viewLot(id);break}
-    case'lotFixShort':{const l=byId('lots',id);if(!l)break;const r=lotStat(l).rem;if(r>=-1e-9)break;const q=-r;
-      if(l.source==='loan'||l.consign){await save('lots',id,{qty:Number(l.qty)+q,hist:[...(l.hist||[]),{at:nowTs(),from:Number(l.qty),to:Number(l.qty)+q,why:'کسری؛ بیشتر از صاحب کالا گرفته شده بود'}]});if(l.consign&&Number(l.cost))await putRaw('ledger',{id:newId(),kind:'payable',personId:l.supplierId||'',amount:Number(l.cost)*q,currency:'تومان',about:'سهم صاحب کالای امانی (اصلاح کسری): '+fmtQ(q,l.unit)+' '+lotName(l),category:'خرید و تأمین کالا',lotId:id,instrument:'نسیه',date:today(),due:addDays(today(),30),settled:false,void:false,created:nowTs(),updated:nowTs()});toast('امانی از '+(pname(l.supplierId)||'صاحبش')+' شد '+fmtQ(Number(l.qty)+q,l.unit)+' ✓')}
-      else{await save('moves',null,{kind:'adj',lotId:id,personId:'',date:today(),qty:q,price:0,currency:'تومان',note:'اصلاح کسری انبار',void:false});toast('کسری با اضافهٔ شمارش صاف شد ✓')}
-      viewLot(id);break}
+    case'lotMine':await actLotMine(b,id);break
+    case'lotMineH':await actLotMineH(b,id);break
+    case'lotFixMine':await actLotFixMine(b,id);break
+    case'lotFixShort':await actLotFixShort(b,id);break
     case'tbook':{ui.tb=Object.assign(ui.tb||{full:false},{person:b.dataset.person||''});tbookSheet();break}
     case'tbSet':{const k=b.dataset.k,v=b.dataset.v;tbookSheet({[k]:k==='full'?!!v:v});break}
     case'buyFrom':formDoc({type:'purchase',inv:false,personId:b.dataset.person});break;
