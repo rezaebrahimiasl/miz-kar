@@ -36,6 +36,7 @@ Nothing is installed into the app or the repository.
 | `81-sw-shell-static.test.js` | O2: `isShellUrl()` matches only the app's own `/` and `index.html` (any query), `isApp()` accepts the real page and rejects pages without the version declaration — including the validation code itself. |
 | `90-menu.test.js` | every menu entry opens without a page error (empty device and after a business cycle) · the Help page lists every entry with a description |
 | `91-whatsnew.test.js` | «تازه‌ها»: every «امتحان کن» button opens exactly the page or tab its item names (same result as opening it directly); items without a destination show «فقط برای اطلاع» and no button |
+| `92-ux.test.js` | v4.26: «امروز» as the start tab of a new session; message duration by length and tap-to-close; undo bar, message and quick-entry button never overlap (also inside the search sheet); search finds documents and cheques but never vault items or visit notes; «ابزارها» in Tasks and the «بعداً» filter; no automatic print preview after saving a document |
 | `lib.js` | local static server, browser launch, condition-based waits, synthetic seeds, invariants |
 
 ## Finding code (instead of reading index.html)
@@ -70,6 +71,7 @@ Run the rows that match what you changed, plus `00` and `01` (both take seconds)
 | calendar feed (`calFeed`), AI (`deid`, `aiCall`), deleting records, drafts | `75` |
 | `sw.js`, `stashLatest`, `checkUpdate`, start-up and loading | `60`, `80`, `81` |
 | render, tabs, domain pages | `10`, `90` |
+| `toast()`, undo bar, global search (`runSearch`), Tasks header, start tab, saving documents | `92` |
 | documentation in `docs/` | `05` |
 
 ## Rules

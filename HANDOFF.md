@@ -538,3 +538,12 @@
 - Tests: `25-money-stock-actions` (13, also passes on 4.24 unchanged), `50-workflows` (5: clinic visit fee, harvest → sale, task paid with a voucher). `tools/parse.js` now also finds single-parameter arrow functions (`const f=x=>…`).
 - Observed, unchanged: deleting a visit (`voidVisit`) keeps its fee row (`visitOf`); the books stay consistent.
 
+## v4.26 — small UX pass (start tab, messages, search, Tasks, saving documents)
+- Start tab: a new session (`sessionStorage miz.sess` empty) opens `today` instead of `home`; within a session the last tab (`miz.tab`) is kept as before.
+- `toast()`: duration `toastMs(m)` = 1.2 s + 65 ms per character, between 2.2 s and 8 s; tapping the message closes it (`#toast` no longer `pointer-events:none`; `role="status"`, `aria-live="polite"`).
+- Feedback layout (CSS only): `#undoBar` starts at `left:86px` so the quick-entry button stays free; with an undo bar the message sits above it; while a sheet is open both move to the top (`body:has(#sheetRoot:not([hidden]))`), so the search box and sheet buttons stay usable.
+- Search (`runSearch`): documents (`no`, `docTitle`, `subject`, `toName`, party, row `desc`, `note`; row `gsDocRow()` opens `docView`) and cheques (`no`, `sayad`, `bank`, `about`, party, amount; `chequeRow`). New «کجا» options `docs`, `cheques` (area: finance). Vault and visit notes are still not searched.
+- Tasks: «+ کار» stays; «چند کار با هم», «دفتر کارها» and `taskLinks()` are inside `<details class="ttools">` «ابزارها». The jump row (`tgJump`) is gone; every group it jumped to now has a filter, including the new `later` (`tStOk`: due after 7 days). The `tgJump` case remains, unused.
+- Saving a formal document no longer calls `docPrint()`: it opens `viewDoc()` (which has «چاپ») and shows «… ثبت شد؛ برای چاپ یا PDF «چاپ» را بزن». Sales/purchases saved without a printed invoice behave as before.
+- Test: `tests/92-ux.test.js` (7; 6 fail on 4.25).
+

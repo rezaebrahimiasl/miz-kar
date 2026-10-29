@@ -68,11 +68,11 @@ test('pop-up «تازه‌های میز کار»: actionable cards have a button
     return [...document.querySelectorAll('#wnRail .wn-card')].map(c => ({ t: c.querySelector('b').textContent, b: (c.querySelector('[data-act=wnGo]') || {}).dataset?.v || null, info: !!c.querySelector('.wn-info') })); });
   assert(r.length >= 5, 'too few cards: ' + r.length);
   const wrong = r.filter(c => (c.b === null) === !c.info || c.b === 'undefined'); assert(!wrong.length, 'card neither actionable nor labelled: ' + JSON.stringify(wrong));
-  const help = r.find(c => c.t.includes('راهنما')); assert(help && help.b === 'helpAll', 'Help card should open the Help page: ' + JSON.stringify(help));
-  const priv = r.find(c => c.t.includes('تقویم بدون نام')); assert(priv && priv.info && !priv.b, 'informational card shown as clickable: ' + JSON.stringify(priv));
-  // the Help card really opens the Help page
-  await p.click('#wnRail [data-act=wnGo][data-v="helpAll"]'); const s = await where(p, o.ctx.pages().length);
-  assert(s.open && s.h.includes('راهنما و فهرست امکانات'), 'Help card opened: ' + JSON.stringify(s));
+  // The pop-up shows the 7 newest items, so the cards are picked by kind, not by title (the Help item's destination is checked on the changes page above).
+  const act = r.find(c => c.b), info = r.find(c => c.info); assert(act && info, 'expected one actionable and one informational card: ' + JSON.stringify(r));
+  // the first actionable card really goes where it says
+  await p.click(`#wnRail [data-act=wnGo][data-v="${act.b}"]`); const s = await where(p, o.ctx.pages().length); const [x, y] = act.b.split('|');
+  assert(x === 'tab' ? s.tab === y && !s.open : s.open && s.h && !/^تازه‌ها/.test(s.h), `card «${act.t}» → ${act.b} opened: ` + JSON.stringify(s));
   assert(!o.errors.length, o.errors.join(' | '));
 });
 
