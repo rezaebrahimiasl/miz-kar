@@ -4,11 +4,20 @@ const { serve, launch, openApp, test, run, assert } = require('./lib');
 let srv, o;
 const wait = ms => new Promise(r => setTimeout(r, ms));
 // What is on screen after a navigation: tab, money sub-tab, the top sheet's heading, a new window.
-async function where(p, w0) { await p.waitForTimeout(500);
-  const s = await p.evaluate(() => { const r = document.getElementById('sheetRoot'); const hs = r.hidden ? [] : [...r.querySelectorAll('h3,h4')];
-    return { tab, ms: ui.ms, biz: ui.biz, open: !r.hidden, h: hs.length ? hs[hs.length - 1].textContent.trim() : '' }; });
-  s.win = o.ctx.pages().length > w0; for (const x of o.ctx.pages().slice(w0)) await x.close().catch(() => {}); return s; }
-const reset = p => p.evaluate(async () => { closeSheet(); while (typeof SST !== 'undefined' && SST.length) SST.pop(); closeSheet(); goTab('home'); ui.ms = undefined; ui.biz = undefined; await new Promise(r => setTimeout(r, 200)); });
+// Polls instead of a fixed wait. Done when two snapshots 60 ms apart are identical and a destination is on screen
+// (a sheet other than the «تازه‌ها» pages, another tab, or a new window); otherwise waits at least 200 ms,
+// because wnGo switches tabs after 150 ms. Gives up waiting for stability after 3 s.
+const SOURCE = /^(تازه‌ها و بخش‌های نرفته|تازه‌های میز کار|تازه‌ها و ناشناخته‌ها)/;
+async function where(p, w0) { const snap = async () => { const s = await p.evaluate(() => { const r = document.getElementById('sheetRoot'); const hs = r.hidden ? [] : [...r.querySelectorAll('h3,h4')];
+    return { tab, ms: ui.ms, biz: ui.biz, open: !r.hidden, h: hs.length ? hs[hs.length - 1].textContent.trim() : '' }; }); s.win = o.ctx.pages().length > w0; return s; };
+  const t0 = Date.now(); let last = await snap(), s;
+  for (;;) { await p.waitForTimeout(60); s = await snap(); const dt = Date.now() - t0, there = s.win || s.tab !== 'home' || (s.open && s.h && !SOURCE.test(s.h));
+    if (JSON.stringify(s) === JSON.stringify(last) && (there || dt >= 200)) break; if (dt > 3000) break; last = s; }
+  for (const x of o.ctx.pages().slice(w0)) await x.close().catch(() => {}); return s; }
+const reset = p => p.evaluate(async () => { closeSheet(); while (typeof SST !== 'undefined' && SST.length) SST.pop(); closeSheet(); goTab('home'); ui.ms = undefined; ui.biz = undefined;
+  // wait until the home view is drawn and no sheet is open (was a fixed 200 ms), at most 2 s
+  for (let i = 0; i < 100 && !(document.getElementById('sheetRoot').hidden && tab === 'home'); i++) await new Promise(r => setTimeout(r, 20));
+  await new Promise(r => requestAnimationFrame(() => r())); });
 
 test('setup', async () => { srv = await serve(); o = await launch(); await openApp(o, srv.url); });
 

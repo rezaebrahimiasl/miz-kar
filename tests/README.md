@@ -21,6 +21,7 @@ Nothing is installed into the app or the repository.
 
 | File | What it protects |
 |---|---|
+| `01-wiring.test.js` | no browser, ~1 s: every `data-act` has a handler, every `data-form` a submit branch, every «تازه‌ها»/menu/catalogue destination exists, every catalogue entry has help text, every draft-enabled form function exists |
 | `00-static.test.js` | script parses · action names unique · version numbers agree · every pre-cached file exists |
 | `10-smoke.test.js` | every tab, «مالی» sub-tab and domain page renders without errors or network |
 | `20-accounting.test.js` | a full synthetic business cycle through the real forms; after **every** step: trial balance = 0, every entry balanced, person balances = receivables − payables, stock value = inventory account, no negative lot, lot quantities consistent, no two live versions of a document; final golden fingerprint |
@@ -34,6 +35,38 @@ Nothing is installed into the app or the repository.
 | `90-menu.test.js` | every menu entry opens without a page error (empty device and after a business cycle) · the Help page lists every entry with a description |
 | `91-whatsnew.test.js` | «تازه‌ها»: every «امتحان کن» button opens exactly the page or tab its item names (same result as opening it directly); items without a destination show «فقط برای اطلاع» and no button |
 | `lib.js` | local static server, browser launch, condition-based waits, synthetic seeds, invariants |
+
+## Finding code (instead of reading index.html)
+
+`tools/q.js` cuts one piece out of the app and prints it with readable line breaks and the real `index.html` line numbers:
+
+```sh
+node tools/q.js map                 # regions: first/last line, number of functions
+node tools/q.js region cheques      # one region and its functions
+node tools/q.js fn postDoc          # one function
+node tools/q.js act lotVoid         # what a data-act button does
+node tools/q.js form ledger         # what saving data-form="ledger" does
+node tools/q.js writers ledger      # every place that writes or deletes records of a collection
+node tools/q.js callers save        # every place a function is called
+```
+
+Long bodies stop after 200 lines (`--full` prints everything); `MIZ_ROOT=…` reads another copy.
+The scanner (`tools/parse.js`) is checked by `01-wiring`: every function, action and form body it cuts must parse on its own.
+
+## Change → tests to run
+
+Run the rows that match what you changed, plus `00` and `01` (both take seconds). The full suite is for releases and for changes to `tests/lib.js`.
+
+| You changed | Run |
+|---|---|
+| any button, form, menu, «تازه‌ها» or help entry | `01`, then `90` (menu) or `91` («تازه‌ها») |
+| documents, posting (`postDoc`, `docVoid`), stock, lots, kardex | `20`, `30` |
+| ledger, vouchers, accounting (`autoEntries`), person balances | `20` |
+| backup, restore, export (`backupData`, `restoreApply`, `ghPack`) | `40`, `70` |
+| calendar feed (`calFeed`), AI (`deid`, `aiCall`), deleting records, drafts | `75` |
+| `sw.js`, `stashLatest`, `checkUpdate`, start-up and loading | `60`, `80`, `81` |
+| render, tabs, domain pages | `10`, `90` |
+| documentation in `docs/` | `05` |
 
 ## Rules
 
