@@ -81,6 +81,17 @@ test('first sync on a device (no «last sync»): different copies of one id → 
   assert(r.unsent === 0 && !r.flag, 'unsent: ' + JSON.stringify(r));
 });
 
+test('many conflicts at once (e.g. a first sync): none is dropped from the list', async () => {
+  const N = 120, loc = [], rem = [];
+  for (let i = 0; i < N; i++) { loc.push(['tasks', task('mc' + i, 'محلی ' + i, A)]); rem.push(task('mc' + i, 'دور ' + i, B)); }
+  await merge(loc, { tasks: rem }, { last: '' });
+  const n = await p.evaluate(() => openConf().filter(x => x.key.startsWith('tasks/mc')).length);
+  assert(n === N, `${n} of ${N} open conflicts kept (each holds the only copy of the other device's version)`);
+  await p.evaluate(async () => { await confPick('', 'local'); closeSheet(); });
+  const left = await p.evaluate(() => ({ open: openConf().length, all: CONF().length }));
+  assert(left.open === 0 && left.all <= 80, 'after resolving: ' + JSON.stringify(left));
+});
+
 test('remote deletion vs a local edit not yet synced → the edit is kept as a resolvable conflict, never deleted silently', async () => {
   const tomb = (id, at) => ({ meta: [{ id: 'tomb', items: { ['people/' + id]: at } }] });
   // e1/e2 edited here after the last sync (A), deleted on the other device later (B)

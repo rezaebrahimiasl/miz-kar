@@ -21,6 +21,7 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 | WP-8 | Code-finding tool (`tools/q.js`) and static wiring test | — | `tests/01-wiring.test.js` |
 | WP-6 | Dead code removed (`vBiz`, `myAcctsOld`, `restoreJsonOld`, `fHint`, the unused `tgJump` action); the unused icons `icon-192.png`, `icon-512.png` are kept (old installs may still ask for them) | 4.28 | `tests/05-docs.test.js` |
 | WP-10a | Money forms moved into named functions (`formSettle`, `formSettleAll`, `formChqClear`, `formChqEndorse`) with one shared `ledSettleIfPaid()` instead of three copies | 4.28 | `tests/26-money-forms.test.js` |
+| SAFE-1 | Silent failures fixed: `restoreApply` asks before restoring when the «before restore» snapshot cannot be made; `undoDo` reports a partial undo instead of «✓»; `confSave` never drops open conflicts (it kept only 80) | 4.29 (not yet released) | `40` (h), `92` G, `41` |
 | SYNC-1 | `syncMerge` regression tests; fixed: another device's fingerprint tombstone deleted this device's `vault/bio`; a duplicated id in a payload became a spurious conflict; conflicts reset the unsent flag mid-merge; a remote deletion of a record edited here since the last sync, and different copies on a device's first sync, now open a conflict instead of being decided silently | 4.29 (not yet released) | `tests/41-sync-merge.test.js` |
 | WP-10c | The last 13 submit branches that wrote `ledger` directly moved into named functions (`formLedgerSave`, `formLedgerEditSave`, `formVoidLedger`, `formVoidMove`, `formMoveEditSave`, `formCommPay`, `formLotExtra`, `formMoveSave`, `formRecurSave`, `formRepackSave`, `formProdSave`, `formVoucherSave`, `formPendEdit`); no submit branch writes `ledger` any more | 4.29 (not yet released) | `tests/28-small-money-forms.test.js` |
 | WP-10b | Document, lot, referral-sale and net-profit forms moved into named functions (`formDocSave`, `formLotSave`, `formRefSale`, `formNetSave`); bodies unchanged | 4.29 (not yet released) | `tests/27-doc-lot-ref-net.test.js` |
@@ -37,7 +38,7 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 
 | ID | Item | Priority | Prerequisite |
 |---|---|---|---|
-| T3 | Intermittent backup/restore test failure, part 2: a rarer residual case under heavy parallel load (cause not yet known; test-only, never a false pass) | 2 | the diagnostic message from the next occurrence |
+| T3 | Intermittent backup/restore test failure, part 2: not reproduced in 36 runs of `40` (8 in parallel, then 6 in parallel with 6 CPU-burning processes on 2 cores). Instrumented run: restore is fully awaited, fingerprint and backup are taken atomically, and nothing writes app data after start-up except the daily snapshot (separate database). Classified as test timing, not an app defect; `sigDiff` will name the difference if it recurs | 3 | the diagnostic message from the next occurrence |
 | WP-3 | Read-only data-integrity page, including documents affected by D1 before 4.21 | 3 | WP-1 |
 | P-x | Further privacy hardening (tracked privately) | 1 | owner decision |
 | WP-5 | One-command version bump plus optional automatic test runs | 2 | WP-1, WP-4 |

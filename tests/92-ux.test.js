@@ -104,5 +104,20 @@ test('F: saving a letter or an invoice opens its page with a «چاپ» button a
   assert(!o.errors.length, o.errors.join(' | '));
 });
 
+test('G: «برگردان» says so when part of the undo could not be saved (it used to report success)', async () => {
+  const r = await p.evaluate(async () => { const n = nowTs(); await putRaw('tasks', { id: 'tu1', title: 'قبل', status: 'open', created: n, updated: n });
+    const prev = JSON.parse(JSON.stringify(byId('tasks', 'tu1'))); await putRaw('tasks', { ...prev, title: 'بعد', updated: nowTs() });
+    const msg = () => document.getElementById('toast').textContent;
+    window._undo = [{ col: 'tasks', id: 'tu1', prev }]; const real = window.putRaw;
+    window.putRaw = () => Promise.reject(new Error('synthetic write failure'));
+    try { await undoDo(); } finally { window.putRaw = real; }
+    const fail = msg(), kept = byId('tasks', 'tu1').title;
+    window._undo = [{ col: 'tasks', id: 'tu1', prev }]; await undoDo();
+    return { fail, kept, ok: msg(), after: byId('tasks', 'tu1').title }; });
+  assert(/کامل نشد/.test(r.fail) && !/✓/.test(r.fail) && r.kept === 'بعد', 'failed undo: ' + JSON.stringify(r));
+  assert(/✓/.test(r.ok) && r.after === 'قبل', 'normal undo: ' + JSON.stringify(r));
+  assert(!o.errors.length, o.errors.join(' | '));
+});
+
 test('close', async () => { await o.ctx.close(); await srv.close(); });
 run(__filename);

@@ -43,6 +43,20 @@ test('(c) encrypted backup + wrong passphrase → rejected, nothing written', as
   assert((await sig(D.page)) === before, 'data changed after a non-backup file'); await D.ctx.close();
 });
 
+test('(h) the «before restore» snapshot cannot be made → asks first; «انصراف» writes nothing, «ادامه» restores', async () => {
+  const E = await fresh(); const p = E.page; const before = await sig(p);
+  await p.evaluate(() => { window.snapOpen = () => Promise.reject(new Error('synthetic: storage full')); });
+  const ask = async btn => { await p.evaluate(j => restoreJson(JSON.parse(j), 'آزمون'), plain); await p.waitForSelector('#sheetRoot [data-act=rsGo]');
+    const done = p.evaluate(() => restoreApply(false).then(() => 'done'));
+    await p.waitForSelector('#dlgRoot:not([hidden]) [data-dv=' + btn + ']'); const txt = await p.evaluate(() => document.getElementById('dlgRoot').innerText);
+    await p.click('#dlgRoot [data-dv=' + btn + ']'); await done; await settle(p); return txt; };
+  const t = await ask('no');
+  assert(/ساخته نشد/.test(t) && (await sig(p)) === before && (await p.evaluate(() => S.ledger.length)) === 0, 'cancel: data changed or no warning: ' + t);
+  await ask('ok'); const sE = await sig(p);
+  assert(sE === fpA, 'continue: restored data differs: ' + sigDiff(fpA, sE));
+  assert(!E.errors.length, E.errors.join(' | ')); await E.ctx.close();
+});
+
 test('(e)(f) older backup on a newer device: newer local edits kept, deletions not resurrected, local-only rows kept, snapshot taken', async () => {
   const p = A.page;
   await p.evaluate(async () => { await save('people', 'p_c', { note: 'local-newer' }); await delDoc('people', 'p_d'); await save('people', null, { name: 'فقط محلی' }); });
