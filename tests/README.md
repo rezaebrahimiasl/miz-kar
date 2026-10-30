@@ -29,6 +29,7 @@ Nothing is installed into the app or the repository.
 | `26-money-forms.test.js` | money forms «تسویه», «تسویهٔ همه», «وصول چک», «واگذاری چک»: exact ledger rows, settled flags, cheque status and invariants (`formSettle()`, `formSettleAll()`, `formChqClear()`, `formChqEndorse()`, `ledSettleIfPaid()`) |
 | `27-doc-lot-ref-net.test.js` | WP-10: net profit (in, due, debt, asset, cost row), referral sale and its edit (partial payment carried over), lots (opening stock, consigned, edit of a bought lot with purchase-row history), pro-forma and letter without postings (`formNetSave()`, `formRefSale()`, `formLotSave()`, `formDocSave()`) |
 | `28-small-money-forms.test.js` | WP-10: ledger row new/correction/edit/void, pending-payment split, commission, extra lot cost, sale from a lot and its price edit, packing and voiding it, production, recurring fill-in, voucher from a ledger row: exact rows and invariants |
+| `29-receivables-person.test.js` | receivables follow-up: which receivables qualify (overdue or due within 7 days, open amount after linked and unlinked payments, not undated, not net creditors), one task per person (`recv-<person>`, no duplicates, reopened not repeated), reminder text prepared and logged but never sent, partial payment moves it on, full settlement closes it, no extra money rows; person page: documents and letters, notes naming the person, statement, contact history, only that person's |
 | `30-docs.test.js` | document version restore and count-sheet restore |
 | `40-backup-restore.test.js` | backup → clean device → identical data (plain and encrypted) · wrong passphrase and non-backup files rejected · restore keeps newer local edits, does not resurrect deletions, never removes local rows, takes a snapshot first (asks before restoring without one) · Excel export round trip |
 | `41-sync-merge.test.js` | `syncMerge()` with synthetic payloads: one-sided edits (newer wins), both-sided edits (local kept + conflict with both copies, also at equal times; identical copies no conflict; open conflicts not overwritten), first sync (different copies → conflict), remote deletion vs an unsynced local edit (kept as a conflict, resolved either way), tombstones both ways against older/newer copies and their merge, records missing on either side, id-less entries, duplicate ids, idempotence, device-only `vault/bio` and conflicts list untouched, unsent counter, invariants, persistence after reload |
@@ -72,7 +73,8 @@ Run the rows that match what you changed, plus `00` and `01` (both take seconds)
 | documents, posting (`postDoc`, `docVoid`), stock, lots, kardex | `20`, `30` |
 | ledger, vouchers, accounting (`autoEntries`), person balances | `20`, `25` |
 | «Stock & money actions» (`actLotVoid` … `actAcctFix`), cheques, own accounts | `25` |
-| «Money forms» (settle, settle all, clear/endorse cheque) | `26` |
+| «Money forms» (settle, settle all, clear/endorse cheque) | `26`, `29` |
+| receivables follow-up (`recvDue` … `recvAttn`, `markDirty`), person page (`viewPerson`) | `29`, `20` |
 | document, lot, referral-sale and net-profit forms (`formDocSave` … `formNetSave`) | `27`, `20`, `30`, `50` |
 | ledger, move, packing, production, commission, recurring and voucher forms (`formLedgerSave` … `formPendEdit`) | `28` |
 | «امروز» (`vToday`), menu (`menuSheet`, `MENU_HIDE`, `REGROUP`), money tab header | `94`, `10`, `90` |

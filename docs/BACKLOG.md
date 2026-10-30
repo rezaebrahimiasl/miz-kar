@@ -21,6 +21,8 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 | WP-8 | Code-finding tool (`tools/q.js`) and static wiring test | — | `tests/01-wiring.test.js` |
 | WP-6 | Dead code removed (`vBiz`, `myAcctsOld`, `restoreJsonOld`, `fHint`, the unused `tgJump` action); the unused icons `icon-192.png`, `icon-512.png` are kept (old installs may still ask for them) | 4.28 | `tests/05-docs.test.js` |
 | WP-10a | Money forms moved into named functions (`formSettle`, `formSettleAll`, `formChqClear`, `formChqEndorse`) with one shared `ledSettleIfPaid()` instead of three copies | 4.28 | `tests/26-money-forms.test.js` |
+| R-3 | Receivables follow-up: one task per person for overdue or soon-due receivables, closed or moved on by any payment, reminder text prepared (never sent); Today offers it | not yet released | `tests/29-receivables-person.test.js` |
+| R-6 | Person page: documents and letters, notes naming the person, wider contact history | not yet released | `tests/29-receivables-person.test.js` |
 | SAFE-1 | Silent failures fixed: `restoreApply` asks before restoring when the «before restore» snapshot cannot be made; `undoDo` reports a partial undo instead of «✓»; `confSave` never drops open conflicts (it kept only 80) | 4.29 (not yet released) | `40` (h), `92` G, `41` |
 | SYNC-1 | `syncMerge` regression tests; fixed: another device's fingerprint tombstone deleted this device's `vault/bio`; a duplicated id in a payload became a spurious conflict; conflicts reset the unsent flag mid-merge; a remote deletion of a record edited here since the last sync, and different copies on a device's first sync, now open a conflict instead of being decided silently | 4.29 (not yet released) | `tests/41-sync-merge.test.js` |
 | WP-10c | The last 13 submit branches that wrote `ledger` directly moved into named functions (`formLedgerSave`, `formLedgerEditSave`, `formVoidLedger`, `formVoidMove`, `formMoveEditSave`, `formCommPay`, `formLotExtra`, `formMoveSave`, `formRecurSave`, `formRepackSave`, `formProdSave`, `formVoucherSave`, `formPendEdit`); no submit branch writes `ledger` any more | 4.29 (not yet released) | `tests/28-small-money-forms.test.js` |
@@ -45,6 +47,7 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 | O4 | Bundle the Vazirmatn font locally (no remote font) | 2 | — |
 | O5 | Voice input: clear message when offline | 4 | — |
 | O6 | Show whether the browser granted persistent storage | 3 | — |
+| L-1 | Voiding a payment does not reopen a receivable already marked «settled» (existing behaviour; balances stay right, the receivable list and its follow-up do not) | 2 | owner decision |
 | WP-7 | First module boundary: one writer for document postings | 4 | WP-1 to WP-3 |
 
 ## Known structural facts (not defects by themselves)

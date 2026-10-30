@@ -426,7 +426,7 @@ async function save(col,id,data){{const cb=closeBlock(col,id,data);if(cb){closeT
   if(ok&&was&&was.status!=='done'&&data.status==='done'){
     if(Number(was.fup)>0)await putRaw('tasks',{id:newId(),title:'پیگیری: '+was.title,area:was.area||'',priority:was.priority||3,personId:was.personId||'',city:was.city||'',tag:was.tag||'',due:addDays(today(),Number(was.fup)),status:'open',created:nowTs(),updated:nowTs()});
     if(!(Number(was.payAmt)>0)&&MEETRX.test(was.title||''))setTimeout(()=>{if(document.getElementById('sheetRoot').hidden)formWin({from:was.title,taskId:was.id,personId:was.personId||'',area:was.area||''})},800);
-    if(!taskVchs(was.id).length&&(Number(was.payAmt)>0||(SM('payDone')&&PAYRX.test(was.title||''))))setTimeout(()=>taskPayV(was),700)}
+    if(!(was.flow&&was.flow.kind==='recv')&&!taskVchs(was.id).length&&(Number(was.payAmt)>0||(SM('payDone')&&PAYRX.test(was.title||''))))setTimeout(()=>taskPayV(was),700)}
   return ok}
 
 /* ---------- Smart assistant (Gemini, user's own key). Only the sentence/question leaves the phone;
@@ -529,7 +529,7 @@ async function putRaw(col,doc){if(mode==='local'&&!LOAD_OK)throw new Error('دا
 let LOAD_OK=false,BAD=[],LOAD_ERR='';
 const lsGet=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:v}catch(_){return d}};const lsSet=(k,v)=>{try{localStorage.setItem(k,String(v))}catch(_){}};
 const unsentN=()=>Number(lsGet('miz.unsent','0'))||0;
-function markDirty(){ghDirty=true;window._dv=(window._dv||0)+1;try{gcKick()}catch(_){}if(!window._noUnsent)lsSet('miz.unsent',unsentN()+1)}
+function markDirty(){ghDirty=true;window._dv=(window._dv||0)+1;try{recvKick()}catch(_){}try{gcKick()}catch(_){}if(!window._noUnsent)lsSet('miz.unsent',unsentN()+1)}
 function unsentClear(){lsSet('miz.unsent',0);lsSet('miz.cnt',rowCount())}
 const rowCount=()=>COLS.filter(c=>c!=='contacts').reduce((a,c)=>a+(S[c]||[]).length,0);
 function cloudBlock(remoteN){if(mode==='cloud')return'';if(!LOAD_OK)return'داده‌های این گوشی درست خوانده نشد؛ برای حفظ نسخهٔ ابری، ارسال متوقف است.';const n=rowCount(),prev=Math.max(Number(lsGet('miz.cnt','0'))||0,remoteN||0);if(prev>=20&&n<prev*0.5&&!GH.cfg.allowShrink)return`این گوشی ${fa(n)} ردیف دارد ولی آخرین پشتیبان ${fa(prev)} ردیف داشت؛ ارسال متوقف شد تا نسخهٔ کامل‌تر جایگزین نشود.`;return''}
@@ -3252,6 +3252,7 @@ function vToday(){
   try{A=safetyCard()+A+clinicCard()+profCard()+assetsCard()+healthCard()}catch(_){}
   try{const j=jOf(today());const py=j.jy-1;if(SM('yearClose')&&j.jm<=3&&!(CLOSE()[py]&&CLOSE()[py].closed)&&S.ledger.concat(S.vouchers).some(x=>!x.void&&jYear(x.date)===py))A+=`<div class="row" style="margin-top:12px;border:1px solid var(--line);border-radius:14px;cursor:default;flex-wrap:wrap">${badge('finance','book')}<div class="main"><div class="ttl">سال مالی ${fa(py)} را ببند</div><div class="sub"><span>سند اختتامیه، ماندهٔ افتتاحیه و قفل ثبت‌های آن سال</span></div></div><div class="acts" style="width:100%;margin-top:6px"><button class="btn pri" data-act="yearClose">ببین و ببند</button></div></div>`}catch(_){}
   {const vd=vDoc();const soon=vd?(vd.remind||[]).filter(x=>diffDays(x.exp,today())<=30):[];if(soon.length)A+=`<button class="row" data-act="vault" style="margin-top:12px;border:1px solid var(--warn);border-radius:14px;background:var(--warn-soft)">${badge('personal','key')}<div class="main"><div class="ttl">${fa(soon.length)} مورد گاوصندوق تا یک ماه دیگر منقضی می‌شود</div><div class="sub"><span>نزدیک‌ترین: ${jNice(soon.map(x=>x.exp).sort()[0])} · برای دیدن، گاوصندوق را باز کن</span></div></div></button>`}
+  A+=recvAttn();
   {const pend=S.ledger.filter(l=>l.pending&&!l.void);if(pend.length)A+=block('پرداخت و دریافت‌های دوره‌ای: تأیید کن',pend.length,`<div class="list">${pend.filter((l,i,a)=>!l.pairId||a.findIndex(y=>y.pairId===l.pairId)===i).map(l=>`<div class="row" style="flex-wrap:wrap">${badge('finance','bell')}<div class="main"><div class="ttl">${esc(l.about)}</div><div class="sub"><span>${jNice(l.date)}</span><span>${esc(l.evidence||'')}</span></div></div><div class="end ${l.kind==='received'?'amt-pos':'amt-neg'}">${l.pairId?'<span class="pill">به جای من</span> ':''}${l.amount?money(l.amount,l.currency):'مبلغ؟'}</div><div class="acts" style="width:100%;margin-top:6px"><button class="btn" data-act="pendOk" data-id="${l.id}">انجام شد ✓</button><button class="btn" data-act="pendEdit" data-id="${l.id}">مبلغ یا حساب دیگر / چند قسمت</button><button class="btn ghost danger" data-act="pendNo" data-id="${l.id}">انجام نشد</button></div></div>`).join('')}</div>`)}
   {let sn='';try{sn=localStorage.getItem('miz.recurAsk')||''}catch(_){}if(on('recurs')&&S.recurs.length<3&&(!sn||sn<=today()))A+=`<div class="row" style="margin-top:12px;border:1px dashed var(--line);border-radius:14px;flex-wrap:wrap">${badge('finance','bell')}<div class="main"><div class="ttl">پول‌های ثابت ماهانه را کم‌کم وارد کن</div><div class="sub"><span>پرداخت‌های خودکار بانک، خرجی منزل، دریافتی از پدر، حق بیمه… هر بار یکی؛ بعد خودش در روزش ثبت می‌شود و فقط تأیید می‌خواهد.</span></div></div><div class="acts" style="width:100%;margin-top:6px"><button class="btn" data-act="newRecur">افزودن یکی</button><button class="btn ghost" data-act="recurLater">بعداً بپرس</button></div></div>`}
   {const inc=openTasks().filter(x=>x.incomplete);if(inc.length)A+=block('نیاز به تکمیل',inc.length,`<div class="list">${inc.map(x=>`<button class="row" data-act="completeTask" data-id="${x.id}">${badge(x.area||'affairs','note')}<div class="main"><div class="ttl">${esc(x.title)}</div><div class="sub"><span class="pill warn">${fa((x.needs||[]).length)} مورد را بپرس</span><span>${esc((x.needs||[]).join('، '))}</span></div></div></button>`).join('')}</div>`)}
@@ -3767,12 +3768,15 @@ function viewPerson(id){const p=byId('people',id);if(!p){toast('شخص پیدا 
    <dt>مانده</dt><dd>${bs.length?bs.map(([c,v])=>`<span class="${v>0?'amt-pos':'amt-neg'}">${v>0?'طلب من ':'بدهی من '}${moneyFull(v,c)}</span>`).join('<br>'):'بی‌حساب'}</dd></dl>
    ${p.note?`<div class="prose">${esc(p.note)}</div>`:''}
    ${(()=>{try{return syPersonHtml(p)}catch(_){return ''}})()}
+   ${(()=>{const o=recvDue().find(x=>x.pid===id);return o?`<div class="blk-h" style="margin-top:12px"><h2>طلب سررسیده یا نزدیک</h2></div><div class="list">${recvRow(o,'person')}</div>`:''})()}
    ${led.length?stmtHtml(id):''}
+   ${(()=>{const nm=nrm(p.name||'');const D=S.docs.filter(d=>!d.void&&(d.personId===id||(!d.personId&&nm&&nrm(d.toName||'')===nm))).sort((a,c)=>(c.date||'').localeCompare(a.date||''));return D.length?`<div class="blk-h" style="margin-top:12px"><h2>فاکتورها، نامه‌ها و اسناد</h2><span class="n">${fa(D.length)}</span></div><div class="list">${D.slice(0,30).map(gsDocRow).join('')}</div>${D.length>30?`<div class="hint" style="font-size:12px">${fa(D.length-30)} سند قدیمی‌تر در «فاکتورها و اسناد»</div>`:''}`:''})()}
+   ${(()=>{const nm=nrm(p.name||'');if(nm.length<3)return '';const N=S.notes.filter(n=>nrm((n.title||'')+' '+(n.body||'')).includes(nm)).sort((a,c)=>(c.updated||'').localeCompare(a.updated||''));return N.length?`<div class="blk-h" style="margin-top:12px"><h2>یادداشت‌هایی که نام او را دارند</h2></div><div class="list">${N.slice(0,10).map(n=>`<button class="row" data-act="viewNote" data-id="${n.id}"><div class="main"><div class="ttl">${esc(n.title||'')}</div><div class="sub"><span>${n.updated?jShort(n.updated.slice(0,10)):''}</span></div></div></button>`).join('')}</div>`:''})()}
    ${(()=>{const kr=kindRows(id);return kr?`<div class="blk-h" style="margin-top:12px"><h2>طلب و بدهی کالایی</h2></div><div class="list">${kr.replace(/data-act="viewPerson"/g,'data-act="kindHelp"')}</div>`:''})()}
    ${(()=>{const C=S.cheques.filter(c=>!c.void&&c.personId===id).sort((a,b)=>(b.due||'').localeCompare(a.due||''));return C.length?`<div class="blk-h" style="margin-top:12px"><h2>چک‌ها</h2></div><div class="list">${C.map(chequeRow).join('')}</div>`:''})()}
    ${deals.length?`<div class="blk-h" style="margin-top:12px"><h2>فرصت‌ها</h2></div>${listOr(deals,dealRow,'')}`:''}
    ${tasks.length?`<div class="blk-h" style="margin-top:12px"><h2>کارهای باز</h2></div>${listOr(tasks,taskRow,'')}`:''}
-   ${(()=>{const L=S.tasks.filter(t=>t.personId===id).flatMap(t=>(t.log||[]).map(x=>({...x,_t:t.title}))).sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,10);return L.length?`<div class="blk-h" style="margin-top:12px"><h2>سابقهٔ ارتباط و پیگیری</h2></div><div class="list">${L.map(x=>logLine(x,x._t)).join('')}</div>`:''})()}
+   ${(()=>{const L=S.tasks.filter(t=>t.personId===id).flatMap(t=>(t.log||[]).map(x=>({...x,_t:t.title}))).concat(S.quotes.filter(q=>q.personId===id&&q.sentAt).map(q=>({ts:q.sentAt,d:q.sentAt.slice(0,10),type:'msg',text:'ارسال قیمت '+(q.product||'')+' ('+(q.sentVia||'')+')'})),S.docs.filter(d=>!d.void&&d.personId===id&&d.fuAt).map(d=>({ts:d.fuAt,d:d.fuAt,type:'sms',text:'پیگیری '+docTitle(d)+' '+fa(d.no||'')})),p.lastTouch?[{ts:p.lastTouch,d:p.lastTouch,type:'call',text:'خبر گرفتم'}]:[]).sort((a,b)=>(b.ts||'').localeCompare(a.ts||'')).slice(0,15);return L.length?`<div class="blk-h" style="margin-top:12px"><h2>سابقهٔ ارتباط و پیگیری</h2></div><div class="list">${L.map(x=>logLine(x,x._t)).join('')}</div>`:''})()}
 
    ${(()=>{const t=personTrade(id);return t?`<div class="blk-h" style="margin-top:12px"><h2>کالای ارسالی به تفکیک سال</h2></div><div class="list">${t}</div>`:''})()}
    ${(()=>{const sup=S.lots.filter(l=>l.supplierId===id&&!l.void);return sup.length?`<div class="blk-h" style="margin-top:12px"><h2>محموله‌های خریداری‌شده از او</h2></div>${listOr(sup,lotRow,'')}`:''})()}
@@ -4295,6 +4299,49 @@ function flowSummary(){const ot=openTasks().filter(t=>t.flow);const c=k=>ot.filt
   const short=S.lots.filter(l=>!l.void&&lotStat(l).rem<-1e-9);
   return{rows:[['quote_gave','قیمت داده‌شده، منتظر جواب',c('quote_gave'),'marketers','tag'],['quote_got','قیمت گرفته‌شده، منتظر تصمیم',c('quote_got'),'export','tag'],['sample','نمونهٔ داده‌شده، منتظر نظر',c('sample'),'sales','box'],['recv','طلب‌های باز، منتظر دریافت',recv,'finance','finance'],['pay','بدهی‌های باز، منتظر پرداخت',pay,'finance','finance']].filter(r=>r[2]>0),short}}
 
+/* ---------- Receivables follow-up: overdue and soon-due receivables → one follow-up task per person (id «recv-<person>»); payments close or reschedule it; the reminder text is prepared, only the user sends it ---------- */
+const RECV_SOON=7,RECV_AGAIN=3;const recvTid=pid=>'recv-'+pid;
+// per person: toman receivables with a due date that is past or within RECV_SOON days, by what is still open (remOf: linked and unlinked payments); people I owe on balance are left out
+function recvDue(){const t=today(),lim=addDays(t,RECV_SOON),pb=personBal(),by={};
+  S.ledger.forEach(l=>{if(l.void||l.kind!=='receivable'||l.settled||!l.personId||!l.due||l.due>lim||(l.currency||'تومان')!=='تومان')return;const r=remOf(l);if(r<=0.5)return;
+    const o=by[l.personId]=by[l.personId]||{pid:l.personId,rem:0,over:0,first:l.due,items:[]};o.rem+=r;if(l.due<t)o.over+=r;if(l.due<o.first)o.first=l.due;o.items.push(l)});
+  return Object.values(by).filter(o=>((pb[o.pid]||{})['تومان']||0)>0.5).map(o=>({...o,rem:Math.min(o.rem,(pb[o.pid]||{})['تومان']),items:o.items.sort((a,b)=>a.due.localeCompare(b.due))})).sort((a,b)=>b.over-a.over||a.first.localeCompare(b.first))}
+const recvTask=pid=>{const t=byId('tasks',recvTid(pid));return t&&t.status!=='done'&&t.status!=='archived'?t:null};
+const recvPlan=()=>recvDue().filter(o=>!recvTask(o.pid));
+async function recvFollow(pid){const t0=today();let n=0;for(const o of recvDue().filter(o=>!pid||o.pid===pid)){if(recvTask(o.pid))continue;
+    if(await save('tasks',recvTid(o.pid),{title:'پیگیری طلب از '+pname(o.pid),due:o.first<t0?t0:o.first,priority:2,area:'finance',personId:o.pid,dealId:'',status:'open',doneAt:'',note:'ساخته‌شده برای پیگیری طلب؛ با دریافت یا تسویه خودکار بسته یا جابه‌جا می‌شود',flow:{kind:'recv',personId:o.pid,rem:Math.round(o.rem)}}))n++}
+  return n}
+// after any local write: a follow-up whose person has nothing overdue or soon-due left is closed; a partial payment moves it on and notes what is left
+async function recvSync(){const T=S.tasks.filter(t=>t.flow&&t.flow.kind==='recv'&&t.status!=='done'&&t.status!=='archived');if(!T.length)return;const D=Object.fromEntries(recvDue().map(o=>[o.pid,o])),t0=today();
+  for(const t of T){const o=D[t.flow.personId],was=Number(t.flow.rem)||0,lg=(text,next,nextDue)=>[...(t.log||[]),{ts:nowTs(),d:t0,type:'part',text,next,nextDue}];
+    if(!o){await save('tasks',t.id,{status:'done',doneAt:nowTs(),flow:{...t.flow,rem:0,closed:'paid'},log:lg('طلب سررسیده‌ای نماند؛ پیگیری خودکار بسته شد','done','')});continue}
+    const rem=Math.round(o.rem);if(rem<was-0.5){const due=o.over>0.5?addDays(t0,RECV_AGAIN):o.first;await save('tasks',t.id,{due,flow:{...t.flow,rem},log:lg('دریافت بخشی از طلب؛ مانده '+moneyFull(rem,'تومان'),'again',due)})}
+    else if(rem>was+0.5)await save('tasks',t.id,{flow:{...t.flow,rem}})}}
+let _recvT=0,_recvB=0,_recvR=0;function recvKick(){if(window._noUnsent)return;if(_recvB){_recvR=1;return}if(_recvT)return;_recvT=setTimeout(async()=>{_recvT=0;_recvB=1;try{await recvSync()}catch(e){console.warn('recvSync',e)}finally{_recvB=0;if(_recvR){_recvR=0;recvKick()}}},0)}// one run at a time; writes made meanwhile get one more run
+function recvText(pid){const p=byId('people',pid)||{},o=recvDue().find(x=>x.pid===pid),P=PROF();const ws=String(p.name||'').replace(/^(حکیم|دکتر|استاد|مطب|آقای|خانم|حاج)\s+/,'').split(/\s+/);const fn=ws[1]==='الله'?ws[0]+' الله':(ws[0]||'');
+  if(!o)return '';return `سلام${fn?' '+fn+' عزیز':''}، وقت بخیر.\nماندهٔ حساب شما ${moneyFull(o.rem,'تومان')} است${o.over>0.5?' که سررسید آن ('+jShort(o.first)+') گذشته است':' و سررسید آن '+jShort(o.first)+' است'}.\nممنون می‌شوم در اولین فرصت تسویه بفرمایید.${P.name?'\n\nبا احترام، '+P.name:''}`}
+function recvMsgSheet(pid){const p=byId('people',pid);const txt=recvText(pid);if(!p||!txt)return toast('طلب سررسیده‌ای از این شخص نیست');const nums=String(p.phone||'').split(/[،,\/\s]+/).map(normDigits).filter(x=>x.length>=7);
+  openSheet(`<h3>${badge('finance','bell')} یادآوری طلب به ${esc(p.name)}</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">متن آماده است؛ برنامه چیزی نمی‌فرستد. با زدن یک راه، همان برنامه با این متن باز می‌شود و خودت می‌فرستی.</p>
+  <div class="fld"><label for="f_rvmsg">متن پیام (ویرایش کن)</label><textarea id="f_rvmsg" rows="7">${esc(txt)}</textarea></div>
+  ${nums.length>1?`<div class="fld"><label for="f_rvnum">به کدام شماره</label><select id="f_rvnum">${nums.map(n=>opt(n,fa(n),nums[0])).join('')}</select></div>`:`<input type="hidden" id="f_rvnum" value="${nums[0]||''}">`}
+  <div class="grp">با چه راهی؟</div><div class="tiles">
+   <button class="tile" data-act="recvSend" data-v="sms" data-id="${pid}">${badge('affairs','note')}<span><b>پیامک</b></span></button>
+   <button class="tile" data-act="recvSend" data-v="wa" data-id="${pid}">${badge('finance','user')}<span><b>واتساپ</b></span></button>
+   <button class="tile" data-act="recvSend" data-v="tg" data-id="${pid}">${badge('export','export')}<span><b>تلگرام</b></span></button>
+   <button class="tile" data-act="recvSend" data-v="share" data-id="${pid}">${badge('marketers','marketers')}<span><b>برنامه‌های دیگر یا کپی</b></span></button></div>
+  <div class="acts"><button class="btn ghost" data-act="close">بعداً</button></div>`)}
+async function recvSend(pid,ch){const txt=val('f_rvmsg'),num=val('f_rvnum');const names={sms:'پیامک',wa:'واتساپ',tg:'تلگرام',share:'اشتراک'};
+  if(ch==='sms')location.href=`sms:${num}?body=${encodeURIComponent(txt)}`;else if(ch==='wa')open(`https://wa.me/${num?intlPhone(num):''}?text=${encodeURIComponent(txt)}`,'_blank');else if(ch==='tg')open(`https://t.me/share/url?url=${encodeURIComponent(' ')}&text=${encodeURIComponent(txt)}`,'_blank');
+  else{try{await navigator.share({text:txt})}catch(e){if(e&&e.name==='AbortError')return;try{await navigator.clipboard.writeText(txt);toast('متن کپی شد؛ در برنامهٔ دلخواه بچسبان')}catch(_){}}}
+  const t=recvTask(pid);if(t){const due=addDays(today(),RECV_AGAIN);await save('tasks',t.id,{due,log:[...(t.log||[]),{ts:nowTs(),d:today(),type:ch==='sms'?'sms':'msg',text:'یادآوری طلب ('+names[ch]+')',next:'again',nextDue:due}]})}
+  closeSheet();setTimeout(()=>toast(t?'پیگیری بعدی '+jNice(addDays(today(),RECV_AGAIN))+' · خودت پیام را بفرست':'خودت پیام را بفرست'),600)}
+const recvRow=(o,from)=>{const t=recvTask(o.pid);return `<div class="row" style="cursor:default;flex-wrap:wrap"><button class="main" style="border:0;background:none;text-align:right;padding:0" data-act="viewPerson" data-id="${o.pid}"><div class="ttl">${esc(pname(o.pid))}</div><div class="sub"><span class="${o.over>0.5?'amt-neg':''}">${o.over>0.5?'سررسید گذشته از '+jShort(o.first):'سررسید '+jShort(o.first)}</span><span>${fa(o.items.length)} ردیف</span>${t?'<span>پیگیری '+jShort(t.due)+'</span>':''}</div></button><div class="end amt-pos">${money(o.rem,'تومان')}</div>
+  <div class="acts" style="width:100%;margin-top:6px">${t?'':`<button class="btn" data-act="recvFollow" data-id="${o.pid}" data-v="${from||'list'}">کار پیگیری</button>`}<button class="btn" data-act="recvMsg" data-id="${o.pid}">پیام یادآوری</button></div></div>`};
+function recvSheet(){const D=recvDue();openSheet(`<h3>${badge('finance','bell')} طلب‌های سررسیده و نزدیک (${fa(D.length)})</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">گذشته از سررسید یا تا ${fa(RECV_SOON)} روز دیگر؛ مانده پس از دریافت‌های ثبت‌شده.</p>
+  ${D.length?`<div class="list">${D.map(o=>recvRow(o,'list')).join('')}</div>`:'<div class="empty">طلب سررسیده‌ای نیست ✓</div>'}
+  <div class="acts">${D.some(o=>!recvTask(o.pid))?'<button class="btn pri" data-act="recvFollow" data-v="list">کار پیگیری برای همه</button>':''}<button class="btn ghost" data-act="close">بستن</button></div>`)}
+function recvAttn(){const P=recvPlan();if(!P.length)return '';const sum=P.reduce((a,o)=>a+o.rem,0);
+  return `<div class="row" style="margin-top:12px;border:1px solid var(--warn);border-radius:14px;cursor:default;flex-wrap:wrap">${badge('finance','bell')}<div class="main"><div class="ttl">${fa(P.length)} طلب سررسیده یا نزدیک، بدون کار پیگیری</div><div class="sub"><span>جمع ${money(sum,'تومان')}</span></div></div><div class="acts" style="width:100%;margin-top:6px"><button class="btn pri" data-act="recvFollow">ساخت کار پیگیری</button><button class="btn" data-act="recvSheet">فهرست و پیام</button></div></div>`}
 /* ---------- Habits & persistent check-in ---------- */
 const HTYPE={yesno:'بله / نه',sleep:'ساعت خواب و بیداری',number:'عدد (مثلاً صفحه، دقیقه)'};
 const HICONS={dumbbell:'ورزش',sleep:'خواب',book:'قرآن و مطالعه',research:'پژوهش',personal:'معنوی',therapy:'سلامت',finance:'مالی'};
@@ -5332,7 +5379,7 @@ document.addEventListener('click',async e=>{
     case'advance':{const d=byId('deals',id),P=PIPES[d.pipe],i=P.st.indexOf(d.stage);const ns=P.st[i+1];
       formDeal({...d,stage:ns,nextStep:'',nextDate:addDays(today(),2)});toast('مرحله: '+ns+' — قدم بعدی را بنویس');break}
     case'close3':{const v=b.dataset.v;if(await save('deals',id,{status:v,closedAt:v==='open'?null:nowTs()})){closeSheet();toast(v==='open'?'بازگشایی شد':'ثبت شد');const d=byId('deals',id);if(v==='won'||v==='lost')setTimeout(()=>formWin({type:v==='won'?'win':'insight',from:d.title,dealId:id,personId:d.personId||'',area:(PIPES[d.pipe]||{}).area||'',text:v==='won'?'نتیجه گرفت: '+d.title:''}),500)}break}
-    case'viewPerson':viewPerson(id);break;
+    case'recvFollow':{const n=await recvFollow(id||'');if(b.dataset.v==='person')viewPerson(id);else if(b.dataset.v==='list')recvSheet();render();toast(n?fa(n)+' کار پیگیری ساخته شد ✓':'کار پیگیری از قبل هست');break}case'recvMsg':recvMsgSheet(id);break;case'recvSend':await recvSend(id,b.dataset.v);break;case'recvSheet':recvSheet();break;case'viewPerson':viewPerson(id);break;
     case'editPerson':formPerson(byId('people',id));break;
     case'archivePerson':if(await save('people',id,{status:'archived'})){closeSheet();toast('از فهرست برداشته شد؛ سابقه‌اش محفوظ است')}break;
     case'viewLedger':viewLedger(id);break;
