@@ -598,3 +598,7 @@
 - Test: `tests/44-assistant.test.js` (10).
 - Review fixes: H1 `recvBatch(fn)` (counter `_rvH`): the click and submit listeners and `restoreApply` (→ `restoreApply0`) run inside it; `recvKick` only notes a pending run while it is held and runs once when the last batch ends (sync still skipped via `_noUnsent`). H2 `checkShared` only `asSheet(text)`. M1 `asNums(t)` → `{money,qty}`: dates (a/b/c, «۱۰ مهر»), times, «سال …», phone numbers and 12+ digit runs without a currency are removed; money needs میلیون/هزار (تومان|ریال)/تومان/ریال after it or مبلغ/قیمت/فی/هر …/کیلویی/جمعاً/کلاً before it; `asNorm` checks amounts and prices against `money`, quantities against `qty`. M2 `aiShield(t)` inside `aiCall`: full names and name words (titles excepted) of people with a `cases` record → «مراجع», for every Gemini request. Test: `45` (6); `44` shared-text check updated.
 
+## v4.30 — release of the unreleased work above (receivables follow-up, person page, information engine, one input and the assistant, review fixes)
+- Version: `APP_VER='4.30'`, `sw.js` cache `miz-kar-v4.30`, `version.json` `{"v": "4.30"}`, «تازه‌ها» entry 4.30 (6 items).
+- Rollback: a new commit restoring `index.html`/`sw.js` of `bc15049` (4.29) with version 4.31 — clients update only to a higher version (`checkUpdate`). Data written by 4.30 (task `flow`, ledger `ref`/`rcpt`) is ignored by 4.29.
+
