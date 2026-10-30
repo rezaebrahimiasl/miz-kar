@@ -74,5 +74,47 @@ test('M2: every Gemini request (assistant and questions) leaves out the names of
   const own = await p.evaluate(() => aiShield('صدرنشین، مریم و مریم صدرنشین')); assert(!/مریم|صدرنشین/.test(own), 'filter: ' + own);
 });
 
+test('H1 residual: the start-up job (recurring payments) writes several rows as one batch — the follow-up is updated only after all of them', async () => {
+  const r = await p.evaluate(async () => { const n = nowTs();
+    await putRaw('recurs', { id: 'rq', title: 'اجارهٔ روزانهٔ آزمون', amount: 1e6, per: 'daily', from: addDays(today(), -3), active: true, auto: true, bank: 'بانک الف', cat: 'اجاره', dir: 'out', created: n, updated: n });
+    const real = window.recvSync, seen = []; let done = false; const n0 = S.ledger.length;
+    window.recvSync = async () => { seen.push({ done, rows: S.ledger.length }); return real(); };
+    await bootRun(); done = true; await new Promise(r => setTimeout(r, 300)); window.recvSync = real;
+    return { seen, added: S.ledger.length - n0 }; });
+  assert(r.added >= 3, 'fixture: recurring rows not generated: ' + r.added);
+  assert(r.seen.length >= 1 && r.seen.every(x => x.done), 'follow-up updated in the middle of the start-up job: ' + JSON.stringify(r.seen));
+});
+
+test('M3: an assistant proposal stays pending when its form is closed without saving; it is done only after the save', async () => {
+  await p.evaluate(() => { localStorage.removeItem('miz.ai'); window.fetch = undefined; });
+  await p.evaluate(() => { closeSheet(); asSheet('فردا خرید کارتن آزمون؛ فردا تماس با بانک آزمون'); document.querySelector('#sheetRoot form[data-form=aisay] button.pri').click(); });
+  await p.waitForTimeout(200);
+  const go = i => p.evaluate(i => { const b = document.createElement('button'); b.dataset.act = 'asGo'; b.dataset.v = String(i); document.getElementById('sheetRoot').appendChild(b); b.click(); b.remove(); }, i);
+  await go(0); await p.waitForSelector('#sheetRoot form[data-form=task]'); await p.waitForTimeout(50);
+  await p.evaluate(() => closeSheet()); await p.waitForTimeout(100);
+  let r = await p.evaluate(() => AS.acts.map(a => a.done)); assert(JSON.stringify(r) === '[false,false]', 'abandoned form marked done: ' + JSON.stringify(r));
+  await p.evaluate(() => { asSheet(); }); await go(0); await p.waitForSelector('#sheetRoot form[data-form=task]'); await p.waitForTimeout(50);
+  const n0 = await p.evaluate(() => S.tasks.length);
+  await p.evaluate(() => document.querySelector('#sheetRoot form[data-form=task] button.pri').click()); await settle(p); await p.waitForTimeout(100);
+  r = await p.evaluate(n0 => ({ done: AS.acts.map(a => a.done), added: S.tasks.length - n0 }), n0);
+  assert(JSON.stringify(r.done) === '[true,false]' && r.added === 1, 'after saving: ' + JSON.stringify(r));
+});
+
+test('M4: confirming a recurring payment from a bank message stores its reference and receipt; sharing the same message again warns it was already processed (with and without a reference)', async () => {
+  for (const [txt, ref] of [['برداشت ۲۰,۰۰۰,۰۰۰ ریال از حساب شما شماره پیگیری 445566', '445566'], ['برداشت ۲۰,۰۰۰,۰۰۰ ریال از حساب شما بابت قسط', '']]) {
+    const id = await p.evaluate(async () => { const n = nowTs(), id = 'pq' + Math.random().toString(36).slice(2, 6); await putRaw('ledger', { id, kind: 'paid', amount: 2e6, currency: 'تومان', acct: 'بانک الف', category: 'اجاره', about: 'قسط دوره‌ای آزمون', date: today(), pending: true, settled: false, void: false, instrument: 'حواله', created: n, updated: n }); return id; });
+    await p.evaluate(t => { closeSheet(); receiptSheet(t, null); }, txt);
+    const ids = await p.evaluate(() => [...document.querySelectorAll('#sheetRoot [data-act=rcptPend]')].map(b => b.dataset.id)); assert(ids.includes(id), 'not offered: ' + JSON.stringify(ids));
+    const n0 = await p.evaluate(() => S.ledger.length);
+    await p.evaluate(id => { const b = document.createElement('button'); b.dataset.act = 'rcptPend'; b.dataset.id = id; document.getElementById('sheetRoot').appendChild(b); b.click(); b.remove(); }, id); await settle(p);
+    const row = await p.evaluate(id => JSON.parse(JSON.stringify(byId('ledger', id))), id);
+    assert(!row.pending && row.rcpt && row.evidence.includes('رسید بانک') && (!ref || (row.ref === ref && row.evidence.includes(ref))) && (await p.evaluate(() => S.ledger.length)) === n0, 'confirmed row: ' + JSON.stringify(row));
+    await p.evaluate(t => { closeSheet(); receiptSheet(t, null); }, txt);
+    const again = await p.evaluate(() => ({ t: document.getElementById('sheetRoot').innerText, offer: document.querySelectorAll('#sheetRoot [data-act=rcptPend]').length }));
+    assert(again.t.includes('قبلاً ثبت شده') && !again.offer, `second share (${ref ? 'with' : 'without'} reference): ` + again.t.slice(0, 200));
+  }
+  await p.evaluate(() => closeSheet());
+});
+
 test('no page errors, nothing sent', async () => { assert(!A.errors.length, A.errors.join(' | ')); assert(!A.net.external.length, A.net.external.join(' | ')); await A.ctx.close(); await srv.close(); });
 run(__filename);

@@ -98,13 +98,15 @@ test('one input: a bank message goes to the receipt page, a bill to the bill pag
 
 test('bank message matching: a pending recurring payment is offered and confirmed without a new row; same-amount open invoices are all listed for the user to choose; a same-amount row recorded today warns of a duplicate', async () => {
   await p.evaluate(() => { closeSheet(); receiptSheet('برداشت ۳۰,۰۰۰,۰۰۰ ریال از حساب شما', null); });
-  let r = await p.evaluate(() => ({ ok: [...document.querySelectorAll('#sheetRoot [data-act=pendOk]')].map(b => b.dataset.id), dup: document.getElementById('sheetRoot').innerText.includes('تکراری') }));
+  let r = await p.evaluate(() => ({ ok: [...document.querySelectorAll('#sheetRoot [data-act=rcptPend]')].map(b => b.dataset.id), dup: document.getElementById('sheetRoot').innerText.includes('تکراری') }));
   assert(JSON.stringify(r.ok) === '["rp1"]' && !r.dup, 'recurring: ' + JSON.stringify(r));
-  const n0 = await p.evaluate(() => S.ledger.length); await act('pendOk', { id: 'rp1' }); await settle(p);
+  const n0 = await p.evaluate(() => S.ledger.length); await act('rcptPend', { id: 'rp1' }); await settle(p);
   assert((await p.evaluate(n0 => S.ledger.length === n0 && byId('ledger', 'rp1').pending === false, n0)), 'confirming changed the row count or did not confirm');
   await p.evaluate(() => { closeSheet(); receiptSheet('برداشت ۳۰,۰۰۰,۰۰۰ ریال از حساب شما', null); });
-  r = await p.evaluate(() => ({ ok: document.querySelectorAll('#sheetRoot [data-act=pendOk]').length, dup: document.getElementById('sheetRoot').innerText.includes('تکراری') }));
+  r = await p.evaluate(() => ({ ok: document.querySelectorAll('#sheetRoot [data-act=rcptPend]').length, dup: /تکراری|قبلاً ثبت شده/.test(document.getElementById('sheetRoot').innerText) }));
   assert(r.ok === 0 && r.dup, 'after confirming, the same message must warn of a duplicate: ' + JSON.stringify(r));
+  await p.evaluate(async () => { const n = nowTs(); await putRaw('ledger', { id: 'mp1', kind: 'paid', amount: 1.5e6, currency: 'تومان', acct: 'بانک الف', category: 'اجاره', about: 'ثبت دستی', date: today(), settled: false, void: false, instrument: 'نقد/کارت', created: n, updated: n }); closeSheet(); receiptSheet('برداشت ۱۵,۰۰۰,۰۰۰ ریال از حساب شما', null); });
+  assert(await p.evaluate(() => document.getElementById('sheetRoot').innerText.includes('تکراری')), 'same-amount row of today not warned as a possible duplicate');
   await p.evaluate(() => { closeSheet(); receiptSheet('واریز ۵۰,۰۰۰,۰۰۰ ریال به حساب شما', null); });
   r = await p.evaluate(() => ({ st: [...document.querySelectorAll('#sheetRoot [data-act=settle]')].map(b => b.dataset.id).sort(), many: document.getElementById('sheetRoot').innerText.includes('خودت انتخاب کن') }));
   assert(JSON.stringify(r.st) === '["rv1","rv2"]' && r.many, 'open invoices: ' + JSON.stringify(r));
