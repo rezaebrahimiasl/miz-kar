@@ -21,6 +21,7 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 | WP-8 | Code-finding tool (`tools/q.js`) and static wiring test | — | `tests/01-wiring.test.js` |
 | WP-6 | Dead code removed (`vBiz`, `myAcctsOld`, `restoreJsonOld`, `fHint`, the unused `tgJump` action); the unused icons `icon-192.png`, `icon-512.png` are kept (old installs may still ask for them) | 4.28 | `tests/05-docs.test.js` |
 | WP-10a | Money forms moved into named functions (`formSettle`, `formSettleAll`, `formChqClear`, `formChqEndorse`) with one shared `ledSettleIfPaid()` instead of three copies | 4.28 | `tests/26-money-forms.test.js` |
+| REV-1 | Review fixes H1, H2, M1, M2: `recvBatch` around every click/submit action and `restoreApply`; shared text only fills the assistant; `asNums` money only with currency/unit or money words; `aiShield` in `aiCall` removes names of people with a clinical record | not yet released | `tests/45-safety-fixes.test.js` |
 | AS-1 | One input and the assistant: «با یک جمله» works without AI too; shared text, voice and pasted bank messages/bills/questions are routed; several actions per request, numbers checked against the user's words, ambiguous people chosen by the user, financial actions only through their forms; bank messages suggest the pending recurring payment, same-amount open invoices or warn of duplicates; weekly review shows cheques, pending confirmations, receivables without follow-up and the week's money | not yet released | `tests/44-assistant.test.js` |
 | QE-3 | Engine entities `cheques` (in progress, due/overdue, per direction and currency), `profit` (per Jalali month from `plRange`, toman only, other currencies reported), `statement` (from `stmtRows`, per currency, opening/closing); expenses by category through `expense`. «پرسش از داده‌ها» (now also in the menu) has a filter form for these four that runs on the phone; the AI instructions list them | not yet released | `tests/43-query-capabilities.test.js` |
 | QE-2 | Offline answers in search go through `qExec` (new entities `income`, `expense`, `price`; balances per currency with goods owed); overdue uses `remOf` (unlinked payments count); money totals are kept per currency everywhere in the engine | not yet released | `tests/42-query-engine.test.js` |
@@ -52,6 +53,8 @@ Priorities follow the project policy: reliability first, then maintenance cost, 
 | O4 | Bundle the Vazirmatn font locally (no remote font) | 2 | — |
 | O5 | Voice input: clear message when offline | 4 | — |
 | O6 | Show whether the browser granted persistent storage | 3 | — |
+| M3 | Assistant marks a proposal done when its form opens, not when it is saved | 3 | — |
+| M4 | Confirming a recurring payment from a bank message does not store the bank reference | 3 | — |
 | WP-7 | First module boundary: one writer for document postings | 4 | WP-1 to WP-3 |
 
 ## Known structural facts (not defects by themselves)

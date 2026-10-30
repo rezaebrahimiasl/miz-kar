@@ -441,7 +441,12 @@ function aiSheet(){const a=AI();openSheet(`<h3>${badge('research','star')} دس�
   <div id="aiMsg" class="hint" style="font-size:12.5px;margin-bottom:8px"></div>
   <div class="acts"><button class="btn pri">ذخیره</button><button type="button" class="btn" data-act="aiTest">آزمایش اتصال</button><button type="button" class="btn ghost" data-act="close">بستن</button></div></form>
   <div class="hint" style="font-size:12px;color:var(--muted);margin-top:8px">از ایران معمولاً فقط با فیلترشکن وصل می‌شود. نسخهٔ رایگان کلید سقف استفادهٔ روزانه دارد.</div>`)}
-async function aiCall(sys,text,o={}){const a=AI();if(!a.key)throw new Error('nokey');const ac=new AbortController();const to=setTimeout(()=>ac.abort(),o.t||25000);
+// every text sent to Gemini passes here: names of people who have a clinical record are replaced, whatever the text is about
+function aiShield(t){let s=String(t||'');const ids=new Set((S.cases||[]).filter(c=>c&&c.personId).map(c=>c.personId));if(!ids.size)return s;
+  const HON=/^(آقای|خانم|استاد|حاج|حاجی|دکتر|مهندس|حکیم|سید)$/;const W=new Set();
+  S.people.filter(p=>ids.has(p.id)&&p.name).forEach(p=>{W.add(p.name.trim());p.name.replace(/‌/g,' ').split(/[\s،,.()]+/).filter(w=>w.length>2&&!HON.test(w)).forEach(w=>W.add(w))});
+  [...W].sort((a,b)=>b.length-a.length).forEach(w=>{s=s.split(w).join('مراجع')});return s}
+async function aiCall(sys,text,o={}){const a=AI();if(!a.key)throw new Error('nokey');text=aiShield(text);const ac=new AbortController();const to=setTimeout(()=>ac.abort(),o.t||25000);
   try{const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(a.model||'gemini-2.5-flash')}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':a.key.trim()},signal:ac.signal,body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:[{role:'user',parts:[{text},...(o.img?[{inline_data:{mime_type:o.img.mime,data:o.img.data}}]:[])]}],generationConfig:{temperature:0.1,responseMimeType:'application/json'}})});
    const js=await r.json().catch(()=>({}));if(!r.ok)throw new Error((js.error&&js.error.message)||('HTTP '+r.status));const t=(((js.candidates||[])[0]||{}).content||{}).parts||[];const raw=t.map(p=>p.text||'').join('');return JSON.parse(raw.replace(/^```json|```$/g,'').trim())}
   finally{clearTimeout(to)}}
@@ -468,15 +473,24 @@ function aiApply(j,text){const pid=matchPerson(j.person),pn=(j.person||'').trim(
 const AS_FIN=['sale','purchase','gift','nazr','ehsan','sadaqa','khums','sample','lend','received','paid','receivable','payable','referral'];const AS_IN=[...AS_FIN,'task','note','person','visit'];
 const AS_LAB={sale:'فروش',purchase:'خرید',gift:'هدیه',nazr:'نذری',ehsan:'احسان',sadaqa:'صدقه',khums:'خمس و وجوهات',sample:'نمونه',lend:'امانی',received:'دریافت',paid:'پرداخت',receivable:'طلب',payable:'بدهی',referral:'فروش معرفی',task:'کار',note:'یادداشت',person:'شخص تازه',visit:'ویزیت درمانی',unknown:'نامشخص'};
 const CLIN_RX=/ویزیت|مراجع|بیمار|درمان|حجامت|زالو|نسخه|مطب/;
-const asNums=t=>[...en(String(t||'')).matchAll(/\d+(?:[.٫/]\d+)?/g)].map(m=>Number(m[0].replace(/[٫/]/,'.')));
-// a value counts as said only if it is one of the user's numbers (as million, thousand or plain toman)
-const asSaid=(v,N)=>!v||N.some(n=>[n,n/1000,n/1e6].some(x=>Math.abs(x-v)<=1e-9*Math.max(1,Math.abs(v))));
+// the numbers in the user's words, split into money (in million toman) and quantities. Money needs a currency/unit word after it
+// (میلیون، هزار تومان، تومان، ریال) or a money word before it (مبلغ، قیمت، فی، هر کیلو، کیلویی، جمعاً…); dates, times, phone numbers and years are removed first
+function asNums(t){let s=en(String(t||'')).replace(/‌/g,' ').replace(/(\d)٫(\d)/g,'$1.$2').replace(/(\d)[,٬](?=\d{3}\b)/g,'$1');
+  s=s.replace(/\d{1,4}\s*[\/\-]\s*\d{1,2}\s*[\/\-]\s*\d{1,4}/g,' # ').replace(/\d{1,2}\s*:\s*\d{2}/g,' # ').replace(/ساعت\s*\d+(?:\.\d+)?/g,' # ').replace(/\+?(?:98|0)9\d{9}/g,' # ').replace(/\d{12,}(?!\s*(?:ریال|تومان|تومن))/g,' # ')
+    .replace(/\d+\s*(?:فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)(?:\s*\d{2,4})?/g,' # ').replace(/(?:سال|سالِ)\s*\d+/g,' # ');
+  const M=[],Q=[],U=/^\s*(میلیون|ملیون|هزار|تومان|تومن|ریال|کیلو|کیلوگرم|گرم|عدد|قوطی|شیشه|بسته|تا|کارتن|نفر|روز|ماه|سال|بار|درصد|هفته)/;
+  for(const m of s.matchAll(/\d+(?:\.\d+)?/g)){const n=Number(m[0]),after=s.slice(m.index+m[0].length,m.index+m[0].length+16),before=s.slice(Math.max(0,m.index-14),m.index),u=(after.match(U)||[])[1]||'';
+    if(u==='میلیون'||u==='ملیون')M.push(n);else if(u==='هزار')M.push(/^\s*هزار\s*ریال/.test(after)?n/1e4:n/1000);else if(u==='تومان'||u==='تومن')M.push(n/1e6);else if(u==='ریال')M.push(n/1e7);
+    else if(u)Q.push(n);else if(/(مبلغ|قیمت|فی|کیلویی|عددی|هر\s*\S+|جمعاً|جمعا|کلاً|کلا|جمع)\s*$/.test(before))M.push(n);else Q.push(n)}
+  return{money:M,qty:Q}}
+// a value counts as said only if it is one of those numbers
+const asSaid=(v,L)=>!v||L.some(n=>Math.abs(n-v)<=1e-9*Math.max(1,Math.abs(v)));
 function asPeople(name){const n=nrm(String(name||'').trim());if(!n)return [];const P=S.people.filter(p=>p.status!=='archived'&&p.name);const ex=P.filter(p=>nrm(p.name)===n);if(ex.length)return ex;const ws=n.split(/\s+/).filter(w=>w.length>1);return ws.length?P.filter(p=>{const k=nrm(p.name);return ws.every(w=>k.includes(w))}):[]}
-function asNorm(a,text){a=a&&typeof a==='object'?a:{};const N=asNums(text),I=[],str=(v,n)=>String(v==null?'':v).trim().slice(0,n);
+function asNorm(a,text){a=a&&typeof a==='object'?a:{};const NN=asNums(text),N=NN.money,I=[],str=(v,n)=>String(v==null?'':v).trim().slice(0,n);
   const o={intent:AS_IN.includes(a.intent)?a.intent:'unknown',person:str(a.person,60),marketer:str(a.marketer,60),date:str(a.date,20),due:str(a.due,20),pay:['cash','credit','barter'].includes(a.pay)?a.pay:'',about:str(a.about,200),title:str(a.title,200),amount:Number(a.amount)||0,
     items:(Array.isArray(a.items)?a.items:[]).slice(0,20).map(x=>({desc:str(x&&x.desc,80),qty:Number(x&&x.qty)||0,unit:str(x&&x.unit,12),price:Number(x&&x.price)||0})).filter(x=>x.desc||x.qty)};
   if(o.amount&&!asSaid(o.amount,N)){I.push('مبلغ در جمله‌ات نبود؛ در فرم بنویس');o.amount=0}
-  o.items.forEach(x=>{if(x.qty&&!asSaid(x.qty,N)){x.qty=0;I.push('مقدار «'+x.desc+'» در جمله نبود')}if(x.price&&!asSaid(x.price,N)&&!(x.qty&&asSaid(x.price*x.qty,N))){x.price=0;I.push('قیمت «'+x.desc+'» در جمله نبود')}});
+  o.items.forEach(x=>{if(x.qty&&!asSaid(x.qty,NN.qty)){x.qty=0;I.push('مقدار «'+x.desc+'» در جمله نبود')}if(x.price&&!asSaid(x.price,N)&&!(x.qty&&asSaid(x.price*x.qty,N))){x.price=0;I.push('قیمت «'+x.desc+'» در جمله نبود')}});
   for(const k of ['date','due'])if(o[k]&&!parseJ(o[k])){I.push((k==='due'?'سررسید':'تاریخ')+' را نشناختم');o[k]=''}
   if(o.person&&o.intent!=='person'){const C=asPeople(o.person);o.cands=C.map(p=>p.id);if(C.length===1)o.pid=C[0].id;else if(C.length>1)I.push(fa(C.length)+' نفر با نام «'+o.person+'» هست؛ یکی را انتخاب کن');else I.push('«'+o.person+'» در افراد نیست')}
   if(AS_FIN.includes(o.intent)&&!['gift','nazr','ehsan','sadaqa','khums','sample','lend'].includes(o.intent)&&!o.amount&&!o.items.some(x=>x.qty&&x.price))I.push('مبلغ معلوم نیست؛ در فرم بنویس');
@@ -682,7 +696,8 @@ function restorePreview(j,src){window._rsJ=j;const P=restorePlan(j.data,false),P
   ${P.del?`<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;margin:10px 2px"><input type="checkbox" id="f_rsDel" style="width:auto"> ردیف‌هایی که بعداً حذف کرده‌ام هم برگردند (${fa(P2.add-P.add)})</label>`:''}
   <p class="hint" style="font-size:12px;color:var(--muted)">بازیابی فقط اضافه یا تازه می‌کند و چیزی را پاک نمی‌کند؛ پیش از آن یک نسخهٔ خودکار ساخته می‌شود.${j.ls?' تنظیمات ظاهری که روی این گوشی نیست هم برمی‌گردد.':''}</p>
   <div class="acts"><button class="btn pri" data-act="rsGo">بازیابی</button><button class="btn ghost" data-act="close">انصراف</button></div>`)}
-async function restoreApply(withDel){const j=window._rsJ;if(!j)return;if(!LOAD_OK)return toast('اول داده‌ها باید سالم خوانده شوند');if(!(await snapTake('restore'))&&mode==='local'&&!(await askConfirm('نسخهٔ پیش از بازیابی (برای برگشت) ساخته نشد؛ احتمالاً فضای ذخیره پر است.\nبدون آن بازیابی را ادامه بدهم؟','ادامه بدون نسخهٔ برگشت',true)))return toast('بازیابی انجام نشد؛ داده‌ها دست نخورد');const P=restorePlan(j.data,withDel);let n=0;
+async function restoreApply(withDel){return recvBatch(()=>restoreApply0(withDel))}
+async function restoreApply0(withDel){const j=window._rsJ;if(!j)return;if(!LOAD_OK)return toast('اول داده‌ها باید سالم خوانده شوند');if(!(await snapTake('restore'))&&mode==='local'&&!(await askConfirm('نسخهٔ پیش از بازیابی (برای برگشت) ساخته نشد؛ احتمالاً فضای ذخیره پر است.\nبدون آن بازیابی را ادامه بدهم؟','ادامه بدون نسخهٔ برگشت',true)))return toast('بازیابی انجام نشد؛ داده‌ها دست نخورد');const P=restorePlan(j.data,withDel);let n=0;
   try{for(const [c,d] of P.rows){await putRaw(c,d);n++}}catch(e){toast('بازیابی نیمه‌کاره ماند: '+(e.code||e.message));render();return}
   const ls=lsRestore(j.ls);rebuildContacts();render();closeSheet();toast(fa(n)+' ردیف بازیابی یا به‌روز شد'+(ls?' · '+fa(ls)+' تنظیم':'')+(CT.length?' · '+fa(CT.length)+' مخاطب':''))}
 /* recovery mode */
@@ -1682,7 +1697,7 @@ async function receiptSheet(text,img){const r=parseBank(text);window._rcpt=r;win
 function rcptToForm(kind){const r=window._rcpt||{};formLedger({kind,about:[r.method||(kind==='paid'?'پرداخت':'دریافت'),r.who?(kind==='paid'?'به ':'از ')+r.who:''].filter(Boolean).join(' '),instrument:'حواله'});
   setTimeout(()=>{const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v};if(r.toman)set('f_amt',fa(fromBase(r.toman,'تومان')));set('f_ref',r.ref);set('f_ev',[r.bank,'رسید',r.ref?'پیگیری '+r.ref:''].filter(Boolean).join(' · '));
     if(r.date){set('f_date',jShort(r.date));dateSync('f_date')}if(r.who){const q=document.getElementById('f_person_q');if(q){q.value=r.who;ppSearch('f_person',r.who)}}},60)}
-async function checkShared(){if(!/[?&]share=1/.test(location.search))return;history.replaceState(null,'',location.pathname);try{const c=await caches.open('miz-share');const tr=await c.match('share-text');const ir=await c.match('share-image');const text=tr?await tr.text():'';let img=null;if(ir){img=URL.createObjectURL(await ir.blob())}await c.delete('share-text');await c.delete('share-image');if(!img&&billParse(text))billSheet(text);else if(img||!text.trim()||parseBank(text).toman)receiptSheet(text,img);else{asSheet(text);asRun(text)}}catch(_){receiptSheet('',null)}}
+async function checkShared(){if(!/[?&]share=1/.test(location.search))return;history.replaceState(null,'',location.pathname);try{const c=await caches.open('miz-share');const tr=await c.match('share-text');const ir=await c.match('share-image');const text=tr?await tr.text():'';let img=null;if(ir){img=URL.createObjectURL(await ir.blob())}await c.delete('share-text');await c.delete('share-image');if(!img&&billParse(text))billSheet(text);else if(img||!text.trim()||parseBank(text).toman)receiptSheet(text,img);else asSheet(text)}catch(_){receiptSheet('',null)}}
 addEventListener('load',()=>setTimeout(checkShared,900));
 
 /* ---------- Trips: on the way, arrival switches to the destination's tasks, costs and lessons stay with the trip ---------- */
@@ -4442,7 +4457,10 @@ async function recvSync(){const T=S.tasks.filter(t=>t.flow&&t.flow.kind==='recv'
     if(!o){await save('tasks',t.id,{status:'done',doneAt:nowTs(),flow:{...t.flow,rem:0,closed:'paid'},log:lg('طلب سررسیده‌ای نماند؛ پیگیری خودکار بسته شد','done','')});continue}
     const rem=Math.round(o.rem);if(rem<was-0.5){const due=o.over>0.5?addDays(t0,RECV_AGAIN):o.first;await save('tasks',t.id,{due,flow:{...t.flow,rem},log:lg('دریافت بخشی از طلب؛ مانده '+moneyFull(rem,'تومان'),'again',due)})}
     else if(rem>was+0.5)await save('tasks',t.id,{flow:{...t.flow,rem}})}}
-let _recvT=0,_recvB=0,_recvR=0;function recvKick(){if(window._noUnsent)return;if(_recvB){_recvR=1;return}if(_recvT)return;_recvT=setTimeout(async()=>{_recvT=0;_recvB=1;try{await recvSync()}catch(e){console.warn('recvSync',e)}finally{_recvB=0;if(_recvR){_recvR=0;recvKick()}}},0)}// one run at a time; writes made meanwhile get one more run
+let _recvT=0,_recvB=0,_recvR=0,_rvH=0,_rvP=0;
+// a whole user action (click, form) or a restore writes as one batch: the follow-up is brought up to date once, after it, never from a half-written state
+async function recvBatch(fn){_rvH++;try{return await fn()}finally{_rvH--;if(!_rvH&&_rvP){_rvP=0;recvKick()}}}
+function recvKick(){if(window._noUnsent)return;if(_rvH){_rvP=1;return}if(_recvB){_recvR=1;return}if(_recvT)return;_recvT=setTimeout(async()=>{_recvT=0;_recvB=1;try{await recvSync()}catch(e){console.warn('recvSync',e)}finally{_recvB=0;if(_recvR){_recvR=0;recvKick()}}},0)}// one run at a time; writes made meanwhile get one more run
 function recvText(pid){const p=byId('people',pid)||{},o=recvDue().find(x=>x.pid===pid),P=PROF();const ws=String(p.name||'').replace(/^(حکیم|دکتر|استاد|مطب|آقای|خانم|حاج)\s+/,'').split(/\s+/);const fn=ws[1]==='الله'?ws[0]+' الله':(ws[0]||'');
   if(!o)return '';return `سلام${fn?' '+fn+' عزیز':''}، وقت بخیر.\nماندهٔ حساب شما ${moneyFull(o.rem,'تومان')} است${o.over>0.5?' که سررسید آن ('+jShort(o.first)+') گذشته است':' و سررسید آن '+jShort(o.first)+' است'}.\nممنون می‌شوم در اولین فرصت تسویه بفرمایید.${P.name?'\n\nبا احترام، '+P.name:''}`}
 function recvMsgSheet(pid){const p=byId('people',pid);const txt=recvText(pid);if(!p||!txt)return toast('طلب سررسیده‌ای از این شخص نیست');const nums=String(p.phone||'').split(/[،,\/\s]+/).map(normDigits).filter(x=>x.length>=7);
@@ -5277,7 +5295,7 @@ async function formVoucherSave(f,id){const date=readDate('f_vdate',true);if(date
     {const fl=val('f_vfrom');if(fl&&byId('ledger',fl)){await save('ledger',fl,{void:true,voidWhy:'به سند حسابداری تبدیل شد',vchId:nid});}}
     toast(unb?'ذخیره شد (نامتوازن)':'سند ثبت شد ✓');viewVoucher(nid);return}
 /* ---------- Actions ---------- */
-document.addEventListener('click',async e=>{
+document.addEventListener('click',e=>recvBatch(async()=>{
   const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id;if(a!=='undoDo'&&a!=='undoEdit'){if(UNDO_SELF.includes(a)){UB=null;const ub=document.getElementById('undoBar');if(ub)ub.remove()}else undoOpen()}markUsed(a);try{useCount(b)}catch(_){}
   if(a==='closeBg'){if(e.target===b)tryClose();return}if(a==='forceClose'){{const sh=document.querySelector('#sheetRoot .sheet');if(sh&&sh.dataset.opener)try{drDrop(drKey(JSON.parse(sh.dataset.opener)))}catch(_){}}if(SST.length&&history.state&&history.state.sheet){r0Back()}else closeSheet();return}if(a==='keepOpen'){const x=document.getElementById('closeAsk');if(x)x.remove();return}
   if(b.tagName==='BUTTON'&&b.type!=='submit')e.preventDefault();
@@ -5883,7 +5901,7 @@ document.addEventListener('click',async e=>{
     case'ask':askSheet();break;
     case'notesList':openSheet(`<h3>یادداشت‌ها و قوانین</h3>${listOr(S.notes,n=>`<button class="row" data-act="viewNote" data-id="${n.id}"><div class="main"><div class="ttl">${esc(n.title)}</div><div class="sub"><span>${esc(n.version||'')}</span></div></div></button>`,'یادداشتی نیست.')}`);break;
   }
-});
+}));
 document.addEventListener('change',e=>{
   if(e.target.id)document.querySelectorAll(`.ul[data-for="${e.target.id}"]`).forEach(x=>x.textContent=MIL(e.target.value)?' (میلیون تومان)':'');
   if(e.target.id==='f_pipe'){const s=document.getElementById('f_stage');s.innerHTML=PIPES[e.target.value].st.map(x=>opt(x,x,'')).join('')}
@@ -5926,7 +5944,7 @@ document.addEventListener('click',()=>{window._subAt=0},true);
 document.addEventListener('click',e=>{const th=e.target.closest&&e.target.closest('.tbl thead th');if(!th)return;const tb=th.closest('table').tBodies[0];if(!tb||tb.querySelector('td[colspan]'))return;const i=[...th.parentNode.children].indexOf(th);const dir=th.dataset.sd==='a'?'d':'a';th.parentNode.querySelectorAll('th').forEach(x=>{delete x.dataset.sd;x.classList.remove('sa','sd')});th.dataset.sd=dir;th.classList.add(dir==='a'?'sa':'sd');
   const key=td=>{if(!td)return'';if(td.dataset.v!=null)return isNaN(+td.dataset.v)?td.dataset.v:+td.dataset.v;const t=en(td.textContent.trim()).replace(/٬|,/g,'').replace('٫','.').replace('−','-');const m=t.match(/^-?\d+(\.\d+)?/);return m&&!/^\d{4}\/\d/.test(t)?parseFloat(m[0]):t};
   const R=[...tb.rows];R.sort((a,b)=>{const x=key(a.cells[i]),y=key(b.cells[i]);const c=typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),'fa');return dir==='a'?c:-c});R.forEach(r=>tb.appendChild(r))});
-document.addEventListener('submit',async e=>{window._subAt=Date.now();{const F=e.target&&e.target.dataset&&e.target.dataset.form;
+document.addEventListener('submit',e=>recvBatch(async()=>{window._subAt=Date.now();{const F=e.target&&e.target.dataset&&e.target.dataset.form;
   if(F==='pause'){e.preventDefault();const f=e.target,c=f.dataset.c,id=f.dataset.id;const u=readDate('f_pzu',true);if(u===null)return;if(u<=today())return toast('تاریخ باید بعد از امروز باشد');const why=val('f_pzr');
     if(c==='habits'){await save('habits',id,{pausedUntil:u,pauseWhy:why,offReason:why||'مکث موقت',pauseAck:''})}else{const x=byId('tasks',id);let d=u;if(x&&x.repeat==='weekly'&&x.due){d=x.due;while(d<u)d=addDays(d,7)}await save('tasks',id,{due:d,pauseTo:d,pauseWhy:why,pauseAck:'',note:[(x&&x.note)||'',why?'مکث تا '+jShort(d)+': '+why:''].filter(Boolean).join('\n')})}
     document.getElementById('sheetRoot').dataset.dirty='';toast('تا '+jNice(u)+' نمی‌پرسم؛ بعد خودم یادآوری می‌کنم');if(ciOpen)nextCheckin();else{closeSheet();render()}return}
@@ -6106,7 +6124,7 @@ document.addEventListener('submit',async e=>{window._subAt=Date.now();{const F=e
       if(mode==='local')render();if(dir==='gave'&&!id){quoteSend(nid);toast('ثبت شد؛ حالا متن پیام را بفرست')}else{closeSheet();toast('قیمت ثبت شد'+(pid?'؛ پیگیری‌اش در کارها آمد':''))}}return}
   if(k==='voidMove'){await formVoidMove(f,id);return}
   if(k==='void'){await formVoidLedger(f,id);return}
-});
+}));
 document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(!b)return;goTab(b.dataset.tab)});
 function goTab(t,noPush){if(t===tab){render();scrollTo(0,0);return}tab=t;try{localStorage.setItem('miz.tab',tab)}catch(_){}if(!noPush){try{history.pushState({tab:t},'')}catch(_){}}render();scrollTo(0,0)}
 try{history.replaceState({tab:'home',root:1},'');if(tab&&tab!=='home')history.pushState({tab},'')}catch(_){}

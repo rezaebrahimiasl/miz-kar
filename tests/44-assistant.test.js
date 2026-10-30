@@ -83,14 +83,17 @@ test('several tasks at once after one tap; pressing again or an existing open ta
   assert(m.n === 0 && m.same && m.conf === 0, 'merging the same data again: ' + JSON.stringify(m));
 });
 
-test('one input: a bank message goes to the receipt page, a bill to the bill page, a question to the answers, a shared sentence to the assistant', async () => {
+test('one input: a bank message goes to the receipt page, a bill to the bill page, a question to the answers, a shared sentence fills the assistant box (read only after «بفهم»)', async () => {
   await ask('برداشت ۳۰,۰۰۰,۰۰۰ ریال از حساب شما. مانده ۱۲,۰۰۰,۰۰۰'); assert(await p.evaluate(() => document.getElementById('sheetRoot').innerText.includes('رسید یا پیام بانک')), 'bank message not routed');
   await ask('قبض برق شناسه قبض 1234567890 شناسه پرداخت 12345678 مبلغ 1,250,000 ریال'); assert(await p.evaluate(() => !document.getElementById('sheetRoot').innerText.includes('بگو چه کار کنم')), 'bill not routed');
   await ask('طلب‌هایم چقدر است؟'); assert(await p.evaluate(() => /طلب تو|طلب یا بدهی/.test(document.getElementById('aiOut').innerText)), 'question not answered');
   await p.evaluate(async () => { const c = await caches.open('miz-share'); await c.put('share-text', new Response('فردا با کریم مشتری آزمون تماس بگیرم')); history.replaceState(null, '', location.pathname + '?share=1'); closeSheet(); await checkShared(); });
   await p.waitForTimeout(200);
-  const r = await p.evaluate(() => ({ t: document.getElementById('sheetRoot').innerText.includes('بگو چه کار کنم'), a: AS && AS.acts[0] && AS.acts[0].intent, pid: AS && AS.acts[0] && AS.acts[0].pid }));
-  assert(r.t && r.a === 'task' && r.pid === 'kc', 'shared sentence: ' + JSON.stringify(r));
+  let r = await p.evaluate(() => ({ t: document.getElementById('sheetRoot').innerText.includes('بگو چه کار کنم'), box: document.getElementById('f_ais').value, as: AS }));
+  assert(r.t && r.box.includes('کریم مشتری آزمون') && !r.as, 'shared sentence must only fill the box: ' + JSON.stringify(r));
+  await p.evaluate(() => document.querySelector('#sheetRoot form[data-form=aisay] button.pri').click()); await p.waitForTimeout(250);
+  r = await p.evaluate(() => ({ a: AS && AS.acts[0] && AS.acts[0].intent, pid: AS && AS.acts[0] && AS.acts[0].pid }));
+  assert(r.a === 'task' && r.pid === 'kc', 'after «بفهم»: ' + JSON.stringify(r));
 });
 
 test('bank message matching: a pending recurring payment is offered and confirmed without a new row; same-amount open invoices are all listed for the user to choose; a same-amount row recorded today warns of a duplicate', async () => {
