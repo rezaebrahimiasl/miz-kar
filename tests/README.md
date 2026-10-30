@@ -33,7 +33,7 @@ Nothing is installed into the app or the repository.
 | `30-docs.test.js` | document version restore and count-sheet restore |
 | `40-backup-restore.test.js` | backup → clean device → identical data (plain and encrypted) · wrong passphrase and non-backup files rejected · restore keeps newer local edits, does not resurrect deletions, never removes local rows, takes a snapshot first (asks before restoring without one) · Excel export round trip |
 | `41-sync-merge.test.js` | `syncMerge()` with synthetic payloads: one-sided edits (newer wins), both-sided edits (local kept + conflict with both copies, also at equal times; identical copies no conflict; open conflicts not overwritten), first sync (different copies → conflict), remote deletion vs an unsynced local edit (kept as a conflict, resolved either way), tombstones both ways against older/newer copies and their merge, records missing on either side, id-less entries, duplicate ids, idempotence, device-only `vault/bio` and conflicts list untouched, unsent counter, invariants, persistence after reload |
-| `42-query-engine.test.js` | information engine: `qNorm` keeps only known fields/values and reports unreadable ones; `qExec` exact figures for sales, gifts, purchases, ledger, balance (= `personBal`), overdue, tasks, stock, with groups, dates, person and product filters; unknown person matches nothing; read-only and deterministic; whatever the AI returns only becomes a query |
+| `42-query-engine.test.js` | information engine: `qNorm` keeps only known fields/values and reports unreadable ones; `qExec` exact figures for sales, gifts, purchases, ledger, balance (= `personBal`), overdue, tasks, stock, with groups, dates, person and product filters; unknown person matches nothing; read-only and deterministic; whatever the AI returns only becomes a query; overdue = open amount incl. unlinked payments (as the follow-up); money totals per currency, never added together; offline answers (`askAnswer`) come from `qExec` |
 | `50-workflows.test.js` | clinic visit with a fee (`visitOf`) and deleting it · beekeeping harvest → lot → sale · task paid with a voucher; invariants after each step |
 | `60-offline.test.js` | service worker install, airplane-mode cold launch, offline create/edit, reopen, reconnect without duplicates or uploads |
 | `70-backup-security.test.js` | no cloud upload without the encryption passphrase; encrypted upload decrypts to the same data |
@@ -75,7 +75,7 @@ Run the rows that match what you changed, plus `00` and `01` (both take seconds)
 | ledger, vouchers, accounting (`autoEntries`), person balances | `20`, `25` |
 | «Stock & money actions» (`actLotVoid` … `actAcctFix`), cheques, own accounts | `25` |
 | «Money forms» (settle, settle all, clear/endorse cheque) | `26`, `29` |
-| «پرسش از داده‌ها», `qNorm`, `qExec`, `qHtml`, `aiRun`, `AI_Q` | `42` |
+| «پرسش از داده‌ها», offline answers in search (`askAnswer`), `qNorm`, `qExec`, `qHtml`, `aiRun`, `AI_Q` | `42` |
 | receivables follow-up (`recvDue` … `recvAttn`, `markDirty`), person page (`viewPerson`) | `29`, `20` |
 | document, lot, referral-sale and net-profit forms (`formDocSave` … `formNetSave`) | `27`, `20`, `30`, `50` |
 | ledger, move, packing, production, commission, recurring and voucher forms (`formLedgerSave` … `formPendEdit`) | `28` |
