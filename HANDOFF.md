@@ -582,3 +582,8 @@
 - Test: `tests/29-receivables-person.test.js` (9).
 - L-1: `save()` calls `ledReopen(id)` after a ledger row is voided. If that row was linked (`refId`) to a settled receivable/payable, the linked live payments no longer cover it, and before the void they did (so a receivable settled by hand stays settled), it gets `settled:false`, `settledAt:''` and a `hist` entry; an auto-closed `recv-` follow-up reopens. `formLedgerSave` corrections now carry the corrected row's `refId` (same person and kind). Covers every void path through `save()`; `putRaw` voids (`formProdSave`, undo) are not payments or restore the earlier state. Tests: `29` (13).
 
+## Unreleased — information engine, first increment (roadmap #2)
+- `aiRun` (L477) split into `qNorm(q)` (whitelist of `QE` fields/values, Jalali → ISO via `parseJ`, `warn` list), `qExec(Q)` (read-only; returns `{entity,pid,noPerson,from,to,kpi,groups,rows[{id,col,…}]}`) and `qHtml(R)`; `aiRun=Q=>qHtml(qExec(qNorm(Q)))`. Calculations moved unchanged; 126 query variants rendered byte-identical before and after, except the 6 with an unknown person: a named person not in «افراد» now matches nothing instead of everyone.
+- Known differences kept for now: «overdue» uses `amount − paidOn` (linked payments only) while the receivables follow-up uses `remOf`; «ledger» sums across currencies; the offline question answering (`askAnswer`) is still separate.
+- Test: `tests/42-query-engine.test.js` (8).
+
