@@ -37,6 +37,8 @@ Nothing is installed into the app or the repository.
 | `43-query-capabilities.test.js` | engine step 3: cheques in progress (default next 7 days, overdue included, totals per direction and currency, inclusive dates), expenses by category (another currency its own group), monthly profit equal to `plRange` per Jalali month (boundary days, partial months, other currencies reported not added), person statement equal to `stmtRows` per currency with opening/closing balance; no data changes; «پرسش از داده‌ها» shows the four reports with filters from the menu without an AI key; the AI's query for them only becomes a checked query |
 | `44-assistant.test.js` | one input (sentence, voice, shared text → assistant; bank message → receipt page; bill → bill page; question → answers), number guard (amounts/quantities/prices must be in the user's words), several actions from one request with and without AI, ambiguous people chosen by the user, each financial action saved only through its own form (exactly one row), clinical text de-identified before AI, tasks at once without duplicates and sync-neutral, bank message ↔ pending recurring payment / same-amount open invoices / possible duplicate, cheque and statement answers, weekly review; nothing written by proposing, matching or reviewing |
 | `45-safety-fixes.test.js` | review fixes: restoring a backup (UI and direct) never closes an open receivables follow-up mid-way and closes a paid one exactly once; a user action is one batch for the follow-up; shared text makes no Gemini request before «بفهم»; dates, years, times, phones, quantities are not money; names of people with a clinical record never reach Gemini |
+| `46-core-ref.test.js` | `js/core.js` (Jalali calendar 1390–1420, dates, `parseJ`, digits, escaping, number and money formatting, constants) gives exactly the outputs recorded from unchanged v4.30 (`tests/fixtures/core-ref.json`, clock fixed) |
+| `47-core-shell.test.js` | start-up guard: core missing or of another version → recovery screen, app not started, data untouched, reload restores; the worker installs only a matching index.html + core pair; a newer index.html is stored (navigation refresh, `stashLatest`) only with its own core, never over a newer pair; offline still opens |
 | `50-workflows.test.js` | clinic visit with a fee (`visitOf`) and deleting it · beekeeping harvest → lot → sale · task paid with a voucher; invariants after each step |
 | `60-offline.test.js` | service worker install, airplane-mode cold launch, offline create/edit, reopen, reconnect without duplicates or uploads |
 | `70-backup-security.test.js` | no cloud upload without the encryption passphrase; encrypted upload decrypts to the same data |
@@ -89,7 +91,8 @@ Run the rows that match what you changed, plus `00` and `01` (both take seconds)
 | backup, restore, export (`backupData`, `restoreApply`, `ghPack`) | `40`, `70` |
 | sync (`syncMerge`, `ghSync`, tombstones, conflicts, `confSave`) | `41`, `40`, `70` |
 | calendar feed (`calFeed`), AI (`deid`, `aiCall`), deleting records, drafts | `75` |
-| `sw.js`, `stashLatest`, `checkUpdate`, start-up and loading | `60`, `80`, `81` |
+| `sw.js`, `stashLatest`, `checkUpdate`, start-up and loading | `60`, `80`, `81`, `47` |
+| `js/core.js` (dates, digits, formatting) | `46`, `00`, then all |
 | render, tabs, domain pages | `10`, `90` |
 | `toast()`, undo bar, global search (`runSearch`), Tasks header, start tab, saving documents | `92`, `93` |
 | Google Calendar sign-in (`gcBoot`, `gcAuth`, `gcNetOk`) | `93` |

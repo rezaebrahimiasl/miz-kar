@@ -602,3 +602,9 @@
 - Version: `APP_VER='4.30'`, `sw.js` cache `miz-kar-v4.30`, `version.json` `{"v": "4.30"}`, «تازه‌ها» entry 4.30 (6 items).
 - Rollback: a new commit restoring `index.html`/`sw.js` of `bc15049` (4.29) with version 4.31 — clients update only to a higher version (`checkUpdate`). Data written by 4.30 (task `flow`, ledger `ref`/`rcpt`) is ignored by 4.29.
 
+## v4.31 — Architecture A1: js/core.js and a version-safe shell (local branch `arch-a1`, not released)
+- `js/core.js` (classic script, global scope shared with the main script): `J`, `MONTHS`, `WD`, `wdOf`, `SCHED`, `REP`, `REPS`, `nextOcc`, `fa`, `en`, `pad`, `isoOf`, `today`, `addDays`, `diffDays`, `jOf`, `jShort`, `jNice`, `jLong`, `parseJ`, `jIso`, `MIL`, `toBase`, `fromBase`, `nfmt`, `ul`, `tmR`, `rlS`, `MD`, `rialTxt`, `moneyFull`, `esc` — moved unchanged. Stay in index.html: `kgParse`, `num`, `KGU`, `kgTxt`, `kgHintFor`, `moneyShort`, `money` (read app data or the page).
+- Order: `<script src="js/core.js">` → main script: Google token capture (still the first code that reads the address) → `APP_VER` → start-up guard (`CORE_VER===APP_VER` and the core functions exist, else `#bootFail` recovery screen and the main script stops before any data access).
+- `sw.js`: `js/core.js` in `SHELL`; `fetchAll` installs only if index.html and core carry the same version; `saveShell` stores a fresh index.html only with a core of its version (fetched if needed) and never over a newer pair; `coreFromCache` serves core from the same cache as the index.html. `stashLatest` stores core first, then index.html, only as a matching pair.
+- Tests: `46` (reference outputs recorded from v4.30 before the move, `tools/core-ref-gen.js`), `47` (guard and shell pairs), `00` checks core + inline scripts together (no name declared twice) and `CORE_VER`.
+
