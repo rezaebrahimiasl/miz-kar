@@ -1,6 +1,6 @@
 // Information engine, step 3: due/overdue cheques, expenses by category, monthly profit (the app's own income statement,
 // plRange) and a person's statement (stmtRows) — per currency, inclusive date boundaries, and no data changes. Synthetic data.
-const { serve, launch, openApp, invariants, test, run, assert } = require('./lib');
+const { serve, launch, openApp, invariants, fill, test, run, assert } = require('./lib');
 let srv, o, p, D;
 const X = q => p.evaluate(q => JSON.parse(JSON.stringify(qExec(qNorm(q)))), q);
 
@@ -82,6 +82,46 @@ test('zero data mutations: every new query leaves data, write counter and storag
     await new Promise(r => setTimeout(r, 200)); return { same: s0 === snap() && v0 === window._dv && u0 === localStorage.getItem('miz.unsent') }; }, D);
   assert(r.same, 'a query changed data');
   const v = await invariants(p); assert(!v.length, v.join('; '));
+});
+
+// «پرسش از داده‌ها»: the four reports with filters (no AI key, nothing leaves the phone), and the AI's query for them
+const report = async (f) => { await fill(p, { f_qe: f.e, f_qp: f.p || '', f_qf: f.from || '', f_qt: f.to || '', f_qd: f.d || '' });
+  await p.evaluate(() => document.querySelector('#sheetRoot form[data-form=qform] button.pri').click()); await p.waitForTimeout(80);
+  return p.evaluate(() => { const a = document.getElementById('aiAns'); return { html: a.innerHTML, text: a.innerText }; }); };
+test('the question page opens from the menu without an AI key and shows the four reports with their filters', async () => {
+  await p.evaluate(() => { localStorage.removeItem('miz.ai'); closeSheet(); const b = document.createElement('button'); b.dataset.act = 'aiAskQ'; document.body.appendChild(b); b.click(); b.remove(); });
+  await p.waitForSelector('#sheetRoot form[data-form=qform]');
+  const f = await p.evaluate(() => ({ e: [...document.getElementById('f_qe').options].map(o => o.value), p: [...document.getElementById('f_qp').options].some(o => o.value === 'st'), ids: ['f_qf', 'f_qt', 'f_qd'].every(i => document.getElementById(i)), menu: ACTS.some(a => a[1] === 'aiAskQ') }));
+  assert(JSON.stringify(f.e) === '["cheques","expense","profit","statement"]' && f.p && f.ids && f.menu, 'form: ' + JSON.stringify(f));
+});
+
+test('report pages: cheques, expenses by category, monthly profit, statement — figures from the engine, currencies shown apart', async () => {
+  const money = (v, c) => p.evaluate(([v, c]) => amtC(v, c), [v, c]);
+  let r = await report({ e: 'cheques' });
+  const ids = await p.evaluate(() => [...document.querySelectorAll('#aiAns [data-act=chqView]')].map(b => b.dataset.id));
+  assert(ids.join() === 'c1,c5,c2' && r.text.includes('(گذشته)') && r.html.includes(await money(100, 'دلار')) && r.html.includes(await money(5e6, 'تومان')) && r.html.includes(await money(2e6, 'تومان')), 'cheques: ' + r.text.slice(0, 300));
+  r = await report({ e: 'cheques', d: 'out' }); assert((await p.evaluate(() => document.querySelectorAll('#aiAns [data-act=chqView]').length)) === 1, 'cheques out: ' + r.text.slice(0, 200));
+  const J = await p.evaluate(D => [D.M7a, D.M8z].map(d => { const j = jOf(d); return fa(j.jy) + '/' + fa(pad(j.jm)) + '/' + fa(pad(j.jd)); }), D);
+  r = await report({ e: 'expense', from: J[0], to: J[1] });
+  assert(r.text.includes('اجاره') && r.text.includes('اجاره (دلار)') && r.html.includes(await money(4e6, 'تومان')) && r.html.includes(await money(40, 'دلار')), 'expense: ' + r.text.slice(0, 300));
+  r = await report({ e: 'profit', from: J[0], to: J[1] });
+  const pl = await p.evaluate(D => [plRange(D.M7a, D.M7z), plRange(D.M8a, D.M8z)].map(x => amtC(Math.abs(x.inc - x.exp), 'تومان')), D);
+  assert(r.text.includes('۱۴۰۵/۰۷') && r.text.includes('۱۴۰۵/۰۸') && pl.every(v => r.html.includes(v)) && r.text.includes('دلار') && r.text.includes('حساب نشده'), 'profit: ' + r.text.slice(0, 400));
+  r = await report({ e: 'statement' }); assert(r.text.includes('یک شخص را انتخاب کن'), 'statement without person: ' + r.text);
+  r = await report({ e: 'statement', p: 'st' });
+  assert(r.text.includes('تومان') && r.text.includes('دلار') && r.html.includes(await money(5e6, 'تومان')) && r.html.includes(await money(50, 'دلار')) && r.text.includes('ماندهٔ پایان'), 'statement: ' + r.text.slice(0, 400));
+  r = await report({ e: 'expense', from: 'پریروزِ نامعلوم' }); assert(r.text.includes('«از تاریخ» را نشناختم'), 'bad date not reported: ' + r.text.slice(0, 200));
+});
+
+test('the AI may ask for these four (instructions list them); its JSON only becomes a checked query; the page equals the engine; nothing is written', async () => {
+  const r = await p.evaluate(async () => { const v0 = window._dv, s0 = JSON.stringify(COLS.map(c => S[c])); localStorage.setItem('miz.ai', JSON.stringify({ key: 'SYNTHETIC-NOT-A-KEY', on: true }));
+    const real = aiCall, out = [], want = [], replies = [{ entity: 'statement', person: 'طرف صورت‌حساب آزمون', explain: 'صورت‌حساب', write: 'ledger' }, { entity: 'cheques', dir: 'in', explain: 'چک دریافتی' }, { entity: 'profit', explain: 'سود' }, { entity: 'expense', explain: 'هزینه', dir: 'sideways' }];
+    for (const reply of replies) { window.aiCall = async () => reply; await aiAsk('پرسش آزمون'); out.push(document.getElementById('aiAns').innerHTML); want.push(qHtml(qExec(qNorm(reply)))); }
+    window.aiCall = real; localStorage.removeItem('miz.ai'); closeSheet();
+    const P = AI_Q(); return { same: out.every((h, i) => h === want[i]), names: ['cheques', 'expense', 'profit', 'statement', '"dir"'].every(x => P.includes(x)), untouched: v0 === window._dv && s0 === JSON.stringify(COLS.map(c => S[c])) }; });
+  assert(r.names, 'AI instructions do not list the four types');
+  assert(r.same, 'AI page differs from the engine');
+  assert(r.untouched, 'a question wrote data');
 });
 
 test('no page errors, nothing sent', async () => { assert(!o.errors.length, o.errors.join(' | ')); assert(!o.net.external.length, o.net.external.join(' | ')); await o.ctx.close(); await srv.close(); });
