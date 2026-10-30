@@ -570,6 +570,9 @@
   1. `vault/bio` (this device's fingerprint unlock) was deleted when another device switched its own fingerprint off: its tombstone reached the tombstone loop, which did not skip device-only keys. The loop now skips `vault/bio`, `meta/tomb`, `meta/conflicts`, like the record loop and `restorePlan`.
   2. The same id twice in a payload: the first copy was stored, then counted as a local change, so the newer second copy became a spurious conflict and was not applied. Each collection is now reduced to the newest copy per id before merging.
   3. `confSave()` reset `window._noUnsent` to false inside `syncMerge`, so deletions merged after a conflict counted as unsent local changes. It now restores the previous value.
-- Recorded, not changed (policy): a remote deletion newer than an unsynced local edit deletes the record without a conflict (the `snapTake('sync')` snapshot taken before every merge still holds it); on a device's first sync (no `syncAt`) the newer copy wins without a conflict.
+- Sync conflicts (same release, final round 2 change; `tests/41-sync-merge.test.js` now 11, both new checks fail on `1be357b`):
+  - A deletion from another device (a tombstone this device did not have) against a record changed here after `syncAt` — or on a device that never synced — no longer deletes it: a conflict `{key,col,id,local,remote:null,deletedAt}` is opened and the record kept. `conflictsSheet` says «در دستگاه دیگر حذف شده…» and offers «این گوشی» / «حذف شود» (`confPick` already handled `remote:null`). While a conflict is open the tombstone loop skips that key. Records unchanged since the last sync are still deleted without a conflict.
+  - First sync (no `GH.cfg.syncAt`): the same id on both sides with different content opens a conflict (`first:true`) instead of keeping the newer copy; records on one side only are kept/added as before.
+  - `syncEq(a,b)` compares content ignoring key order and `updated`/`created`; all three conflict checks use it, so copies that differ only in timestamps never become a conflict (the newer is taken).
 
 

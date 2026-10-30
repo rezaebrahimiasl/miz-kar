@@ -76,7 +76,7 @@ Statements marked **[unverified]** were not confirmed against the code.
 | Integration | Entry points | Credentials | Notes |
 |---|---|---|---|
 | GitHub backup | `ghPush()` → `ghPush0()`; payload `backupData()` packed by `ghPack()` | access token and backup passphrase kept in the phone's browser storage only; excluded from backups; never in the repository | refuses to upload without a passphrase |
-| Multi-device sync | `ghSync()`, `syncMerge()` | same | requires a passphrase |
+| Multi-device sync | `ghSync()`, `syncMerge()` | same | requires a passphrase; newer copy wins when only one side changed; both-sided edits, first-sync differences and a remote deletion of an unsynced local edit become conflicts the user resolves (`conflictsSheet`) |
 | Restore | `doRestore()` (file), `restoreJson()` → preview → `restoreApply()`; decrypt with `ghUnpack()` | — | additive; snapshot taken first |
 | Calendar feed (legacy) | `calFeed()`, `calPush()` | same as GitHub backup | only when the user enables it; events about clinic clients get generic titles (`calPatients()`, `calScrubber()`) |
 | Google Calendar | `gcItems()`, `gcSync()` | sign-in token kept for the current browser session only (the non-secret OAuth client ID is an ordinary setting and is included in backups) | per-item or bulk approval |

@@ -62,9 +62,51 @@ test('conflicting edits: both sides changed since the last sync → local kept, 
   assert(r.n === 0 && (await get('tasks', 't3')).title === 'محلی t3', 'open conflict was overwritten');
 });
 
-test('conflicting edits: first sync on a device (no «last sync») → newer copy wins, no conflict (current policy)', async () => {
-  const r = await merge([['tasks', task('t7', 'محلی', A)]], { tasks: [task('t7', 'دور', B)] }, { last: '' });
-  assert(r.n === 1 && (await get('tasks', 't7')).title === 'دور' && !(await conf('tasks/t7')).length, JSON.stringify(r));
+test('first sync on a device (no «last sync»): different copies of one id → conflict (never chosen silently); one-sided records kept', async () => {
+  const r = await merge([['tasks', task('f1', 'محلی f1', B)], ['tasks', task('f2', 'محلی f2', A)], ['tasks', task('f3', 'یکسان', A)], ['tasks', task('f4', 'فقط اینجا', A)], ['people', person('f6', 'حذف در دستگاه اول', A)]],
+    { tasks: [task('f1', 'دور f1', A), task('f2', 'دور f2', B), { ...task('f3', 'یکسان', B), created: B }, task('f5', 'فقط آنجا', A)], meta: [{ id: 'tomb', items: { 'people/f6': B } }] }, { last: '' });
+  for (const id of ['f1', 'f2']) {                                              // local newer · remote newer
+    const t = await get('tasks', id), c = await conf('tasks/' + id);
+    assert(t.title === 'محلی ' + id && c.length === 1 && c[0].remote.title === 'دور ' + id && c[0].local.title === 'محلی ' + id, `${id}: ` + JSON.stringify({ t, c }));
+  }
+  // same content with other timestamps is not a conflict: the newer copy is taken
+  assert(!(await conf('tasks/f3')).length && (await get('tasks', 'f3')).updated === B, 'f3: ' + JSON.stringify(await get('tasks', 'f3')));
+  assert((await get('tasks', 'f4') || {}).title === 'فقط اینجا' && (await get('tasks', 'f5') || {}).title === 'فقط آنجا', 'one-sided records');
+  // a deletion from the other device against a record this never-synced device has → kept, as a conflict
+  const c6 = await conf('people/f6');
+  assert((await get('people', 'f6') || {}).name === 'حذف در دستگاه اول' && c6.length === 1 && c6[0].remote === null, 'f6: ' + JSON.stringify(c6));
+  // choosing resolves it: «این گوشی» keeps f1, «دستگاه دیگر» takes the other copy of f2
+  await p.evaluate(async () => { await confPick('tasks/f1', 'local'); await confPick('tasks/f2', 'remote'); await confPick('people/f6', 'local'); closeSheet(); });
+  assert((await get('tasks', 'f1')).title === 'محلی f1' && (await get('tasks', 'f2')).title === 'دور f2' && !(await conf('tasks/f1')).length && !(await conf('tasks/f2')).length, 'resolve first-sync conflicts');
+  assert(r.unsent === 0 && !r.flag, 'unsent: ' + JSON.stringify(r));
+});
+
+test('remote deletion vs a local edit not yet synced → the edit is kept as a resolvable conflict, never deleted silently', async () => {
+  const tomb = (id, at) => ({ meta: [{ id: 'tomb', items: { ['people/' + id]: at } }] });
+  // e1/e2 edited here after the last sync (A), deleted on the other device later (B)
+  let r = await merge([['people', person('e1', 'ویرایش محلی e1', A)], ['people', person('e2', 'ویرایش محلی e2', A)]], { people: [], meta: [{ id: 'tomb', items: { 'people/e1': B, 'people/e2': B } }] });
+  for (const id of ['e1', 'e2']) {
+    const c = await conf('people/' + id);
+    assert((await get('people', id) || {}).name === 'ویرایش محلی ' + id && await idbHas('people', id) && c.length === 1 && c[0].remote === null && c[0].deletedAt === B && c[0].local.name === 'ویرایش محلی ' + id,
+      `${id}: ` + JSON.stringify({ r, c }));
+  }
+  // the conflicts page says what happened and offers «این گوشی» / «حذف شود»
+  const ui = await p.evaluate(() => { conflictsSheet(); const t = document.getElementById('sheetRoot').innerText; const b = [...document.querySelectorAll('#sheetRoot [data-act=confPick][data-id="people/e1"]')].map(x => x.textContent.trim()); closeSheet(); return { del: /حذف شده/.test(t), b }; });
+  assert(ui.del && JSON.stringify(ui.b) === '["این گوشی","حذف شود"]', 'conflicts page: ' + JSON.stringify(ui));
+  // the next sync (later «last sync», same tombstone) still waits for the choice
+  r = await merge([], { people: [], ...tomb('e1', B) }, { last: C });
+  assert(await get('people', 'e1') && (await conf('people/e1')).length === 1, 'deleted while the conflict was open');
+  // «این گوشی» keeps e1 for good; «حذف شود» deletes e2 here too
+  await p.evaluate(async () => { await confPick('people/e1', 'local'); await confPick('people/e2', 'remote'); closeSheet(); });
+  r = await merge([], { people: [], meta: [{ id: 'tomb', items: { 'people/e1': B, 'people/e2': B } }] }, { last: '2026-12-01T00:00:00.000Z' });
+  assert((await get('people', 'e1') || {}).name === 'ویرایش محلی e1' && !(await conf('people/e1')).length, 'kept e1 deleted or conflicted again: ' + JSON.stringify(await conf('people/e1')));
+  assert(!(await get('people', 'e2')) && !(await idbHas('people', 'e2')) && !(await conf('people/e2')).length, 'e2 not deleted after «حذف شود»');
+  // a record NOT changed here since the last sync is still deleted silently (no conflict)
+  r = await merge([['people', person('e3', 'بدون تغییر', OLD)]], { people: [], ...tomb('e3', B) });
+  assert(!(await get('people', 'e3')) && !(await conf('people/e3')).length, 'unchanged record: ' + JSON.stringify(await conf('people/e3')));
+  // a tombstone this device already had is not a new conflict
+  r = await merge([['people', person('e4', 'محلی e4', A)]], { people: [], ...tomb('e4', B) }, { tombs: { 'people/e4': B } });
+  assert(!(await conf('people/e4')).length, 'known tombstone became a conflict');
 });
 
 test('deletions: tombstones from either side, against older and newer copies', async () => {
