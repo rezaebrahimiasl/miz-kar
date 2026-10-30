@@ -427,7 +427,7 @@ async function save(col,id,data){{const cb=closeBlock(col,id,data);if(cb){closeT
     if(Number(was.fup)>0)await putRaw('tasks',{id:newId(),title:'پیگیری: '+was.title,area:was.area||'',priority:was.priority||3,personId:was.personId||'',city:was.city||'',tag:was.tag||'',due:addDays(today(),Number(was.fup)),status:'open',created:nowTs(),updated:nowTs()});
     if(!(Number(was.payAmt)>0)&&MEETRX.test(was.title||''))setTimeout(()=>{if(document.getElementById('sheetRoot').hidden)formWin({from:was.title,taskId:was.id,personId:was.personId||'',area:was.area||''})},800);
     if(!(was.flow&&was.flow.kind==='recv')&&!taskVchs(was.id).length&&(Number(was.payAmt)>0||(SM('payDone')&&PAYRX.test(was.title||''))))setTimeout(()=>taskPayV(was),700)}
-  return ok}
+  if(ok&&col==='ledger'&&id&&data&&data.void===true)await ledReopen(id);return ok}
 
 /* ---------- Smart assistant (Gemini, user's own key). Only the sentence/question leaves the phone;
    names, lots and figures are matched and computed locally. ---------- */
@@ -4992,6 +4992,12 @@ async function actAcctFix(b,id){{const name=b.dataset.v,d=Number(b.dataset.d);aw
 /* ---------- Money forms: submit branches that settle debts and clear cheques (called from the submit handler; f = the form, id = f.dataset.id) ---------- */
 // settle one debt, settle all of a person's debts, clear or endorse a cheque
 // a receivable/payable is marked settled once its linked payments (refId) reach its amount (half-toman tolerance)
+// a payment linked to a receivable/payable was voided: if the remaining live payments no longer cover it, and it had been settled by payments (not by hand), it is open again; an auto-closed receivable follow-up reopens too
+async function ledReopen(pid0){const x=byId('ledger',pid0);if(!x||!x.void||!x.refId)return;const l=byId('ledger',x.refId);if(!l||l.void||!l.settled||(l.kind!=='receivable'&&l.kind!=='payable'))return;
+  const live=S.ledger.filter(y=>!y.void&&y.refId===l.id).reduce((a,y)=>a+Number(y.amount||0),0),amt=Number(l.amount)||0;if(live+Number(x.amount||0)<amt-0.5||live>=amt-0.5)return;
+  if(!await save('ledger',l.id,{settled:false,settledAt:'',hist:[...(l.hist||[]),{at:nowTs(),why:'پرداخت مرتبط باطل شد؛ دوباره باز شد',from:'settled',to:'open',voided:x.id}]}))return;
+  const t=l.kind==='receivable'&&l.personId?byId('tasks',recvTid(l.personId)):null,o=t&&recvDue().find(y=>y.pid===l.personId);
+  if(t&&o&&t.status==='done'&&t.flow&&t.flow.closed==='paid'){const t0=today();await save('tasks',t.id,{status:'open',doneAt:'',due:o.first<t0?t0:o.first,flow:{...t.flow,rem:Math.round(o.rem),closed:''},log:[...(t.log||[]),{ts:nowTs(),d:t0,type:'part',text:'پرداخت باطل شد؛ پیگیری دوباره باز شد',next:'again',nextDue:o.first<t0?t0:o.first}]})}}
 async function ledSettleIfPaid(refId){const l=byId('ledger',refId);const paid=S.ledger.filter(x=>!x.void&&x.refId===refId).reduce((s2,x)=>s2+Number(x.amount||0),0);if(l&&paid>=Number(l.amount)-0.5)await save('ledger',refId,{settled:true,settledAt:nowTs()})}
 async function formSettle(f,id){const l=byId('ledger',id);const k2=l.kind==='receivable'?'received':'paid';const a=toBase(num(val('f_samt')),l.currency||'تومان');if(!a||a<=0)return toast('مبلغ را بنویس');const date=readDate('f_date',true);if(date===null)return;
     const paid=S.ledger.filter(x=>!x.void&&x.refId===id).reduce((s2,x)=>s2+Number(x.amount||0),0);const rem=Number(l.amount)-paid;
@@ -5080,7 +5086,7 @@ async function formLedgerSave(f,id){await catRuleSave();const amt=toBase(num(val
     const d={tripId:f.dataset.trip||'',kind:val('f_kind'),personId:val('f_person'),amount:amt,currency:val('f_cur'),about:val('f_about'),category:val('f_cat'),instrument:val('f_instr'),ref:val('f_ref'),settles:(d0=>d0&&d0.checked&&(val('f_kind')==='received'||val('f_kind')==='paid'))(document.getElementById('f_settles')),date,due,evidence:val('f_ev'),netOf:val('f_netof')||'',acct:val('f_kind')==='received'||val('f_kind')==='paid'||val('f_cat')===LOAN?val('f_acct'):'',settled:false,void:false};
     if(!d.personId&&!d.about)return toast('طرف حساب یا «بابت» را بنویس');if(d.ref){const sr=S.ledger.find(x=>!x.void&&x.id!==val('f_fixof')&&x.ref===d.ref);if(sr&&dupGuard(f,'r'+sr.id,`همین شمارهٔ پیگیری (${fa(d.ref)}) قبلاً ثبت شده: ${esc(LSHORT[sr.kind])} ${money(sr.amount,sr.currency)}`,true))return}{const sm=S.ledger.find(x=>!x.void&&x.id!==val('f_fixof')&&!x.pending&&x.kind===d.kind&&(x.personId||'')===(d.personId||'')&&Number(x.amount)===d.amount&&near(x.date,date));if(sm&&dupGuard(f,'l'+sm.id,`${esc(LSHORT[sm.kind])} ${money(sm.amount,sm.currency)}${sm.personId?' با '+esc(pname(sm.personId)):''} در ${jNice(sm.date)}`,true))return}
     if(dateWarn(f,date))return;if(amtWarn(f,d))return;
-    if(val('f_fixof')){const old=byId('ledger',val('f_fixof'));if(old)d.corrOf=old.id}
+    if(val('f_fixof')){const old=byId('ledger',val('f_fixof'));if(old){d.corrOf=old.id;if(old.refId&&!d.refId&&old.personId===d.personId&&old.kind===d.kind)d.refId=old.refId}}
     const ok=await save('ledger',null,d);if(ok&&d.corrOf)await save('ledger',d.corrOf,{void:true,voidReason:'اصلاح شد',voidAt:nowTs()});if(ok){closeSheet();toast(d.corrOf?'اصلاح شد ✓ ردیف قبلی باطل و در سابقه ماند':'ثبت شد')}return}
 async function formLedgerEditSave(f,id){await catRuleSave();const due=readDate('f_due');if(due===null)return;const d={personId:val('f_person'),about:val('f_about'),category:val('f_cat'),instrument:val('f_instr'),ref:val('f_ref'),due,evidence:val('f_ev')};if(document.getElementById('f_acct'))d.acct=val('f_acct');
     {const old=byId('ledger',id);const na=toBase(num(val('f_amt')),old.currency||'تومان');if(!na||na<=0)return toast('مبلغ را درست بنویس');if(Math.abs(na-Number(old.amount))>0.5){d.amount=na;d.hist=[...(old.hist||[]),{at:nowTs(),from:Number(old.amount),to:na}]}}if(await save('ledger',id,d)){closeSheet();toast('ذخیره شد')}return}

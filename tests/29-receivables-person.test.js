@@ -114,5 +114,65 @@ test('person page: documents and letters, notes that name the person, transactio
   await p.evaluate(() => closeSheet()); await inv('after person page');
 });
 
+// L-1: voiding a payment linked to a receivable (or payable) reopens it when the live payments no longer cover it
+const row = id => p.evaluate(i => { const x = byId('ledger', i); return x ? JSON.parse(JSON.stringify(x)) : null; }, id);
+const payOf = r => p.evaluate(r => S.ledger.filter(l => !l.void && l.refId === r).map(l => l.id), r);
+async function settleBy(id, amt) { await p.evaluate(() => closeSheet()); await act('settle', { id }); await p.waitForSelector('#sheetRoot form[data-form=settle]'); await fill(p, { f_samt: amt, f_acct: 'بانک الف' }); await submitForm(p); await settle(p); }
+async function voidRow(id) { await p.evaluate(i => { closeSheet(); viewLedger(i); }, id); await p.waitForSelector('#voidBox', { state: 'attached' }); await settle(p);
+  await p.evaluate(i => { const b = document.createElement('button'); b.type = 'button'; b.dataset.act = 'voidAsk'; b.dataset.id = i; document.getElementById('sheetRoot').appendChild(b); b.click(); b.remove(); }, id);
+  await p.waitForSelector('#sheetRoot form[data-form=void] #f_vr', { state: 'attached' }); await fill(p, { f_vr: 'باطل آزمون' }); await submitForm(p); await settle(p); }
+const state = (r, pid) => p.evaluate(([r, pid]) => ({ settled: !!byId('ledger', r).settled, rem: remOf(byId('ledger', r)), bal: (personBal()[pid] || {})['تومان'] || 0, rows: S.ledger.length }), [r, pid]);
+
+test('L-1 full payment voided → receivable open again with its full amount; the auto-closed follow-up reopens; no new rows', async () => {
+  await p.evaluate(async () => { const n = nowTs(); await putRaw('people', { id: 'pv', name: 'مشتری ابطال آزمون', created: n, updated: n });
+    await putRaw('ledger', { id: 'rv1', kind: 'receivable', personId: 'pv', amount: 6e6, currency: 'تومان', due: addDays(today(), -3), date: addDays(today(), -20), settled: false, void: false, instrument: 'نسیه', category: 'فروش کالا', about: 'فروش ابطال ۱', created: n, updated: n }); });
+  await act('recvFollow', { id: 'pv' }); await settle(p);
+  await settleBy('rv1', '6'); const s0 = await state('rv1', 'pv');
+  const t0 = await p.evaluate(() => byId('tasks', 'recv-pv').status);
+  assert(s0.settled && s0.rem === 0 && s0.bal === 0 && t0 === 'done', 'before: ' + JSON.stringify([s0, t0]));
+  const [pay] = await payOf('rv1'); await voidRow(pay); const s1 = await state('rv1', 'pv'), r1 = await row('rv1');
+  assert(!s1.settled && s1.rem === 6e6 && s1.bal === 6e6 && s1.rows === s0.rows, 'after void: ' + JSON.stringify([s0, s1]));
+  assert(r1.settledAt === '' && (r1.hist || []).slice(-1)[0].why.includes('باطل'), 'history: ' + JSON.stringify(r1.hist));
+  const t = await p.evaluate(() => JSON.parse(JSON.stringify(byId('tasks', 'recv-pv'))));
+  assert(t.status === 'open' && t.flow.rem === 6e6 && !t.flow.closed && JSON.stringify(await recvTasks()).split('recv-pv').length === 2, 'follow-up: ' + JSON.stringify(t));
+  await inv('after voiding a full payment');
+});
+
+test('L-1 one of two payments voided → open for that part only; voiding the other one too → open for the whole amount', async () => {
+  await p.evaluate(async () => { const n = nowTs(); await putRaw('ledger', { id: 'rv2', kind: 'receivable', personId: 'pv', amount: 10e6, currency: 'تومان', due: addDays(today(), 20), date: addDays(today(), -5), settled: false, void: false, instrument: 'نسیه', category: 'فروش کالا', about: 'فروش ابطال ۲', created: n, updated: n }); });
+  await settleBy('rv2', '4'); await settleBy('rv2', '6'); const s0 = await state('rv2', 'pv');
+  const [a, b] = await p.evaluate(() => S.ledger.filter(l => !l.void && l.refId === 'rv2').sort((x, y) => x.amount - y.amount).map(l => l.id));
+  assert(s0.settled && s0.rem === 0, 'before: ' + JSON.stringify(s0));
+  await voidRow(a); let s = await state('rv2', 'pv');
+  assert(!s.settled && s.rem === 4e6 && s.bal === s0.bal + 4e6 && s.rows === s0.rows, 'after voiding 4: ' + JSON.stringify([s0, s]));
+  await voidRow(b); s = await state('rv2', 'pv');
+  assert(!s.settled && s.rem === 10e6 && s.bal === s0.bal + 10e6 && s.rows === s0.rows, 'after voiding both: ' + JSON.stringify([s0, s]));
+  await inv('after voiding partial payments');
+});
+
+test('L-1 stays settled when live payments still cover it, when it was settled by hand, and when a payment is corrected to the same amount', async () => {
+  await p.evaluate(async () => { const n = nowTs(), L = (id, amount) => putRaw('ledger', { id, kind: 'receivable', personId: 'pv', amount, currency: 'تومان', date: addDays(today(), -5), settled: false, void: false, instrument: 'نسیه', category: 'فروش کالا', about: 'آزمون ' + id, created: n, updated: n });
+    await L('rv3', 5e6); await L('rv4', 8e6);
+    // rv3: paid twice by mistake (a duplicate linked payment of 5); rv4: 3 paid, the rest forgiven by hand
+    for (const [id, r, a] of [['pz1', 'rv3', 5e6], ['pz2', 'rv3', 5e6], ['pz3', 'rv4', 3e6]]) await putRaw('ledger', { id, kind: 'received', personId: 'pv', amount: a, currency: 'تومان', acct: 'بانک الف', refId: r, date: today(), settled: false, void: false, instrument: 'نقد/کارت', about: 'دریافت ' + id, created: n, updated: n });
+    for (const id of ['rv3', 'rv4']) await putRaw('ledger', { ...byId('ledger', id), settled: true, settledAt: n }); });
+  await voidRow('pz2'); assert((await row('rv3')).settled, 'voiding a duplicate payment reopened a receivable still covered');
+  await voidRow('pz3'); assert((await row('rv4')).settled, 'a receivable settled by hand was reopened');
+  // correcting the remaining payment of rv3 (same amount): the new row keeps the link, rv3 stays settled
+  const n0 = await p.evaluate(() => S.ledger.length);
+  await p.evaluate(() => { closeSheet(); const b = document.createElement('button'); b.dataset.act = 'lgFix'; b.dataset.id = 'pz1'; document.body.appendChild(b); b.click(); b.remove(); });
+  await p.waitForSelector('#sheetRoot form[data-form=ledger] #f_fixof', { state: 'attached' }); await fill(p, { f_amt: '5' }); await submitForm(p); await settle(p);
+  const c = await p.evaluate(() => { const nw = S.ledger.find(l => l.corrOf === 'pz1'); return { refId: nw && nw.refId, old: byId('ledger', 'pz1').void, settled: byId('ledger', 'rv3').settled, n: S.ledger.length }; });
+  assert(c.refId === 'rv3' && c.old && c.settled && c.n === n0 + 1, 'correction: ' + JSON.stringify(c));
+  await inv('after the stay-settled cases');
+});
+
+test('L-1 payables the same way: voiding the payment of a settled payable opens it again', async () => {
+  await p.evaluate(async () => { const n = nowTs(); await putRaw('people', { id: 'pw', name: 'تأمین‌کنندهٔ ابطال آزمون', created: n, updated: n }); await putRaw('ledger', { id: 'yv1', kind: 'payable', personId: 'pw', amount: 3e6, currency: 'تومان', date: addDays(today(), -5), settled: false, void: false, instrument: 'نسیه', category: 'اجاره', about: 'بدهی ابطال', created: n, updated: n }); });
+  await settleBy('yv1', '3'); assert((await row('yv1')).settled, 'payable not settled');
+  const [pay] = await payOf('yv1'); await voidRow(pay); const s = await state('yv1', 'pw');
+  assert(!s.settled && s.rem === 3e6 && s.bal === -3e6, 'payable: ' + JSON.stringify(s));
+});
+
 test('no page errors, nothing sent', async () => { assert(!o.errors.length, o.errors.join(' | ')); assert(!o.net.external.length, o.net.external.join(' | ')); await o.ctx.close(); await srv.close(); });
 run(__filename);
