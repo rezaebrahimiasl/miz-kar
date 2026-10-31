@@ -4118,9 +4118,9 @@ const whoOf=m=>pname(m.personId)||m.toName||'—';
 function refPrice(prod,unit,exceptId,variety){const vOk=x=>!variety||!x.variety||x.variety===variety;const c=[];S.quotes.filter(q=>!q.void&&q.dir==='got'&&q.product===prod&&(q.unit||'کیلو')===unit&&Number(q.price)&&vOk(q)).forEach(q=>c.push({d:q.date||'',v:Number(q.price),c:q.currency||'تومان',src:'قیمتی که از '+(pname(q.personId)||'—')+' گرفتی ('+jShort(q.date)+')'}));
   S.lots.filter(l=>!l.void&&l.id!==exceptId&&l.source!=='loan'&&l.product===prod&&l.unit===unit&&Number(l.cost)&&vOk(l)).forEach(l=>c.push({d:l.date||'',v:Number(l.cost),c:l.currency||'تومان',src:'خرید از '+(pname(l.supplierId)||l.supplierName||'—')+' ('+jShort(l.date)+')'}));
   c.sort((a,b)=>b.d.localeCompare(a.d));return c[0]||null}
-// the user confirmed this lot's cost as correct (lot.priceOk); it holds while the cost stays within 10% in the same currency and unit
+// the user confirmed this lot's cost as correct (lot.priceOk); it holds while the cost stays within 10% in the same currency, unit and variety
 const PRICE_OK_TOL=0.1,PRICE_ERR=50;
-function lotPriceOk(l){const o=l&&l.priceOk;if(!o||(o.currency||'تومان')!==(l.currency||'تومان')||(o.unit||'')!==(l.unit||''))return false;const a=Number(o.cost),b=Number(l.cost);return a>0&&Math.abs(b-a)/a<=PRICE_OK_TOL}
+function lotPriceOk(l){const o=l&&l.priceOk;if(!o||(o.currency||'تومان')!==(l.currency||'تومان')||(o.unit||'')!==(l.unit||'')||(o.variety||'')!==(l.variety||''))return false;const a=Number(o.cost),b=Number(l.cost);return a>0&&Math.abs(b-a)/a<=PRICE_OK_TOL}
 // an unusual cost: more than 4× or under ¼ of the reference; err: 50× or more apart (most likely a typing or unit error: extra or missing zeros, rial for toman)
 function lotSuspect(l){if(!l||!Number(l.cost)||lotPriceOk(l))return null;const r=refPrice(l.product,l.unit,l.id,l.variety);if(r&&(r.c||'تومان')===(l.currency||'تومان')){const k=Number(l.cost)/r.v;if(k>4||k<0.25)return {...r,err:k>=PRICE_ERR||k<=1/PRICE_ERR}}
   if(!r&&l.product==='عسل'&&l.unit==='کیلو'&&Number(l.cost)>20e6)return{v:0,src:'—',err:true};return null}
@@ -5753,7 +5753,7 @@ document.addEventListener('click',e=>recvBatch(async()=>{
     case'newLot':formLot();break;
     case'newSupply':formLot({product:SUP,source:'buy',unit:'عدد'});break;
     case'editLot':formLot(byId('lots',id));break;
-    case'lotPriceOk':{const l=byId('lots',id);if(!l)break;if(!await askConfirm(`ارزش هر ${l.unit} «${lotName(l)}» ${money(l.cost,l.currency)} درست است؟\nتا وقتی این قیمت (بیش از ۱۰٪) تغییر نکند، دوباره هشدار داده نمی‌شود و گزارش‌ها همین قیمت را به‌کار می‌برند. قیمت و ردیف‌ها تغییری نمی‌کنند.`))break;if(await save('lots',id,{priceOk:{cost:Number(l.cost),currency:l.currency||'تومان',unit:l.unit||'',at:nowTs()}})){toast('ثبت شد ✓');if(!document.getElementById('sheetRoot').hidden&&document.querySelector('#sheetRoot [data-act=lotPriceOk]'))reportsSheet();render()}break}
+    case'lotPriceOk':{const l=byId('lots',id);if(!l)break;if(!await askConfirm(`ارزش هر ${l.unit} «${lotName(l)}» ${money(l.cost,l.currency)} درست است؟\nتا وقتی این قیمت (بیش از ۱۰٪) تغییر نکند، دوباره هشدار داده نمی‌شود و گزارش‌ها همین قیمت را به‌کار می‌برند. قیمت و ردیف‌ها تغییری نمی‌کنند.`))break;if(await save('lots',id,{priceOk:{cost:Number(l.cost),currency:l.currency||'تومان',unit:l.unit||'',variety:l.variety||'',at:nowTs()}})){toast('ثبت شد ✓');if(!document.getElementById('sheetRoot').hidden&&document.querySelector('#sheetRoot [data-act=lotPriceOk]'))reportsSheet();render()}break}
     case'viewLot':viewLot(id);break;
     case'newMove':formMove({lotId:b.dataset.lot,personId:b.dataset.person});break;
     case'saleNew':formDoc({type:'invoice',inv:false});break;

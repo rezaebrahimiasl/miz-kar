@@ -17,7 +17,7 @@
 | inbox | quick captures | text, audio, processed | — |
 | notes | notes and rules | (built dynamically) **[unverified field list]** | — |
 | apiary | apiary log (move, harvest, census, treatment…) | type and the fields of `APT` (loc, hives, qty, from, to, what…), date | — |
-| lots | stock lots (one per received batch) | product, variety, qty, unit, cost, currency, date, code, source (buy/own/open/prod/pack/loan/consign), priceOk ({cost, currency, unit, at}: the user confirmed an unusual cost; holds within 10%), supplierId, docId, packId, parentId, place, consign | people, docs, lots (parentId) |
+| lots | stock lots (one per received batch) | product, variety, qty, unit, cost, currency, date, code, source (buy/own/open/prod/pack/loan/consign), priceOk ({cost, currency, unit, variety, at}: the user confirmed an unusual cost; holds within 10% and while currency, unit and variety are unchanged), supplierId, docId, packId, parentId, place, consign | people, docs, lots (parentId) |
 | moves | stock movements out of or into a lot | kind (sale, gift, ret, loss, adj, xfer…), lotId, qty, price, date, personId, toName, docId, childLot | lots, people, docs |
 | quotes | price quotes given or received | dir, personId, product, variety, price, unit, currency, date, qty, sentAt, sentVia | people |
 | contacts | phone contacts imported (kept apart from people) | items | — |

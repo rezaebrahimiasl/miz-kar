@@ -29,8 +29,28 @@ test('«این قیمت درست است»: confirmed cost stops the warning, is 
   // within 10%: still confirmed; beyond: warns again
   await p.evaluate(() => save('lots', 'pv3', { cost: 10.5e6 })); await settle(p); assert(!(await sus(p, 'pv3')), 'a 5% change dropped the confirmation');
   await p.evaluate(() => save('lots', 'pv3', { cost: 13e6 })); await settle(p); assert(await sus(p, 'pv3'), 'a 30% change was not re-checked');
-  await p.evaluate(() => save('lots', 'pv3', { cost: 10e6, currency: 'دلار' })); await settle(p);
-  assert(!(await p.evaluate(() => lotPriceOk(byId('lots', 'pv3')))), 'confirmation held across a currency change');
+  await p.evaluate(() => save('lots', 'pv3', { cost: 10e6 })); await settle(p); assert(!(await sus(p, 'pv3')), 'back within 10%: confirmation not honoured');
+  for (const [what, ch] of [['variety', { variety: 'معمولی' }], ['unit', { unit: 'گرم' }], ['currency', { currency: 'دلار' }]]) {
+    await p.evaluate(ch => save('lots', 'pv3', ch), ch); await settle(p);
+    assert(!(await p.evaluate(() => lotPriceOk(byId('lots', 'pv3')))), 'confirmation held across a ' + what + ' change');
+    await p.evaluate(() => save('lots', 'pv3', { variety: 'ممتاز', unit: 'کیلو', currency: 'تومان', cost: 10e6 })); await settle(p); }
+  // after a variety change the lot is compared with its new variety: 10× the plain lot → flagged again
+  await p.evaluate(() => save('lots', 'pv3', { variety: 'معمولی', cost: 100e6 })); await settle(p); assert(await sus(p, 'pv3'), 'not re-evaluated against the new variety');
+  await p.evaluate(() => save('lots', 'pv3', { variety: 'ممتاز', cost: 10e6 })); await settle(p);
+});
+
+test('products without a variety are compared as before (with each other, and with a lot that has a variety)', async () => {
+  await put(p, [lot('nv1', '', 10e6, { product: 'گردو آزمون', date: '2026-10-01' }), lot('nv2', '', 60e6, { product: 'گردو آزمون', date: '2026-10-02' })]);
+  assert(await sus(p, 'nv2') && await sus(p, 'nv1'), 'lots without a variety 6× apart are no longer compared');
+  await put(p, [lot('nv3', 'تازه', 61e6, { product: 'گردو آزمون', date: '2026-10-03' })]);
+  assert(!(await sus(p, 'nv3')), 'a variety lot was not compared with the variety-less reference (60 vs 61 should be normal)');
+  await put(p, [lot('nv4', 'تازه', 400e6, { product: 'گردو آزمون', date: '2026-10-04' })]); assert(await sus(p, 'nv4'), 'variety lot vs variety-less reference not checked');
+});
+
+test('confirming changes no money or stock record (ledger, moves, docs untouched)', async () => {
+  const sig = () => p.evaluate(() => JSON.stringify(['ledger', 'moves', 'docs'].map(c => S[c].map(x => [x.id, x.amount, x.qty, x.price, x.updated]))));
+  const a = await sig(); await act(p, 'lotPriceOk', 'nv4'); await p.waitForSelector('#dlgRoot:not([hidden]) [data-dv=ok]'); await p.click('#dlgRoot [data-dv=ok]'); await settle(p);
+  const r = await p.evaluate(() => ({ ok: byId('lots', 'nv4').priceOk, cost: byId('lots', 'nv4').cost })); assert(r.ok && r.ok.variety === 'تازه' && r.cost === 400e6 && (await sig()) === a, 'records changed: ' + JSON.stringify(r));
 });
 
 test('a 50× gap is labelled a likely data error, a 5× gap only unusual; cancelling the confirm stores nothing', async () => {
