@@ -370,7 +370,7 @@ async function initDb(){
   mode='local';
   try{idb=await new Promise((res,rej)=>{const r=indexedDB.open('miz-kar',1);r.onupgradeneeded=()=>r.result.createObjectStore('docs',{keyPath:'k'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
     const all=await new Promise((res,rej)=>{const q=idb.transaction('docs').objectStore('docs').getAll();q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
-    BAD=[];all.forEach(x=>{const ok=x&&typeof x.col==='string'&&x.doc&&typeof x.doc==='object'&&typeof x.doc.id==='string'&&x.k===x.col+'/'+x.doc.id;if(!ok){BAD.push(x);return}if(S[x.col])S[x.col].push(x.doc)});LOAD_OK=true;rebuildContacts();COLS.forEach(c=>loaded.add(c));if(unsentN()>0)ghDirty=true;setTimeout(snapBoot,0);if(BAD.length)setTimeout(recoverySheet,1500);try{licBoot();licCheck();document.title=licOwner()?'میز کار رضا':'میز کار'}catch(_){}
+    BAD=[];all.forEach(x=>{const ok=x&&typeof x.col==='string'&&x.doc&&typeof x.doc==='object'&&typeof x.doc.id==='string'&&x.k===x.col+'/'+x.doc.id;if(!ok){BAD.push(x);return}if(S[x.col])S[x.col].push(x.doc)});LOAD_OK=true;rebuildContacts();COLS.forEach(c=>loaded.add(c));if(unsentN()>0)ghDirty=true;snapBoot();if(BAD.length)setTimeout(recoverySheet,1500);try{licBoot();licCheck();document.title=licOwner()?'میز کار رضا':'میز کار'}catch(_){}
     try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(_){}
   }catch(e){LOAD_OK=false;LOAD_ERR=(e&&(e.name||'')+' '+(e.message||''))||'';showConn('حافظهٔ گوشی خوانده نشد؛ «حالت بازیابی» را ببین. چیزی پاک یا به ابر فرستاده نمی‌شود.');setTimeout(recoverySheet,800)}
   render();

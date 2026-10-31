@@ -22,16 +22,20 @@ function snapCheck(s){try{if(!s||typeof s.txt!=='string')return false;const j=JS
 function snapKeep(L,max){const keep=new Set();const daily=L.find(x=>x.reason==='daily');if(daily)keep.add(daily.id);
   const big=L.reduce((a,x)=>!a||(x.n||0)>(a.n||0)?x:a,null);if(big)keep.add(big.id);for(const x of L){if(keep.size>=max)break;keep.add(x.id)}return keep}
 async function snapMax(){try{const e=await navigator.storage.estimate();if(e&&e.quota&&e.usage/e.quota>0.8)return SNAP_KEEP_LOW}catch(_){}return SNAP_KEEP}
-// take a copy now; returns its id (or the id of an identical newest copy), or null when no verified copy could be made
-async function snapTake(reason,minGapMin){if(!LOAD_OK||mode!=='local')return null;try{const L=await snapList();if(minGapMin&&L[0]&&L[0].reason===reason&&Date.now()-new Date(L[0].at)<minGapMin*60000)return null;
-  const b=backupData();b.data={...b.data,contacts:[]};const h=snapHash(JSON.stringify(b.data));if(L[0]&&L[0].h===h&&snapCheck(L[0]))return L[0].id;
-  const counts=Object.fromEntries(COLS.filter(c=>c!=='contacts').map(c=>[c,(S[c]||[]).length]));const s={id:newId(),at:nowTs(),reason,n:rowCount(),counts,h,ver:APP_VER,txt:JSON.stringify(b)};if(!snapCheck(s))return null;
+// the data as text at this very moment (synchronous: later changes to S cannot leak into the copy)
+function snapData(){const b=backupData();b.data={...b.data,contacts:[]};const counts=Object.fromEntries(COLS.filter(c=>c!=='contacts').map(c=>[c,(b.data[c]||[]).length]));
+  return {h:snapHash(JSON.stringify(b.data)),counts,n:Object.values(counts).reduce((a,x)=>a+x,0),txt:JSON.stringify(b)}}
+// take a copy (of the data now, or of D captured earlier by snapData); returns its id (or the id of an identical newest copy), or null when no verified copy could be made
+async function snapTake(reason,minGapMin,D){if(!LOAD_OK||mode!=='local')return null;try{const L=await snapList();if(minGapMin&&L[0]&&L[0].reason===reason&&Date.now()-new Date(L[0].at)<minGapMin*60000)return null;
+  D=D||snapData();const h=D.h;if(L[0]&&L[0].h===h&&snapCheck(L[0]))return L[0].id;
+  const s={id:newId(),at:nowTs(),reason,n:D.n,counts:D.counts,h,ver:APP_VER,txt:D.txt};if(!snapCheck(s))return null;
   const keep=snapKeep([s,...L],await snapMax());
   const d=await snapOpen();await new Promise((res,rej)=>{const t=d.transaction('snaps','readwrite');const st=t.objectStore('snaps');st.put(s);L.filter(x=>!keep.has(x.id)).forEach(x=>st.delete(x.id));t.oncomplete=res;t.onerror=()=>rej(t.error)});
   return snapCheck(await snapGet(s.id))?s.id:null}catch(_){return null}}
-// on start: the first start of a new version takes a copy before anything else changes the data; then the daily copy
+// on start, called right after the data is loaded and before any other start-up code: on the first start of a new version the data
+// is captured synchronously (before the first await, so nothing that runs later can change it) and stored as a copy; then the daily copy
 async function snapBoot(){let last='';try{last=localStorage.getItem('miz.ranVer')||''}catch(_){}
-  if(last!==APP_VER){const r=last?await snapTake('upgrade'):null;if(r||!last)try{localStorage.setItem('miz.ranVer',APP_VER)}catch(_){}}
+  if(last!==APP_VER){const D=last&&LOAD_OK&&mode==='local'?snapData():null;const r=D?await snapTake('upgrade',0,D):null;if(r||!last)try{localStorage.setItem('miz.ranVer',APP_VER)}catch(_){}}
   setTimeout(()=>snapTake('daily',720),6000)}
 // for the backup page: newest copy, number of copies, whether the browser promised to keep the storage
 async function snapStatus(){const L=await snapList();let kept=null;try{kept=navigator.storage&&navigator.storage.persisted?await navigator.storage.persisted():null}catch(_){}

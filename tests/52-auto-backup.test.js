@@ -64,6 +64,16 @@ test('first start of a new version takes a copy before anything else; a fresh in
   await o.ctx.close();
 });
 
+test('the upgrade copy holds the data exactly as loaded: a change made by start-up code right after snapBoot() is not in it', async () => {
+  const o = await fresh(); const p = o.page; await addPerson(p, 'شخص پیش از ارتقا');
+  const r = await p.evaluate(async () => { localStorage.setItem('miz.ranVer', '4.32'); const pr = snapBoot();
+    S.people.push({ id: 'later1', name: 'نوشتهٔ بعدی', created: nowTs(), updated: nowTs() }); S.people[0] = { ...S.people[0], name: 'تغییر بعدی' }; await pr;
+    const s = (await snapList()).find(x => x.reason === 'upgrade'); const j = s && JSON.parse(s.txt); S.people = S.people.filter(x => x.id !== 'later1');
+    return { ok: s && snapCheck(s), names: j ? j.data.people.map(x => x.name) : null }; });
+  assert(r.ok && r.names && r.names.includes('شخص پیش از ارتقا') && !r.names.includes('نوشتهٔ بعدی') && !r.names.includes('تغییر بعدی'), 'upgrade copy picked up later changes: ' + JSON.stringify(r));
+  await o.ctx.close();
+});
+
 test('restore from a copy: a deleted person comes back with «only missing rows»; the backup page shows the copy status', async () => {
   const o = await fresh(); const p = o.page; await addPerson(p, 'شخص بازگشتی');
   const id = await p.evaluate(() => snapTake('manual')); const pid = await p.evaluate(() => S.people.find(x => x.name === 'شخص بازگشتی').id);
