@@ -52,6 +52,7 @@ test('with AI: several actions; an invented amount is cleared; an ambiguous name
   await act('asPick', { v: '0|a2' }); r = await p.evaluate(() => AS.acts[0].pid); assert(r === 'a2', 'pick: ' + r);
   const n0 = await p.evaluate(() => S.ledger.length);
   await act('asGo', { v: '0' }); await p.waitForSelector('#sheetRoot form[data-form=ledger]');
+  await p.waitForFunction(() => (document.getElementById('f_amt') || {}).value, null, { timeout: 3000 }).catch(() => {});   // the form fills the amount a moment after it opens
   const f = await p.evaluate(() => ({ amt: document.getElementById('f_amt').value, kind: (document.getElementById('f_kind') || {}).value, person: (document.getElementById('f_person') || {}).value }));
   assert(f.amt === '۲' && f.kind === 'paid' && f.person === 'a2', 'form not prefilled: ' + JSON.stringify(f));
   assert((await p.evaluate(() => S.ledger.length)) === n0, 'opening the form wrote a row');
