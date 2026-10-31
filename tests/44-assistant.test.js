@@ -109,7 +109,7 @@ test('bank message matching: a pending recurring payment is offered and confirme
   await p.evaluate(async () => { const n = nowTs(); await putRaw('ledger', { id: 'mp1', kind: 'paid', amount: 1.5e6, currency: 'تومان', acct: 'بانک الف', category: 'اجاره', about: 'ثبت دستی', date: today(), settled: false, void: false, instrument: 'نقد/کارت', created: n, updated: n }); closeSheet(); receiptSheet('برداشت ۱۵,۰۰۰,۰۰۰ ریال از حساب شما', null); });
   assert(await p.evaluate(() => document.getElementById('sheetRoot').innerText.includes('تکراری')), 'same-amount row of today not warned as a possible duplicate');
   await p.evaluate(() => { closeSheet(); receiptSheet('واریز ۵۰,۰۰۰,۰۰۰ ریال به حساب شما', null); });
-  r = await p.evaluate(() => ({ st: [...document.querySelectorAll('#sheetRoot [data-act=settle]')].map(b => b.dataset.id).sort(), many: document.getElementById('sheetRoot').innerText.includes('خودت انتخاب کن') }));
+  r = await p.evaluate(() => ({ st: [...document.querySelectorAll('#sheetRoot [data-act=rcptSettle]')].map(b => b.dataset.id).sort(), many: document.getElementById('sheetRoot').innerText.includes('خودت انتخاب کن') }));
   assert(JSON.stringify(r.st) === '["rv1","rv2"]' && r.many, 'open invoices: ' + JSON.stringify(r));
   const s0 = await snap(); await p.evaluate(() => closeSheet()); const s1 = await snap(); assert(s0[1] === s1[1], 'showing matches wrote data');
   await inv('after matching');
