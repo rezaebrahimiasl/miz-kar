@@ -292,7 +292,7 @@ html body .row2{grid-template-columns:1fr 1fr}
 /* Google sign-in returns here with #access_token=…; take it before anything else reads the address, keep it only in this tab's memory */
 (()=>{const h=location.hash;if(!/[#&](access_token|error)=/.test(h)||!/state=/.test(h))return;const q=new URLSearchParams(h.slice(1));let s=null;try{s=JSON.parse(sessionStorage.getItem('miz.gc.st')||'null');sessionStorage.removeItem('miz.gc.st')}catch(_){}history.replaceState(null,'',location.pathname+location.search);if(!s||s.st!==q.get('state'))return;
  if(q.get('access_token')){try{sessionStorage.setItem('miz.gc.tok',JSON.stringify({t:q.get('access_token'),exp:Date.now()+(Number(q.get('expires_in'))||3600)*1000-120000}));sessionStorage.removeItem('miz.gc.tried')}catch(_){}window._gcBack={ok:1,ret:s.ret}}else window._gcBack={err:q.get('error')||'خطا',silent:s.silent,ret:s.ret}})();
-const APP_VER='4.34';
+const APP_VER='4.35';
 // the app's separate files and their version markers; all must carry APP_VER (start-up guard, stashLatest; sw.js PARTS is the same list, checked by tests/00)
 const APP_PARTS={'js/core.js':'CORE_VER','js/engine.js':'ENGINE_VER','js/backup.js':'BACKUP_VER'};
 /* ---------- Start-up guard: js/core.js (dates, digits, formatting) and js/engine.js (information engine) must be loaded and of this same version before anything reads or writes data. Otherwise nothing below runs: the data on the phone stays untouched and a recovery screen offers a reload ---------- */
@@ -787,7 +787,7 @@ function caseRow(c){const vs=cVisits(c.id);const lv=vs[vs.length-1];const p=byId
 function clinicSheet(){const f=ui.cF||'active';const arr=S.cases.filter(c=>f==='all'||(f==='active'?c.status!=='closed':c.status==='closed')).sort((a,b)=>(b.updated||'').localeCompare(a.updated||''));
   const FU=SM('clinicFu')?clinicFollow():[];const act=S.cases.filter(c=>c.status!=='closed');const mb=monthBounds?monthBounds(0):null;const vm=mb?S.visits.filter(v=>!v.void&&v.date>=mb[0]&&v.date<=mb[1]).length:0;const PR=act.map(caseProgress).filter(x=>x!=null);const avg=PR.length?Math.round(PR.reduce((a,b)=>a+b,0)/PR.length):null;
   const tdy=S.tasks.filter(t=>t.caseId&&t.status==='open'&&t.due===today()).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-  openSheet(`<h3>${badge('therapy','therapy')} مشاوره و ویزیت</h3>
+  openSheet(`<h3 style="display:flex;align-items:center;gap:8px">${badge('therapy','therapy')} <span style="flex:1">مشاوره و ویزیت</span><button class="btn" data-act="apptList" style="padding:6px 10px">${svg('cal')} نوبت‌ها</button><button class="btn pri" data-act="ctxAdd" data-v="clinic" aria-label="ثبت در مشاوره و ویزیت" style="padding:6px 12px">+</button></h3>
   <div style="display:flex;gap:8px;margin-bottom:10px">${[['در جریان',fa(act.length)],['ویزیت این ماه',fa(vm)],['میانگین پیشرفت',avg==null?'—':fa(avg)+'٪']].map(([l,v])=>`<div style="flex:1;border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800">${v}</div><div style="font-size:11.5px;color:var(--muted)">${l}</div></div>`).join('')}</div>
   ${tdy.length?block('نوبت‌های امروز',tdy.length,`<div class="list">${tdy.map(t=>{const c=byId('cases',t.caseId);const p=c&&byId('people',c.personId);return c?`<button class="row" data-act="newVisit" data-id="${c.id}"><div style="font-size:15px;width:44px;text-align:center;font-weight:700">${t.time?fa(t.time):'—'}</div><div class="main"><div class="ttl">${esc(c.code)}${p&&!ui.cPriv?' · '+esc(p.name):''}</div><div class="sub">${modPills(c)}</div></div><span class="pill acc">ثبت ویزیت</span></button>`:''}).join('')}</div>`):''}
   ${FU.length?block('نیاز به پیگیری',FU.length,`<div class="list">${FU.slice(0,ui.cfAll?99:6).map(x=>cfRow(x)).join('')}</div>${FU.length>6&&!ui.cfAll?'<button class="link" data-act="cfAll">همه را نشان بده</button>':''}`):''}
@@ -897,7 +897,9 @@ async function saveVisit(f,id){const caseId=f.dataset.case;const c=byId('cases',
   {const fee=toBase(num(val('f_vfee'))||0,'تومان');if(fee>0&&!S.ledger.some(l=>!l.void&&l.visitOf===caseId+'#'+d.no)){const k=val('f_vpay')||'received';await save('ledger',null,{kind:k,personId:(c&&c.personId)||'',amount:fee,currency:'تومان',about:'ویزیت '+fa(d.no)+(c?' · '+(c.code||''):''),category:'درمان و مشاوره',instrument:k==='received'?'نقد/کارت':'نسیه',acct:k==='received'?val('f_vacct'):'',date,due:k==='receivable'?addDays(date,30):'',visitOf:caseId+'#'+d.no,settled:false,void:false})}}
   if(c&&d.risk!==c.risk)await save('cases',caseId,{risk:d.risk,lastVisit:date});else if(c)await save('cases',caseId,{lastVisit:date});
   const msgs=[];
-  if(!id&&nd&&c&&c.status!=='closed'){for(const t of S.tasks.filter(t=>t.caseId===caseId&&t.status==='open'))await save('tasks',t.id,{status:'done',doneAt:nowTs(),note:(t.note||'')+'\nویزیت ثبت شد'});
+  // a new visit completes this client's open appointments up to its date (all of them when the next one is set here)
+  if(!id&&c){const nx=nd&&c.status!=='closed';for(const t of S.tasks.filter(t=>t.caseId===caseId&&t.status==='open'&&(nx||(t.due||'')<=date)))await save('tasks',t.id,{status:'done',appt:'done',doneAt:nowTs(),note:(t.note||'')+'\nویزیت ثبت شد'})}
+  if(!id&&nd&&c&&c.status!=='closed'){
     await save('tasks',null,{title:`${d.nextTime?'ویزیت':'پیگیری'} ${c.code}${d.nextTime?' ساعت '+fa(d.nextTime):''}${d.next?': '+d.next:''}`,due:nd,time:d.nextTime||'',priority:d.risk==='high'?1:2,area:'therapy',caseId,status:'open'});msgs.push('نوبت بعد '+jNice(nd))}
   if(!id&&d.adverse&&SM('clinicFu')&&c){await save('tasks',null,{title:`احوال‌پرسی عارضهٔ ${c.code}: ${d.adverse.slice(0,40)}`,due:addDays(date,1),priority:1,area:'therapy',caseId,status:'open'});msgs.push('احوال‌پرسی عارضه فردا')}
   if(!id&&c&&c.plan&&c.plan.n&&d.no===c.plan.n)msgs.push('برنامهٔ درمان کامل شد');
@@ -2394,6 +2396,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['4.35',[['affairs','check','دکمهٔ «+» متناسب با همان صفحه','در کارها، اشخاص و کالا و فروش، «+» کارهای همان بخش را نشان می‌دهد؛ «همهٔ گزینه‌ها» همان فهرست کامل قبلی است.'],['therapy','cal','برنامهٔ نوبت‌ها و وضعیت نوبت','در «مشاوره و ویزیت» دکمهٔ «نوبت‌ها» برنامهٔ امروز، ۷ روز و ۳۰ روز را با ساعت‌های آزاد نشان می‌دهد؛ هر نوبت در انتظار تأیید، تأییدشده، انجام‌شده، لغوشده، نیامده یا جابه‌جاشده است و تاریخچه‌اش می‌ماند. ثبت ویزیت، نوبت همان روز را انجام‌شده می‌کند. دکمهٔ «+» همان صفحه مراجع تازه، ویزیت و نوبت را باز می‌کند.','clinic']]],
  ['4.34',[['finance','check','قیمت غیرعادی را می‌شود تأیید کرد','اگر قیمت یک محموله درست است ولی غیرعادی به نظر می‌رسد، «این قیمت درست است» را بزن؛ تا وقتی قیمت بیش از ۱۰٪ تغییر نکند دوباره هشدار نمی‌آید. قیمتِ نوع دیگری از همان کالا دیگر مرجع مقایسه نیست، و اختلاف خیلی زیاد (۵۰ برابر) جدا به‌عنوان احتمال خطای ورود نشان داده می‌شود.']]],
  ['4.33',[['affairs','box','نسخه‌های خودکار مطمئن‌تر','پیش از به‌روزرسانی برنامه و در اولین اجرای نسخهٔ تازه هم یک نسخهٔ کامل از داده‌ها روی همین گوشی ساخته می‌شود. هر نسخه بعد از ساختن بررسی می‌شود، نسخهٔ تکراری ساخته نمی‌شود، آخرین نسخهٔ روزانه و پرداده‌ترین نسخه هیچ‌وقت کنار گذاشته نمی‌شوند و نسخهٔ خراب علامت می‌خورد و بازیابی نمی‌شود. وضعیت آخرین نسخه در «ایمنی و پشتیبان» دیده می‌شود.']]],
  ['4.32',[['affairs','check','پایهٔ پرسش از داده‌ها جدا شد','موتور پاسخ به پرسش‌ها حالا در یک فایل جدا و آزموده است و نسخهٔ آفلاین برنامه همیشه همهٔ فایل‌هایش را با یک نسخه ذخیره می‌کند. رفتار برنامه تغییری نکرده است.'],['finance','check','پیامک بانکی تکراری درست شناخته می‌شود','پیامکی که تاریخ ندارد، اگر روز دیگری دوباره خوانده شود، تکراری شناخته می‌شود؛ ثبت یا تسویه از صفحهٔ رسید هم آن را پردازش‌شده علامت می‌زند تا دو بار ثبت نشود.']]],
@@ -3822,6 +3825,33 @@ function viewLedger(id){if(String(id).startsWith('vch:'))return viewVoucher(Stri
    <div id="voidBox"></div></div>`)}
 function viewNote(id){const n=byId('notes',id);if(!n)return;openSheet(`<div class="det"><h3>${badge(n.kind==='plan'?'research':'finance',n.kind==='plan'?'map':'book')} ${esc(n.title)}</h3><div class="sub" style="margin-bottom:8px"><span class="pill acc">${esc(n.version||'')}</span> <span class="pill">${esc(n.status||'')}</span></div><div class="prose">${esc(n.body)}</div><div class="acts" style="margin-top:12px"><button class="btn" data-act="editNote" data-id="${id}">ویرایش</button><button class="btn ghost" data-act="close">بستن</button></div></div>`)}
 function formNote(n={}){openSheet(`<h3>${n.id?'ویرایش':'یادداشت جدید'}</h3><form data-form="note" data-id="${n.id||''}"><div class="fld"><label for="f_nt">عنوان</label><input id="f_nt" value="${esc(n.title)}"></div><div class="row2"><div class="fld"><label for="f_nv">نسخه</label><input id="f_nv" value="${esc(n.version)}"></div><div class="fld"><label for="f_ns">وضعیت</label><input id="f_ns" value="${esc(n.status)}"></div></div><div class="fld"><label for="f_nb">متن</label><textarea id="f_nb" style="min-height:280px">${esc(n.body)}</textarea></div><div class="acts"><button class="btn pri">ذخیره</button><button type="button" class="btn ghost" data-act="close">انصراف</button></div></form>`)}
+/* ---------- Contextual «+»: actions of the current page (one table; every item opens an existing form or page; «همه» = the full menu) ---------- */
+const CTX_ADD={
+ people:()=>[['new','person','user','affairs','شخص تازه'],on('deals')&&['new','deal','search','affairs','فرصت تازه'],on('clinic')&&['newCase','','therapy','therapy','مراجع تازه (پرونده)']],
+ tasks:()=>[['new','task','check','affairs','کار تازه'],['bulk','','note','affairs','چند کار با هم'],['new','inbox','note','affairs','یادداشت سریع'],on('clinic')&&['cPick','book','cal','therapy','نوبت برای مراجع']],
+ biz:()=>on('stock')?[[on('docs')?'saleNew':'newMove','','note','finance','فروش'],on('docs')&&['buyNew','','box','finance','خرید'],['newLot','','hive','finance','ورود کالا (محموله)'],['newMove','','box','finance','خروج یا جابه‌جایی کالا'],['newQuote','','tag','finance','ثبت قیمت'],on('docs')&&['docsSheet','','note','finance','فاکتورها و اسناد'],['reports','','chart','finance','گزارش‌ها']]:[],
+ clinic:()=>[['newCase','','user','therapy','مراجع تازه (پرونده)'],['cPick','visit','therapy','therapy','ویزیت یا جلسهٔ درمان','برای مراجعی که پرونده دارد'],['cPick','book','cal','therapy','نوبت تازه'],['apptList','','cal','therapy','برنامهٔ نوبت‌ها','امروز، هفته، ماه'],['clinic','','note','therapy','پیگیری‌ها و پرونده‌ها'],['reports','','chart','finance','گزارش‌ها']]};
+function ctxAdd(k){const L=(CTX_ADD[k]?CTX_ADD[k]():[]).filter(Boolean);if(!L.length)return quickAdd();
+  openSheet(`<div data-addsheet data-ctx="${k}"><h3>ثبت و دسترسی سریع</h3><div class="tiles">${L.map(([a,v,ic,ar,t,sm])=>`<button class="tile" data-act="${a}"${v?` data-v="${v}"`:''}>${badge(ar,ic)}<span><b>${t}</b>${sm?`<small>${sm}</small>`:''}</span></button>`).join('')}</div><div class="acts" style="margin-top:12px"><button class="btn" data-act="quick">همهٔ گزینه‌ها</button><button class="btn ghost" data-act="close">بستن</button></div></div>`)}
+const fabKey=()=>tab==='biz'?'biz':tab==='people'?'people':tab==='tasks'?'tasks':'';
+// pick a client (active case) for a visit or an appointment
+function cPickSheet(mode){const L=S.cases.filter(c=>c.status!=='closed').sort((a,b)=>(b.updated||'').localeCompare(a.updated||''));
+  openSheet(`<h3>${badge('therapy','user')} ${mode==='book'?'نوبت برای کدام مراجع؟':'ویزیت کدام مراجع؟'}</h3><input id="f_cpq" placeholder="جستجوی نام یا کد" style="margin-bottom:8px"><div class="list" id="cpL">${L.map(c=>`<button class="row" data-act="${mode==='book'?'cBook':'newVisit'}" data-id="${c.id}" data-q="${esc((c.code||'')+' '+(pname(c.personId)||''))}"><div class="main"><div class="ttl">${esc(c.code)}${c.personId?' · '+esc(pname(c.personId)):''}</div></div></button>`).join('')||'<div class="empty">پرونده‌ای در جریان نیست.</div>'}</div>
+  <div class="acts" style="margin-top:10px"><button class="btn" data-act="newCase">مراجع تازه</button><button class="btn ghost" data-act="close">بستن</button></div>`);
+  const q=document.getElementById('f_cpq');if(q)q.oninput=()=>{const t=nrm(q.value);document.querySelectorAll('#cpL [data-q]').forEach(b=>b.hidden=t&&!nrm(b.dataset.q).includes(t))}}
+/* ---------- Appointments: open tasks with caseId; status in task.appt (pending, confirmed, cancelled, noshow, moved); a visit closes it as done ---------- */
+const APPT={pending:['در انتظار تأیید','warn'],confirmed:['تأیید شده','acc'],done:['انجام شد','ok'],cancelled:['لغو شد',''],noshow:['نیامد','bad'],moved:['جابه‌جا شد','']};
+const apptOf=t=>t.appt&&t.appt!=='pending'&&t.appt!=='confirmed'?t.appt:t.status==='done'?'done':(t.appt||'pending');
+function apptList(r){r=r||ui.apR||'week';ui.apR=r;const t0=today();const end=r==='day'?t0:r==='week'?addDays(t0,6):addDays(t0,30);
+  const T=S.tasks.filter(t=>t.caseId&&t.due&&t.due>=t0&&t.due<=end).sort((a,b)=>(a.due+(a.time||'')).localeCompare(b.due+(b.time||'')));
+  const past=S.tasks.filter(t=>t.caseId&&t.due&&t.due<t0&&t.status==='open');const days=[...new Set(T.map(t=>t.due))];if(r==='day'&&!days.includes(t0))days.push(t0);
+  const row=t=>{const c=byId('cases',t.caseId);const st=apptOf(t);const op=t.status==='open';return `<div class="row" style="flex-wrap:wrap"><div style="width:44px;text-align:center;font-weight:700">${t.time?fa(t.time):'—'}</div><div class="main"><div class="ttl">${esc(c?c.code:t.title)}${c&&c.personId?' · '+esc(pname(c.personId)):''}</div><div class="sub"><span class="pill ${APPT[st][1]}">${APPT[st][0]}</span>${op&&t.due<t0?'<span class="pill bad">گذشته</span>':''}</div></div>
+   ${op&&c?`<div class="chips wrap" style="width:100%">${st==='pending'?`<button class="chip" data-act="apptSet" data-id="${t.id}" data-v="confirmed">تأیید</button>`:''}<button class="chip" data-act="newVisit" data-id="${c.id}">ثبت ویزیت</button><button class="chip" data-act="cBook" data-id="${c.id}">جابه‌جایی</button><button class="chip" data-act="apptSet" data-id="${t.id}" data-v="cancelled">لغو</button><button class="chip" data-act="apptSet" data-id="${t.id}" data-v="noshow">نیامد</button></div>`:''}</div>`};
+  openSheet(`<div data-appts><h3>${badge('therapy','cal')} برنامهٔ نوبت‌ها</h3><div class="chips" style="margin-bottom:10px">${[['day','امروز'],['week','۷ روز'],['month','۳۰ روز']].map(([k,l])=>`<button class="chip" data-act="apptList" data-v="${k}" aria-pressed="${r===k}">${l}</button>`).join('')}<button class="chip" data-act="cPick" data-v="book">+ نوبت</button></div>
+  ${past.length?block('نوبت‌های گذشته که وضعیتشان روشن نیست',past.length,`<div class="list">${past.map(row).join('')}</div>`):''}
+  ${days.sort().map(d=>{const L=T.filter(t=>t.due===d);const fr=freeSlots(d,null,CLH().len);return block(jNice(d),L.length,`<div class="list">${L.map(row).join('')||'<div class="empty">نوبتی نیست.</div>'}</div>${fr.length?`<div style="font-size:12.5px;color:var(--muted);margin:4px 2px">ساعت‌های آزاد: ${fr.map(m=>fa(mHM(m))).join('، ')}</div>`:''}`)}).join('')||'<div class="empty">در این بازه نوبتی نیست.</div>'}
+  <div class="acts" style="margin-top:12px"><button class="btn" data-act="clinic">پرونده‌ها و پیگیری‌ها</button><button class="btn ghost" data-act="close">بستن</button></div></div>`)}
+async function apptSet(id,st){const t=byId('tasks',id);if(!t||!APPT[st])return;const d=st==='cancelled'||st==='noshow'?{appt:st,status:'done',doneAt:nowTs(),note:((t.note||'')+'\n'+APPT[st][0]).trim()}:{appt:st};if(await save('tasks',id,d)){toast(APPT[st][0]+' ✓');if(document.querySelector('#sheetRoot [data-appts]'))apptList()}}
 function quickAdd(){openSheet(`<div data-addsheet><h3>چه چیزی ثبت کنم؟</h3><button class="btn pri" data-act="aiSay" style="width:100%;margin-bottom:10px">✨ با یک جمله بگو یا بنویس${aiOn()?'':' (تنظیم دستیار هوشمند)'}</button>${favHtml()}<div class="grp" style="margin-top:0">کار و ارتباط</div><div class="qa">
   <button data-act="new" data-v="task"><svg viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></svg>کار</button>
   <button data-act="bulk"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/></svg>چند کار با هم</button>
@@ -5470,6 +5500,11 @@ document.addEventListener('click',e=>recvBatch(async()=>{
     case'hereOn':try{localStorage.setItem('miz.here',b.dataset.v)}catch(_){}tab='today';render();scrollTo(0,0);toast('کارهای '+b.dataset.v+' در «امروز» آمد');break;
     case'hereOff':try{localStorage.removeItem('miz.here')}catch(_){}render();toast('سفر تمام شد');break;
     case'clinic':clinicSheet();break;
+    case'ctxAdd':ctxAdd(b.dataset.v);break;
+    case'quick':quickAdd();break;
+    case'cPick':cPickSheet(b.dataset.v);break;
+    case'apptList':apptList(b.dataset.v);break;
+    case'apptSet':await apptSet(id,b.dataset.v);break;
     case'clients':clientsSheet();break;
     case'fixLegacy':fixLegacy();break;
     case'legacyOk':try{localStorage.setItem('miz.legacyOk','1')}catch(_){}render();break;
@@ -5563,7 +5598,7 @@ document.addEventListener('click',e=>recvBatch(async()=>{
     case'cfAll':ui.cfAll=true;clinicSheet();break;
     case'cMsg':{const c=byId('cases',id);if(!c)break;const k=b.dataset.v;const t=cMsgTxt(c,k);const l=smsLink(c.personId,t);await cContact(id,k,'پیام');if(l)location.href=l;else{try{await navigator.clipboard.writeText(t);toast('شماره‌ای نیست؛ متن کپی شد')}catch(_){toast(t)}}setTimeout(()=>cRefresh(id),400);break}
     case'cFuDone':await cContact(id,b.dataset.v,'انجام شد');toast('ثبت شد');cRefresh(id);break;
-    case'cNoShow':{const c=byId('cases',id);if(!c)break;for(const t of S.tasks.filter(t=>t.caseId===id&&t.status==='open'&&t.due<today()))await save('tasks',t.id,{status:'done',doneAt:nowTs(),note:(t.note||'')+'\nغیبت مراجع'});await save('cases',id,{noShow:(c.noShow||0)+1});await cContact(id,'miss','غیبت');toast('غیبت ثبت شد؛ برای نوبت تازه «نوبت» را بزن');cRefresh(id);break}
+    case'cNoShow':{const c=byId('cases',id);if(!c)break;for(const t of S.tasks.filter(t=>t.caseId===id&&t.status==='open'&&t.due<today()))await save('tasks',t.id,{status:'done',appt:'noshow',doneAt:nowTs(),note:(t.note||'')+'\nغیبت مراجع'});await save('cases',id,{noShow:(c.noShow||0)+1});await cContact(id,'miss','غیبت');toast('غیبت ثبت شد؛ برای نوبت تازه «نوبت» را بزن');cRefresh(id);break}
     case'cBook':cBookSheet(id);break;
     case'viewPanel':viewPanel();break;
     case'vwSet':{const k=b.dataset.k,x=b.dataset.v;if(k==='mfmt')await setMfmt(x);else if(k==='oneCol'){await setSM('oneCol',x==='1');document.querySelectorAll('table[data-m1]').forEach(t=>delete t.dataset.m1)}else setVW(k,k==='fs'||k==='theme'?x:Number(x));render();viewPanel();break}
@@ -5959,7 +5994,7 @@ document.addEventListener('submit',e=>recvBatch(async()=>{window._subAt=Date.now
     if(!id){const nid=newId();await putRaw('cases',{id:nid,...d,created:nowTs(),updated:nowTs()});if(mode==='local')render();const ap=val('f_capd')?(guessDate(val('f_capd'))||parseJ(val('f_capd'))):'';if(ap){const tm=val('f_capt');await save('tasks',null,{title:`ویزیت ${code}${tm?' ساعت '+fa(tm):''}`,due:ap,priority:2,area:'therapy',caseId:nid,time:tm,status:'open'});toast(`پرونده ${code} ساخته شد؛ نوبت ${jNice(ap)}${tm?' ساعت '+fa(tm):''} در «کارها»`);viewCase(nid);return}toast('پرونده '+code+' ساخته شد');formVisit(nid);return}
     if(await save('cases',id,d)){toast('ذخیره شد');viewCase(id)}return}
   if(k==='visit'){await saveVisit(f,id);return}
-  if(k==='cbook'){const c=byId('cases',id);if(!c)return;const d=readDate('f_cbd',true);if(!d)return;const tm=val('f_cbt');for(const t of S.tasks.filter(t=>t.caseId===id&&t.status==='open'))await save('tasks',t.id,{status:'done',doneAt:nowTs(),note:(t.note||'')+'\nنوبت جابه‌جا شد'});
+  if(k==='cbook'){const c=byId('cases',id);if(!c)return;const d=readDate('f_cbd',true);if(!d)return;const tm=val('f_cbt');for(const t of S.tasks.filter(t=>t.caseId===id&&t.status==='open'))await save('tasks',t.id,{status:'done',appt:'moved',doneAt:nowTs(),note:(t.note||'')+'\nنوبت جابه‌جا شد'});
     if(tm&&openTasks().some(t=>t.caseId!==id&&t.due===d&&taskMin(t)!=null&&Math.abs(taskMin(t)-taskMin({time:tm}))<CLH().len)&&f.dataset.force!=='1'){f.dataset.force='1';return toast('این ساعت با کار یا نوبت دیگری هم‌پوشانی دارد؛ اگر عمداً است دوباره بزن')}
     await save('tasks',null,{title:`ویزیت ${c.code}${tm?' ساعت '+fa(tm):''}`,due:d,time:tm,priority:2,area:'therapy',caseId:id,status:'open'});toast('نوبت ثبت شد: '+jNice(d)+(tm?' '+fa(tm):''));
     const sm=document.getElementById('f_cbsms');if(sm&&sm.checked){const p=byId('people',c.personId);const nm=p?String(p.name).trim().split(/\s+/)[0]:'';const l=smsLink(c.personId,`سلام${nm?' '+nm+' عزیز':''}، نوبت شما ${jShort(d)}${tm?' ساعت '+fa(tm):''} ثبت شد. اگر نتوانستید بیایید لطفاً زودتر خبر بدهید.`);if(l)setTimeout(()=>{location.href=l},300)}viewCase(id);return}
@@ -6034,7 +6069,7 @@ addEventListener('popstate',e=>{if(document.getElementById('hv'))return;if(windo
   v.addEventListener('touchend',e=>{if(!ok||dir!==1)return;const dx=e.changedTouches[0].clientX-x0;const o=order();const i=o.indexOf(tab==='deals'||tab==='stock'?'biz':tab);const j=dx>0?i+1:i-1;
     if(Math.abs(dx)<55||i<0||j<0||j>=o.length)return reset();v.style.transition='none';goTab(o[j]);v.style.transform=`translateX(${dx>0?-36:36}px)`;v.style.opacity='.55';requestAnimationFrame(()=>requestAnimationFrame(reset))},{passive:true});
   v.addEventListener('touchcancel',()=>{if(dir===1)reset()},{passive:true})})();
-document.getElementById('fab').addEventListener('click',()=>tab==='money'?moneyAdd():quickAdd());
+document.getElementById('fab').addEventListener('click',()=>tab==='money'?moneyAdd():fabKey()?ctxAdd(fabKey()):quickAdd());
 document.getElementById('btnSearch').addEventListener('click',searchSheet);
 document.getElementById('btnMenu').addEventListener('click',menuSheet);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.getElementById('sheetRoot').hidden)closeSheet()});

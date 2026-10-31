@@ -12,7 +12,7 @@
 |---|---|---|---|
 | people | persons and organisations | name, phone, org, email, roles, status, note, hon, refBy, mergedInto, lastTouch | — (central) |
 | deals | sales opportunities | title, personId, stage, value, nextDate, nextStep, status, closedAt | people |
-| tasks | tasks, appointments, follow-ups | title, due, start, time, status, priority, area, personId, dealId, caseId, repeat, recurId, doneAt, pauseTo | people, deals, cases, recurs |
+| tasks | tasks, appointments, follow-ups | title, due, start, time, status, priority, area, personId, dealId, caseId, appt (appointment status: pending/confirmed/cancelled/noshow/moved/done; open without it = pending), repeat, recurId, doneAt, pauseTo | people, deals, cases, recurs |
 | ledger | single-entry money rows | kind (paid/received/receivable/payable), amount, currency, date, due, personId, category, acct, settled, refId, settles, docId, lotId, moveId, visitOf, netOf, pending | people, docs, lots, moves, cases/visits, ledger (refId) |
 | inbox | quick captures | text, audio, processed | — |
 | notes | notes and rules | (built dynamically) **[unverified field list]** | — |

@@ -631,3 +631,8 @@
 - Dev speed: `node tools/q.js tests <name>` lists the test files that use a function/action and prints the command to run only those; `sh tests/run.sh 47 52 53` takes several prefixes. Workflow: `q.js map/region/fn` to read only the code needed → targeted tests → full `sh tests/run.sh` before every release. Test `49` also upgrades from 4.33 (`59ed7ae`).
 - Version 4.34 everywhere (APP/CORE/ENGINE/BACKUP_VER, cache, version.json, «تازه‌ها»). Rollback: a new commit restoring `59ed7ae` files as 4.35; `priceOk` is ignored by 4.33 (warnings simply return).
 
+## v4.35 — contextual «+», appointment list and status (local branch `ctx-plus`, not released)
+- `CTX_ADD` + `ctxAdd(k)`: one table of per-page actions (people, tasks, biz, clinic); the FAB uses it for those tabs (`fabKey`), money keeps `moneyAdd`, other tabs `quickAdd`; «همهٔ گزینه‌ها» (`quick`) opens the full menu. The clinic sheet has its own «+» and «نوبت‌ها». Adding an item = one row; test 54 fails if an item is not a real click action.
+- Appointments stay tasks with `caseId` (no new store): `task.appt` status, `apptOf()`, `apptList(day|week|month)` with free slots (`freeSlots`), `apptSet` (confirm / cancel / no-show; cancel and no-show close the task with a note); rescheduling (`cbook`) marks the old one `moved`; a new visit now completes the client's open appointments up to its date even without a next date (before: only when a next date was set); `cNoShow` sets `appt:'noshow'`; `cPickSheet` picks a client for a visit or booking.
+- Not done (budget): service type/duration/practitioner per appointment, month calendar grid, dedicated «not returned» list (the existing `clinicFollow` follow-up block covers due/overdue), clinic activity report.
+
