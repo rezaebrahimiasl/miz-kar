@@ -4,7 +4,7 @@
  * data and helpers (S, money, remOf, …) only when called. Loaded by index.html after js/core.js and before the main script;
  * the service worker pre-caches it with the same version as index.html. Its outputs are pinned by
  * tests/fixtures/engine-ref.json (recorded from v4.30) and tests/51-engine-ref.test.js. */
-const ENGINE_VER='4.33';
+const ENGINE_VER='4.34';
 /* ---------- Information engine: one read-only, deterministic query → data; used by «پرسش از داده‌ها» and meant for reports and the assistant. The AI only proposes a query; every number comes from here ---------- */
 const QE={entity:['sales','gifts','purchases','ledger','balance','overdue','tasks','stock','income','expense','price','cheques','profit','statement'],metric:['sum','count','list','top'],kind:['receivable','payable','received','paid'],dir:['in','out'],status:['done','open','late'],group:['person','product','month']};
 // any object (e.g. the AI's JSON) → a clean query: only known fields and values, Jalali dates → ISO; what could not be read is listed in warn

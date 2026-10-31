@@ -7,6 +7,7 @@
 //   node tools/q.js callers <fn>     where a function is called
 //   node tools/q.js region <text>    region banners matching text, with their line ranges and functions
 //   node tools/q.js map              all regions: first line, last line, number of functions
+//   node tools/q.js tests <name>     test files that use a function/action/word, and the command that runs only those
 // Options: MIZ_ROOT=<dir> to read another copy; --full to print long bodies without the 200-line cap.
 'use strict';
 const { load, build, pretty } = require('./parse');
@@ -49,5 +50,9 @@ switch (cmd) {
     P.regions.forEach(r => { const n = P.fns.filter(f => f.kind === 'function' && P.line(f.start) >= r.line && P.line(f.start) <= r.endLine).length;
       console.log(`L${String(r.line).padEnd(5)}–L${String(r.endLine).padEnd(5)} ${String(n).padStart(3)} fn  ${r.title.slice(0, 90)}`); });
     if (P.switchRange) console.log(`click actions: switch(a) L${P.line(P.switchRange[0])}–L${P.line(P.switchRange[1])}`); break; }
-  default: console.log(require('fs').readFileSync(__filename, 'utf8').split('\n').slice(1, 11).map(l => l.replace(/^\/\/ ?/, '')).join('\n')); process.exit(cmd ? 2 : 0);
+  case 'tests': { need(); const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'tests'); const re = new RegExp(`(?<![\\w$])${arg.replace(/[$.*+?()[\]{}|\\^]/g, '\\$&')}(?![\\w$])`);
+    const hit = fs.readdirSync(dir).filter(f => /^\d\d-.*\.test\.js$/.test(f) && re.test(fs.readFileSync(path.join(dir, f), 'utf8'))).sort();
+    if (!hit.length) { console.log('no test file mentions ' + arg + ' — add one; the full suite still runs before a release'); break; }
+    hit.forEach(f => console.log('  tests/' + f)); console.log('run only these:  sh tests/run.sh ' + hit.map(f => f.slice(0, 2)).filter((x, i, a) => a.indexOf(x) === i).join(' ')); break; }
+  default: console.log(require('fs').readFileSync(__filename, 'utf8').split('\n').slice(1, 12).map(l => l.replace(/^\/\/ ?/, '')).join('\n')); process.exit(cmd ? 2 : 0);
 }

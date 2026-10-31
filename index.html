@@ -292,7 +292,7 @@ html body .row2{grid-template-columns:1fr 1fr}
 /* Google sign-in returns here with #access_token=…; take it before anything else reads the address, keep it only in this tab's memory */
 (()=>{const h=location.hash;if(!/[#&](access_token|error)=/.test(h)||!/state=/.test(h))return;const q=new URLSearchParams(h.slice(1));let s=null;try{s=JSON.parse(sessionStorage.getItem('miz.gc.st')||'null');sessionStorage.removeItem('miz.gc.st')}catch(_){}history.replaceState(null,'',location.pathname+location.search);if(!s||s.st!==q.get('state'))return;
  if(q.get('access_token')){try{sessionStorage.setItem('miz.gc.tok',JSON.stringify({t:q.get('access_token'),exp:Date.now()+(Number(q.get('expires_in'))||3600)*1000-120000}));sessionStorage.removeItem('miz.gc.tried')}catch(_){}window._gcBack={ok:1,ret:s.ret}}else window._gcBack={err:q.get('error')||'خطا',silent:s.silent,ret:s.ret}})();
-const APP_VER='4.33';
+const APP_VER='4.34';
 // the app's separate files and their version markers; all must carry APP_VER (start-up guard, stashLatest; sw.js PARTS is the same list, checked by tests/00)
 const APP_PARTS={'js/core.js':'CORE_VER','js/engine.js':'ENGINE_VER','js/backup.js':'BACKUP_VER'};
 /* ---------- Start-up guard: js/core.js (dates, digits, formatting) and js/engine.js (information engine) must be loaded and of this same version before anything reads or writes data. Otherwise nothing below runs: the data on the phone stays untouched and a recovery screen offers a reload ---------- */
@@ -2394,6 +2394,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['4.34',[['finance','check','قیمت غیرعادی را می‌شود تأیید کرد','اگر قیمت یک محموله درست است ولی غیرعادی به نظر می‌رسد، «این قیمت درست است» را بزن؛ تا وقتی قیمت بیش از ۱۰٪ تغییر نکند دوباره هشدار نمی‌آید. قیمتِ نوع دیگری از همان کالا دیگر مرجع مقایسه نیست، و اختلاف خیلی زیاد (۵۰ برابر) جدا به‌عنوان احتمال خطای ورود نشان داده می‌شود.']]],
  ['4.33',[['affairs','box','نسخه‌های خودکار مطمئن‌تر','پیش از به‌روزرسانی برنامه و در اولین اجرای نسخهٔ تازه هم یک نسخهٔ کامل از داده‌ها روی همین گوشی ساخته می‌شود. هر نسخه بعد از ساختن بررسی می‌شود، نسخهٔ تکراری ساخته نمی‌شود، آخرین نسخهٔ روزانه و پرداده‌ترین نسخه هیچ‌وقت کنار گذاشته نمی‌شوند و نسخهٔ خراب علامت می‌خورد و بازیابی نمی‌شود. وضعیت آخرین نسخه در «ایمنی و پشتیبان» دیده می‌شود.']]],
  ['4.32',[['affairs','check','پایهٔ پرسش از داده‌ها جدا شد','موتور پاسخ به پرسش‌ها حالا در یک فایل جدا و آزموده است و نسخهٔ آفلاین برنامه همیشه همهٔ فایل‌هایش را با یک نسخه ذخیره می‌کند. رفتار برنامه تغییری نکرده است.'],['finance','check','پیامک بانکی تکراری درست شناخته می‌شود','پیامکی که تاریخ ندارد، اگر روز دیگری دوباره خوانده شود، تکراری شناخته می‌شود؛ ثبت یا تسویه از صفحهٔ رسید هم آن را پردازش‌شده علامت می‌زند تا دو بار ثبت نشود.']]],
  ['4.31',[['affairs','check','پایه‌ای مطمئن‌تر برای بخش‌های بعدی','تاریخ‌ها و قالب‌بندی عدد و پول حالا در یک فایل جدا و آزموده‌اند و نسخهٔ آفلاین برنامه همیشه با همان نسخه از این فایل ذخیره می‌شود. رفتار برنامه تغییری نکرده است.']]],

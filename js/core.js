@@ -3,7 +3,7 @@
  * time except constant definitions, and nothing reads or writes app data (money helpers read only their arguments).
  * Loaded by index.html before the main script; the service worker pre-caches it with the same version as index.html.
  * Its outputs are pinned by tests/fixtures/core-ref.json (recorded from v4.30) and tests/46-core-ref.test.js. */
-const CORE_VER='4.33';
+const CORE_VER='4.34';
 /* ---------- Jalali calendar (jalaali-js algorithm) ---------- */
 const J=(()=>{
   const div=(a,b)=>~~(a/b), mod=(a,b)=>a-~~(a/b)*b;
