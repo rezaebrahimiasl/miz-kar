@@ -51,6 +51,7 @@ Nothing is installed into the app or the repository.
 | `92-ux.test.js` | v4.26: «امروز» as the start tab of a new session; message duration by length and tap-to-close; undo bar, message and quick-entry button never overlap (also inside the search sheet); search finds documents and cheques but never vault items or visit notes; «ابزارها» in Tasks and the «بعداً» filter; no automatic print preview after saving a document |
 | `93-fixes427.test.js` | v4.27: search matches Persian and Latin digits (shared `nrm()` unchanged) and opens from «فاکتورها و اسناد» limited to documents; the automatic Google Calendar sign-in stays in the app when the internet does not answer (failed, portal HTML, no answer) and still signs in when it does; manual sign-in unchanged |
 | `94-today-nav.test.js` | v4.28: «امروز» order (prayers → tasks → follow-ups → reminders → tip; first overdue task on the first screen; weekly-review reminder shown); «فاکتورها و اسناد» on the money tab and in «بیشتر»; display settings under «تنظیمات»; search placeholder; AI button only for questions and only with a key |
+| `51-engine-ref.test.js` | information engine: `qExec` data, «پرسش از داده‌ها» pages and offline answers equal the outputs recorded from unchanged v4.30 (`tests/fixtures/engine-ref.json`, 156 queries + 17 questions, clock and ids fixed; `tools/engine-ref-gen.js`) — the guard for moving the engine to `js/engine.js` (A2) |
 | `lib.js` | local static server, browser launch, condition-based waits, synthetic seeds, invariants |
 
 ## Finding code (instead of reading index.html)
