@@ -608,3 +608,8 @@
 - `sw.js`: `js/core.js` in `SHELL`; `fetchAll` installs only if index.html and core carry the same version; `saveShell` stores a fresh index.html only with a core of its version (fetched if needed) and never over a newer pair; `coreFromCache` serves core from the same cache as the index.html. `stashLatest` stores core first, then index.html, only as a matching pair.
 - Tests: `46` (reference outputs recorded from v4.30 before the move, `tools/core-ref-gen.js`), `47` (guard and shell pairs), `00` checks core + inline scripts together (no name declared twice) and `CORE_VER`.
 
+## v4.32 — Architecture A2: js/engine.js and a version-matched file list (local branch `a2-prep`, not released)
+- `js/engine.js` (classic script, after `js/core.js`, before the main script): `QE`, `qNorm`, `qExec`, `qHtml`, `aiRun`, moved byte-for-byte; version marker `ENGINE_VER`. The form and AI parts (`QF`, `qFormHtml`, `qFormRun`, `aiAsk`, `aiAskRun`, `AI_Q`) stay in index.html.
+- Guard: also requires `ENGINE_VER===APP_VER` and `qNorm`/`qExec`/`qHtml`; the recovery screen names the missing file.
+- `sw.js`: `PARTS` (file → version marker) replaces the single core: `fetchAll` installs only if index.html and every part agree; `saveShell` stores a fresh index.html only with all parts of its version, never over a newer set; `partFromCache` serves each part from the cache of the served index.html. `stashLatest` does the same in the page. Adding a part = one entry in `PARTS`, one in the page's `stashLatest` list, one `<script>` tag and the guard.
+- Tests: `51` (engine outputs recorded from v4.30, `tools/engine-ref-gen.js`), `47` (guard and shell sets now cover the engine), `00`/`05` know `js/engine.js`.
