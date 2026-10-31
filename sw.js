@@ -1,11 +1,11 @@
-const V='miz-kar-v4.32';const VER=V.slice(9);const KEEP=[V,'miz-shell','miz-share'];const SHELL=['./','index.html','manifest.webmanifest','icon2-192.png','icon2-512.png','icon2-maskable-512.png','logo.webp','qr.js','js/core.js','js/engine.js'];
+const V='miz-kar-v4.33';const VER=V.slice(9);const KEEP=[V,'miz-shell','miz-share'];const SHELL=['./','index.html','manifest.webmanifest','icon2-192.png','icon2-512.png','icon2-maskable-512.png','logo.webp','qr.js','js/core.js','js/engine.js','js/backup.js'];
 // Install (O3): download and validate EVERY file first; only then write the new cache and take over.
 // If any file fails (offline, 404, captive portal, broken download) the install fails, the browser keeps the current
 // worker, and activation, which is what deletes old caches, never happens: the last working offline app stays intact.
 // The offline shell may only ever be the real app: an HTML page that contains the app's version marker
 const isApp=t=>typeof t==='string'&&/const APP_VER='\d+(?:\.\d+)*';/.test(t);
 // index.html and its parts (PARTS: file → version marker) belong together: each carries its version; a set is only ever stored when all say the same version
-const verOf=(t,k)=>((typeof t==='string'&&t.match(new RegExp('const '+k+"='(\\d+(?:\\.\\d+)*)';")))||[])[1]||'';const PARTS={'js/core.js':'CORE_VER','js/engine.js':'ENGINE_VER'};const PART_LIST=Object.keys(PARTS);const partOf=u=>{const p=new URL(u,self.location).pathname;return PART_LIST.find(f=>p===SCOPE+f)||''};const SCOPE=new URL('./',self.location).pathname;const isShellUrl=u=>{const p=new URL(u,self.location).pathname;return p===SCOPE||p===SCOPE+'index.html'};
+const verOf=(t,k)=>((typeof t==='string'&&t.match(new RegExp('const '+k+"='(\\d+(?:\\.\\d+)*)';")))||[])[1]||'';const PARTS={'js/core.js':'CORE_VER','js/engine.js':'ENGINE_VER','js/backup.js':'BACKUP_VER'};const PART_LIST=Object.keys(PARTS);const partOf=u=>{const p=new URL(u,self.location).pathname;return PART_LIST.find(f=>p===SCOPE+f)||''};const SCOPE=new URL('./',self.location).pathname;const isShellUrl=u=>{const p=new URL(u,self.location).pathname;return p===SCOPE||p===SCOPE+'index.html'};
 async function appOnly(res){if(!res||!res.ok||res.redirected||!/text\/html/i.test(res.headers.get('content-type')||''))return null;const t=await res.clone().text();return isApp(t)?t:null}
 async function fetchAll(){const seen={};const got=await Promise.all(SHELL.map(async u=>{const r=await fetch(u,{cache:'reload'});if(!r.ok||r.redirected)throw new Error('install: '+u+' '+r.status);
   if(isShellUrl(u)){const t=await appOnly(r);if(!t)throw new Error('install: '+u+' is not the app');seen[u]=verOf(t,'APP_VER');return [u,new Response(t,{headers:{'Content-Type':'text/html; charset=utf-8'}})]}

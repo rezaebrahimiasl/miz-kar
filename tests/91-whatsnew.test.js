@@ -11,9 +11,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const SOURCE = /^(تازه‌ها و بخش‌های نرفته|تازه‌های میز کار|تازه‌ها و ناشناخته‌ها)/;
 async function where(p, w0) { const snap = async () => { const s = await p.evaluate(() => { const r = document.getElementById('sheetRoot'); const hs = r.hidden ? [] : [...r.querySelectorAll('h3,h4')];
     return { tab, ms: ui.ms, biz: ui.biz, open: !r.hidden, h: hs.length ? hs[hs.length - 1].textContent.trim() : '' }; }); s.win = o.ctx.pages().length > w0; return s; };
+  // still on «تازه‌ها» after 1 s: an async destination (e.g. syOpen loads first) gets up to 3 s under load
   const t0 = Date.now(); let last = await snap(), s;
   for (;;) { await p.waitForTimeout(60); s = await snap(); const dt = Date.now() - t0, there = s.win || s.tab !== 'home' || (s.open && s.h && !SOURCE.test(s.h));
-    if (JSON.stringify(s) === JSON.stringify(last) && (there || dt >= 1000)) break; if (dt > 3000) break; last = s; }
+    if (JSON.stringify(s) === JSON.stringify(last) && (there || (dt >= 1000 && !(s.open && SOURCE.test(s.h))))) break; if (dt > 3000) break; last = s; }
   for (const x of o.ctx.pages().slice(w0)) await x.close().catch(() => {}); return s; }
 const reset = p => p.evaluate(async () => { closeSheet(); while (typeof SST !== 'undefined' && SST.length) SST.pop(); closeSheet(); goTab('home'); ui.ms = undefined; ui.biz = undefined;
   // wait until the home view is drawn and no sheet is open (was a fixed 200 ms), at most 2 s

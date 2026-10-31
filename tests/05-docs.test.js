@@ -3,7 +3,7 @@ const fs = require('fs'), path = require('path');
 const { ROOT, test, run, assert } = require('./lib');
 const rd = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const html = rd('index.html'), sw = rd('sw.js');
-const js = [rd('js/core.js'), rd('js/engine.js'), ...[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1])].join('\n');   // js/core.js then js/engine.js run first, in the same global scope
+const js = [rd('js/core.js'), rd('js/engine.js'), rd('js/backup.js'), ...[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1])].join('\n');   // js/core.js, js/engine.js, js/backup.js run first, in the same global scope
 const DOCS = ['docs/ARCHITECTURE.md', 'docs/DATA.md', 'docs/RELEASE.md', 'docs/BACKLOG.md'];
 
 test('DATA.md lists exactly the collections in S (COLS)', () => {

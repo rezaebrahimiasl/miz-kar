@@ -6,10 +6,14 @@ They are developer tools only: the app never loads anything from this folder.
 ## Run
 
 ```sh
-sh tests/run.sh          # everything (about 4 minutes)
+sh tests/run.sh          # everything — required before every release; ends with ALL PASSED or the list of FAILED files
 sh tests/run.sh 20       # only tests/20-*.test.js
-node tests/30-docs.test.js
+node tests/52-auto-backup.test.js   # one file
+VERBOSE=1 node tests/52-auto-backup.test.js   # with full error stacks
 ```
+
+A failure prints the test name, the first line of the error and the line in the test file where it happened (`at tests/…:N`);
+the summary repeats each failed file with the command that reruns it. Exit code: 0 all passed, 1 a test failed, 2 setup problem.
 
 Requirements on the machine that runs them: Node 18 or newer and Playwright with Chromium.
 Nothing is installed into the app or the repository.
@@ -40,7 +44,8 @@ Nothing is installed into the app or the repository.
 | `46-core-ref.test.js` | `js/core.js` (Jalali calendar 1390–1420, dates, `parseJ`, digits, escaping, number and money formatting, constants) gives exactly the outputs recorded from unchanged v4.30 (`tests/fixtures/core-ref.json`, clock fixed) |
 | `47-core-shell.test.js` | start-up guard: `js/core.js` or `js/engine.js` missing or of another version → recovery screen, app not started, data untouched, reload restores; the worker installs only a matching index.html + parts set; a newer index.html is stored (navigation refresh, `stashLatest`) only with all its own parts, never over a newer set; offline still opens |
 | `48-receipt-key.test.js` | a bank message is recognised as already processed: without its own date on a later day, with a key stored by 4.30, after «ثبت دریافت/پرداخت» and «تسویه» from the receipt page (key stored, exactly one row); a dated message of another date is not |
-| `49-upgrade-430.test.js` | the real upgrade, locally: published 4.30 (git `25163ab`) installed with its worker and synthetic data, then this version published; 4.30's own update button → this version opens online and in airplane mode with the data and dates intact; the window where 4.30 stored the new index.html before the new worker exists → offline shows the app or the recovery screen (never blank), online again opens the app |
+| `49-upgrade-430.test.js` | the real upgrade, locally, from each published version (4.30 = git `25163ab`, 4.32 = git `2b6039c`; add the next one to `FROM` after each release): published 4.30 installed with its worker and synthetic data, then this version published; 4.30's own update button → this version opens online and in airplane mode with the data and dates intact; the window where 4.30 stored the new index.html before the new worker exists → offline shows the app or the recovery screen (never blank), online again opens the app |
+| `52-auto-backup.test.js` | automatic local copies (`js/backup.js`): verified after writing, no identical duplicate, a damaged newest copy not trusted; retention keeps the newest daily and the largest copy (10, 5 under storage pressure); a damaged copy is marked and cannot be restored; copy on the first start of a new version (not on a fresh install) and before the update button reloads; a deleted person comes back from a copy; backup page shows the status |
 | `50-workflows.test.js` | clinic visit with a fee (`visitOf`) and deleting it · beekeeping harvest → lot → sale · task paid with a voucher; invariants after each step |
 | `60-offline.test.js` | service worker install, airplane-mode cold launch, offline create/edit, reopen, reconnect without duplicates or uploads |
 | `70-backup-security.test.js` | no cloud upload without the encryption passphrase; encrypted upload decrypts to the same data |

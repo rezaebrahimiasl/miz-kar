@@ -107,11 +107,13 @@ process.on('exit', () => {
 });
 process.on('unhandledRejection', e => { stray++; console.log('  ✗ unhandled rejection: ' + String(e && e.message || e).split('\n')[0]); process.exitCode = 1; });
 const T = []; const test = (name, fn, opt = {}) => T.push({ name, fn, ...opt });
+// where a failure happened: the first stack line inside a test file (not this runner), so it can be opened directly
+const where = e => { const l = String(e && e.stack || '').split('\n').find(x => /tests[\\/]\d\d-[^:]*\.test\.js:\d+/.test(x)); const m = l && l.match(/(tests[\\/][^:]+:\d+)/); return m ? `\n      at ${m[1]}` : ''; };
 async function run(file) {
   let fail = 0, known = 0;
   for (const t of T) { const t0 = Date.now(); let timer;
     try { await Promise.race([t.fn(), new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('timed out after ' + (t.timeout || 60000) / 1000 + ' s')), t.timeout || 60000); })]); console.log(`  ✓ ${t.name} (${Date.now() - t0} ms)`); }
-    catch (e) { if (t.known) { known++; console.log(`  ~ ${t.name} — known issue: ${e.message.split('\n')[0]}`); } else { fail++; console.log(`  ✗ ${t.name}\n      ${e.message.split('\n')[0]}`); } }
+    catch (e) { if (t.known) { known++; console.log(`  ~ ${t.name} — known issue: ${e.message.split('\n')[0]}`); } else { fail++; console.log(`  ✗ ${t.name}\n      ${e.message.split('\n')[0]}${where(e)}`); if (process.env.VERBOSE) console.log(String(e.stack || e)); } }
     finally { clearTimeout(timer); } }
   console.log(`${path.basename(file)}: ${T.length - fail - known} passed, ${fail} failed, ${known} known${stray ? `, ${stray} unhandled rejection(s)` : ''}`); reported = true; process.exitCode = fail || stray ? 1 : 0;
   // a failed test may leave browsers open: close them (max 5 s) so their temporary profiles can be removed, then never hang

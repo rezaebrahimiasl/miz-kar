@@ -21,6 +21,7 @@ Statements marked **[unverified]** were not confirmed against the code.
 | `qr.js` | QR code generator, used for device pairing |
 | `js/core.js` | core utilities (Jalali calendar, dates, digits, escaping, number and money formatting); classic script loaded before the main script, version marker `CORE_VER` = `APP_VER` |
 | `js/engine.js` | information engine (`QE`, `qNorm`, `qExec`, `qHtml`, `aiRun`; read-only); classic script loaded after `js/core.js` and before the main script, version marker `ENGINE_VER` = `APP_VER` |
+| `js/backup.js` | automatic local backups (snapshots in IndexedDB `miz-kar-snap`: take, verify, de-duplicate, retain, start-up/update copies, status); classic script loaded after `js/engine.js`, version marker `BACKUP_VER` = `APP_VER` |
 | `logo.webp`, `icon2-*.png` | brand images (`icon-192.png` and `icon-512.png` are not referenced by the app) |
 | `tests/` | developer test suite (see `tests/README.md`); never loaded by the app |
 | `docs/` | these documents |
@@ -52,7 +53,7 @@ Statements marked **[unverified]** were not confirmed against the code.
 | Storage | IndexedDB database `miz-kar`, one object store `docs`, records `{k:'<collection>/<id>', col, doc}`, written by `idbPut()`. At start `initDb()` loads everything into `S`. |
 | Write path | `save()` (closed-period and date-lock checks; record history is kept by the individual forms) → `putRaw()` → `idbPut()`; deletion via `delDoc()`. Every write calls `markDirty()`, which bumps `window._dv` (the data version). |
 | Derived data | `dataSig()` hashes the data once per tick. `autoEntries()`, `personBal()` and `remMap()` are memoised on it. |
-| Local snapshots | separate IndexedDB `miz-kar-snap`, store `snaps`; `snapTake()` keeps the last 10 full copies (daily, and before restore, sync and delete) |
+| Local snapshots | `js/backup.js`; separate IndexedDB `miz-kar-snap`, store `snaps`; `snapTake()` stores a full copy (daily; before restore, rollback, sync, conflict fix, delete and the update button; first start of a new version, `snapBoot()`), verifies it after writing (`snapCheck()`: parses, row counts match), skips a copy identical to the newest (`h` fingerprint), keeps up to 10 (5 when storage is over 80% used) and never drops the newest daily copy or the one with the most rows (`snapKeep()`); a damaged copy is marked and cannot be restored |
 | Settings | `localStorage` keys prefixed `miz.`; filter and UI memory in `miz.uiF` (`uiKeep()`) |
 | Alternative mode | when running inside a Claude artifact (`window.claude.use('db')`), the cloud collection API replaces IndexedDB (`initDb()`) |
 
@@ -90,7 +91,7 @@ Statements marked **[unverified]** were not confirmed against the code.
 | Aspect | Behaviour |
 |---|---|
 | Cache names | `miz-kar-v<version>` (the versioned app shell), `miz-shell` (last-resort copy of `index.html`), `miz-share` (incoming shares) |
-| Pre-cached files (`SHELL`) | `./`, `index.html`, `manifest.webmanifest`, `icon2-192.png`, `icon2-512.png`, `icon2-maskable-512.png`, `logo.webp`, `qr.js`, `js/core.js`, `js/engine.js` |
+| Pre-cached files (`SHELL`) | `./`, `index.html`, `manifest.webmanifest`, `icon2-192.png`, `icon2-512.png`, `icon2-maskable-512.png`, `logo.webp`, `qr.js`, `js/core.js`, `js/engine.js`, `js/backup.js` |
 | Install | `fetchAll()` downloads every `SHELL` file with `cache:'reload'`; `./` and `index.html` must pass `appOnly()`. Only if every file succeeds is the new cache written and the browser's `self.skipWaiting` called; otherwise the install fails and the current version and its cache stay in use |
 | Shell rule (v4.22) | the offline shell is only ever the real app: `isApp()` requires the version declaration, `isShellUrl()` is the scope's own `/` or `index.html`; `shellFromCache()` reads this version's cache first and `miz-shell` only if it passes `isApp()` |
 | Activate | deletes every cache not in `KEEP`, then claims clients |
@@ -121,3 +122,7 @@ The script is divided by banner comments of the form `/* ---------- Title ------
 ## 5. Tests
 
 See `tests/README.md`. The full suite runs in about 4 minutes and must pass before every push.
+
+## Adding a separate file (part)
+A part is a classic script in `js/` that declares `const <NAME>_VER='<APP_VER>';`. Add it in four places: `PARTS` in `sw.js`, `APP_PARTS` and a `<script src>` tag (same order, before the main script) in `index.html`, and the start-up guard (`PV` and the `<NAME>_VER===APP_VER` check). `tests/00-static.test.js` fails if any place is missed; `tests/47-core-shell.test.js` then covers install, refresh and offline for every part.
+
