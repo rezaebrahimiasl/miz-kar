@@ -292,7 +292,7 @@ html body .row2{grid-template-columns:1fr 1fr}
 /* Google sign-in returns here with #access_token=…; take it before anything else reads the address, keep it only in this tab's memory */
 (()=>{const h=location.hash;if(!/[#&](access_token|error)=/.test(h)||!/state=/.test(h))return;const q=new URLSearchParams(h.slice(1));let s=null;try{s=JSON.parse(sessionStorage.getItem('miz.gc.st')||'null');sessionStorage.removeItem('miz.gc.st')}catch(_){}history.replaceState(null,'',location.pathname+location.search);if(!s||s.st!==q.get('state'))return;
  if(q.get('access_token')){try{sessionStorage.setItem('miz.gc.tok',JSON.stringify({t:q.get('access_token'),exp:Date.now()+(Number(q.get('expires_in'))||3600)*1000-120000}));sessionStorage.removeItem('miz.gc.tried')}catch(_){}window._gcBack={ok:1,ret:s.ret}}else window._gcBack={err:q.get('error')||'خطا',silent:s.silent,ret:s.ret}})();
-const APP_VER='4.36';
+const APP_VER='4.37';
 // the app's separate files and their version markers; all must carry APP_VER (start-up guard, stashLatest; sw.js PARTS is the same list, checked by tests/00)
 const APP_PARTS={'js/core.js':'CORE_VER','js/engine.js':'ENGINE_VER','js/backup.js':'BACKUP_VER'};
 /* ---------- Start-up guard: js/core.js (dates, digits, formatting) and js/engine.js (information engine) must be loaded and of this same version before anything reads or writes data. Otherwise nothing below runs: the data on the phone stays untouched and a recovery screen offers a reload ---------- */
@@ -2411,6 +2411,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['4.37',[['affairs','cal','تقویم مدیریت','کارها، نوبت‌ها (با ساعت شروع و پایان)، سررسید دریافتنی و پرداختنی و هشدارهای انبار در یک تقویم روزانه، هفتگی و ماهانه؛ موارد گذشته و بی‌تاریخ جدا در «نیاز به توجه». با فیلتر مشاوره، مالی، انبار و کارها؛ هر مورد رکورد خودش را باز می‌کند و کارها را همان‌جا می‌شود انجام‌شده یا به فردا منتقل کرد. از صفحهٔ امروز و «+» کارها باز می‌شود.','mcal']]],
  ['4.36',[['therapy','check','ویزیت به نوبت خودش وصل است','هر ویزیت تازه دقیقاً به نوبتی که انجام شد وصل می‌شود؛ اگر مراجع چند نوبت باز دارد باید انتخاب کنی. نوبتی که ویزیتی به آن وصل است حذف نمی‌شود (می‌شود لغوش کرد) تا تاریخچه گم نشود.']]],
  ['4.35',[['affairs','check','دکمهٔ «+» متناسب با همان صفحه','در کارها، اشخاص و کالا و فروش، «+» کارهای همان بخش را نشان می‌دهد؛ «همهٔ گزینه‌ها» همان فهرست کامل قبلی است.'],['therapy','cal','برنامهٔ نوبت‌ها و وضعیت نوبت','در «مشاوره و ویزیت» دکمهٔ «نوبت‌ها» برنامهٔ امروز، ۷ روز و ۳۰ روز را با ساعت‌های آزاد نشان می‌دهد؛ هر نوبت در انتظار تأیید، تأییدشده، انجام‌شده، لغوشده، نیامده یا جابه‌جاشده است و تاریخچه‌اش می‌ماند. ثبت ویزیت، نوبت همان روز را انجام‌شده می‌کند. دکمهٔ «+» همان صفحه مراجع تازه، ویزیت و نوبت را باز می‌کند.','clinic'],['therapy','cal','نوبت با مدت، نوع خدمت و معرف','هر نوبت ساعت شروع و پایان (مثلاً ۱۰:۰۰–۱۰:۴۵)، نوع خدمت (ویزیت، جلسهٔ درمان، ماساژ، حجامت…)، معرف و یادداشت دارد؛ هم‌پوشانی با بازهٔ زمانی سنجیده می‌شود و ساعت پایان واقعی با ثبت ویزیت ذخیره می‌شود. صفحهٔ مشاوره نوبت‌های گذشتهٔ بی‌وضعیت و مراجعانی را که نوبت بعدی ندارند نشان می‌دهد.']]],
  ['4.34',[['finance','check','قیمت غیرعادی را می‌شود تأیید کرد','اگر قیمت یک محموله درست است ولی غیرعادی به نظر می‌رسد، «این قیمت درست است» را بزن؛ تا وقتی قیمت بیش از ۱۰٪ تغییر نکند دوباره هشدار نمی‌آید. قیمتِ نوع دیگری از همان کالا دیگر مرجع مقایسه نیست، و اختلاف خیلی زیاد (۵۰ برابر) جدا به‌عنوان احتمال خطای ورود نشان داده می‌شود.']]],
@@ -3284,6 +3285,7 @@ function vToday(){
   let h='',A='';
   if(TS('capture'))h+=`<form class="capture" data-form="capture"><input id="capIn" value="${esc((()=>{try{return localStorage.getItem('miz.capDraft')||''}catch(_){return''}})())}" placeholder="یادداشت سریع…" aria-label="یادداشت سریع">${micBtn('capIn')}<button class="btn pri">بنویس</button></form>`;
   if(isLoading)h+=`<div class="empty">در حال بارگذاری…</div>`;
+   if(!isLoading){const M=mcItems(),t0=today();const td=M.filter(x=>x.date===t0).length,od=M.filter(x=>x.date&&x.date<t0).length;h+=`<button class="banner" data-act="mcal" data-v="day" data-d="${t0}" style="width:100%;text-align:start;margin:8px 0">${badge('affairs','cal')}<span style="flex:1">تقویم مدیریت: امروز ${fa(td)} مورد${od?` · <b style="color:var(--bad)">${fa(od)} گذشته</b>`:''}</span><span>›</span></button>`}
   if(mode==='local'&&!GH.cfg.token&&false){}
   {const lg=legacyAmounts();if(lg.length&&!(()=>{try{return localStorage.getItem('miz.legacyOk')}catch(_){return 0}})())A+=`<div class="banner">${svg('warn')} ${fa(lg.length)} مبلغ تومانی کمتر از هزار تومان ثبت شده (مثل «${nfmt(lg[0].v)} تومان»). احتمالاً قبل از نسخهٔ ۰٫۷ به میلیون نوشته شده‌اند.<div class="acts" style="margin-top:8px"><button class="btn pri" data-act="fixLegacy">بله، به میلیون تبدیل کن</button><button class="btn ghost" data-act="legacyOk">نه، درست‌اند</button></div></div>`}
   {const at=TS('trip')&&on('trips')&&activeTrip();if(at)h+=tripCard(at)}
@@ -3844,7 +3846,7 @@ function formNote(n={}){openSheet(`<h3>${n.id?'ویرایش':'یادداشت ج�
 /* ---------- Contextual «+»: actions of the current page (one table; every item opens an existing form or page; «همه» = the full menu) ---------- */
 const CTX_ADD={
  people:()=>[['new','person','user','affairs','شخص تازه'],on('deals')&&['new','deal','search','affairs','فرصت تازه'],on('clinic')&&['newCase','','therapy','therapy','مراجع تازه (پرونده)']],
- tasks:()=>[['new','task','check','affairs','کار تازه'],['bulk','','note','affairs','چند کار با هم'],['new','inbox','note','affairs','یادداشت سریع'],on('clinic')&&['cPick','book','cal','therapy','نوبت برای مراجع']],
+ tasks:()=>[['mcal','','cal','affairs','تقویم مدیریت','روز، هفته، ماه؛ کار، نوبت، سررسید مالی'],['new','task','check','affairs','کار تازه'],['bulk','','note','affairs','چند کار با هم'],['new','inbox','note','affairs','یادداشت سریع'],on('clinic')&&['cPick','book','cal','therapy','نوبت برای مراجع']],
  biz:()=>on('stock')?[[on('docs')?'saleNew':'newMove','','note','finance','فروش'],on('docs')&&['buyNew','','box','finance','خرید'],['newLot','','hive','finance','ورود کالا (محموله)'],['newMove','','box','finance','خروج یا جابه‌جایی کالا'],['newQuote','','tag','finance','ثبت قیمت'],on('docs')&&['docsSheet','','note','finance','فاکتورها و اسناد'],['reports','','chart','finance','گزارش‌ها']]:[],
  clinic:()=>[['newCase','','user','therapy','مراجع تازه (پرونده)'],['cPick','visit','therapy','therapy','ویزیت یا جلسهٔ درمان','برای مراجعی که پرونده دارد'],['cPick','book','cal','therapy','نوبت تازه'],['apptList','','cal','therapy','برنامهٔ نوبت‌ها','امروز، هفته، ماه'],['clinic','','note','therapy','پیگیری‌ها و پرونده‌ها'],['reports','','chart','finance','گزارش‌ها']]};
 function ctxAdd(k){const L=(CTX_ADD[k]?CTX_ADD[k]():[]).filter(Boolean);if(!L.length)return quickAdd();
@@ -3856,6 +3858,30 @@ function cPickSheet(mode){const L=S.cases.filter(c=>c.status!=='closed').sort((a
   <div class="acts" style="margin-top:10px"><button class="btn" data-act="newCase">مراجع تازه</button><button class="btn ghost" data-act="close">بستن</button></div>`);
   const q=document.getElementById('f_cpq');if(q)q.oninput=()=>{const t=nrm(q.value);document.querySelectorAll('#cpL [data-q]').forEach(b=>b.hidden=t&&!nrm(b.dataset.q).includes(t))}}
 /* ---------- Appointments: open tasks with caseId; status in task.appt (pending, confirmed, cancelled, noshow, moved); a visit closes it as done ---------- */
+/* ---------- Unified management calendar: one read-only view over existing records (tasks, appointments, receivables/payables
+   due, stock exceptions); every item keeps its own record and opens it; key = collection/id so nothing appears twice ---------- */
+const MC={clinic:['مشاوره','therapy','therapy'],fin:['مالی','finance','finance'],stock:['انبار','finance','box'],task:['کارها','affairs','check']};
+function mcItems(){const out=new Map();const add=x=>{if(!out.has(x.k))out.set(x.k,x)};
+  S.tasks.filter(t=>t.status==='open').forEach(t=>add({k:'tasks/'+t.id,mod:t.caseId?'clinic':'task',date:t.due||'',min:taskMin(t),len:t.caseId?tLen(t):(Number(t.dur)||0),title:t.title,pri:t.priority===1,act:t.caseId?'viewCase':'editTask',id:t.caseId||t.id,tid:t.id}));
+  S.ledger.filter(l=>!l.void&&(l.kind==='receivable'||l.kind==='payable')&&!l.settled&&remOf(l)>0.5&&l.due).forEach(l=>add({k:'ledger/'+l.id,mod:'fin',date:l.due,min:null,title:(l.kind==='receivable'?'دریافتنی از ':'پرداختنی به ')+(pname(l.personId)||'—')+' · '+money(remOf(l),l.currency),pri:l.due<today(),act:'viewLedger',id:l.id}));
+  S.lots.filter(l=>!l.void&&lotSuspect(l)).forEach(l=>add({k:'lots/'+l.id,mod:'stock',date:'',min:null,title:'قیمت غیرعادی: '+lotName(l),act:'viewLot',id:l.id}));
+  return [...out.values()]}
+function mcal(v,d,f){v=v||ui.mcV||'day';d=d||ui.mcD||today();f=f===undefined?(ui.mcF||''):f;ui.mcV=v;ui.mcD=d;ui.mcF=f;const t0=today();
+  const J0=jOf(d),from=v==='day'?d:v==='week'?addDays(d,-((wdOf(d)+1)%7)):jIso(J0.jy,J0.jm,1),to=v==='day'?d:v==='week'?addDays(from,6):addDays(J0.jm===12?jIso(J0.jy+1,1,1):jIso(J0.jy,J0.jm+1,1),-1);
+  const A=mcItems().filter(x=>!f||x.mod===f);const inR=A.filter(x=>x.date&&x.date>=from&&x.date<=to).sort((a,b)=>(a.date+(a.min==null?'9999':String(a.min).padStart(4,'0'))).localeCompare(b.date+(b.min==null?'9999':String(b.min).padStart(4,'0'))));
+  const att=A.filter(x=>!x.date||x.date<t0).sort((a,b)=>(a.date||'z').localeCompare(b.date||'z'));
+  const tm=x=>x.min==null?'—':fa(mHM(x.min))+(x.len?'–'+fa(mHM(x.min+x.len)):'');
+  const row=x=>`<div class="row" style="flex-wrap:wrap;border-inline-start:4px solid var(--${x.pri?'bad':'line'})"><button class="main" data-act="${x.act}" data-id="${x.id}" style="all:unset;flex:1;cursor:pointer"><div class="ttl" style="font-size:14px">${badge(MC[x.mod][1],MC[x.mod][2])} ${esc(x.title)}</div><div class="sub"><span>${x.date?jShort(x.date):'بی‌تاریخ'} · ${tm(x)}</span><span class="pill">${MC[x.mod][0]}</span>${x.date&&x.date<t0?'<span class="pill bad">گذشته</span>':''}</div></button>${x.tid?`<div class="chips"><button class="chip" data-act="mcTask" data-id="${x.tid}" data-v="done">انجام شد</button><button class="chip" data-act="mcTask" data-id="${x.tid}" data-v="1">فردا</button></div>`:''}</div>`;
+  const step=v==='day'?1:v==='week'?7:30;const days=[];for(let x=from;x<=to;x=addDays(x,1))days.push(x);
+  const grid=v==='month'?`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:10px">${'<span></span>'.repeat((wdOf(from)+1)%7)}${days.map(x=>{const n=inR.filter(i=>i.date===x).length;return `<button class="chip" data-act="mcal" data-v="day" data-d="${x}" style="flex-direction:column;padding:4px 0;${x===t0?'border-color:var(--accent)':''}">${fa(jOf(x).jd)}${n?`<small style="color:var(--accent)">${fa(n)}</small>`:''}</button>`}).join('')}</div>`:'';
+  openSheet(`<div data-mcal><h3>${badge('affairs','cal')} تقویم مدیریت</h3>
+  <div class="chips" style="margin-bottom:6px">${[['day','روز'],['week','هفته'],['month','ماه']].map(([k,l])=>`<button class="chip" data-act="mcal" data-v="${k}" aria-pressed="${v===k}">${l}</button>`).join('')}<button class="chip" data-act="mcal" data-d="${addDays(d,-step)}">‹ قبل</button><button class="chip" data-act="mcal" data-d="${t0}">امروز</button><button class="chip" data-act="mcal" data-d="${addDays(d,step)}">بعد ›</button></div>
+  <div class="chips" style="margin-bottom:10px">${[['','همه'],...Object.entries(MC).map(([k,x])=>[k,x[0]])].map(([k,l])=>`<button class="chip" data-act="mcalF" data-v="${k}" aria-pressed="${f===k}">${l}</button>`).join('')}</div>
+  <div class="sub" style="margin-bottom:8px">${jNice(from)}${to!==from?' تا '+jNice(to):''}</div>${grid}
+  ${att.length?block('نیاز به توجه (گذشته یا بی‌تاریخ)',att.length,`<div class="list">${att.slice(0,30).map(row).join('')}</div>`):''}
+  ${v==='month'?'':days.map(x=>{const L=inR.filter(i=>i.date===x);return v==='day'||L.length?block(jNice(x),L.length,`<div class="list">${L.map(row).join('')||'<div class="empty">چیزی ثبت نشده.</div>'}</div>`):''}).join('')}
+  ${v==='month'?`<div class="list">${inR.map(row).join('')||'<div class="empty">در این ماه چیزی نیست.</div>'}</div>`:''}
+  <div class="acts" style="margin-top:12px"><button class="btn" data-act="new" data-v="task">کار تازه</button>${on('clinic')?'<button class="btn" data-act="cPick" data-v="book">نوبت</button>':''}<button class="btn ghost" data-act="close">بستن</button></div></div>`)}
 // open appointments of a client on or before a date (candidates for the visit being recorded)
 const apptOpenFor=(caseId,date)=>S.tasks.filter(t=>t.caseId===caseId&&t.status==='open'&&(t.due||'')<=date).sort((a,b)=>(b.due||'').localeCompare(a.due||'')||(a.time||'').localeCompare(b.time||''));
 // an appointment a visit points to (visit.apptId) is never deleted for good; it can be cancelled instead
@@ -5525,6 +5551,9 @@ document.addEventListener('click',e=>recvBatch(async()=>{
     case'clinic':clinicSheet();break;
     case'ctxAdd':ctxAdd(b.dataset.v);break;
     case'quick':quickAdd();break;
+    case'mcal':mcal(b.dataset.v||'',b.dataset.d||'');break;
+    case'mcalF':mcal('', '', b.dataset.v||'');break;
+    case'mcTask':{const t=byId('tasks',id);if(!t)break;if(b.dataset.v==='done')await save('tasks',id,{status:'done',doneAt:nowTs()});else await save('tasks',id,{due:addDays(t.due&&t.due>today()?t.due:today(),Number(b.dataset.v)||1)});if(document.querySelector('#sheetRoot [data-mcal]'))mcal();break}
     case'cPick':cPickSheet(b.dataset.v);break;
     case'apptList':apptList(b.dataset.v);break;
     case'apptSet':await apptSet(id,b.dataset.v);break;

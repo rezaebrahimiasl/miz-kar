@@ -642,3 +642,7 @@
 - `visit.apptId`: the visit form (new visits) shows «نوبتِ این ویزیت» (`f_vap`) with the client's open appointments up to the visit date (`apptOpenFor`); one → preselected, several → a choice is required (saving is refused until chosen), «بدون نوبت» allowed. Completion uses that id only (the 4.35 time-nearest guess is gone). Older visits without `apptId` unchanged.
 - `apptLinked(id)`: a task a visit points to is never deleted — no delete button in the log (`LOGT2.tasks.del`) and `delDoc('tasks',…)` refuses; cancel via `apptSet`. Test 56 (+55 updated). Rollback: restore `f7104bc` files as 4.37; `apptId` is ignored by 4.35.
 
+## v4.37 — unified management calendar
+- `mcItems()` (read-only, key `collection/id` so nothing appears twice): open tasks (appointments = `caseId`, with `tLen` ranges), receivable/payable rows with `due` and a remainder, lots flagged by `lotSuspect` (undated). `mcal(view, date, filter)`: day / week / month (month grid → day), «نیاز به توجه» (past or undated), filters (`MC`: clinic, fin, stock, task); rows open their own record (`viewCase`, `editTask`, `viewLedger`, `viewLot`); `mcTask` done / tomorrow. Entry: Today page banner (counts), tasks «+». No new store.
+- Not included: trips, recurring payments, cheques without `due`, month grid of other modules' own calendars, drag-to-reschedule.
+
