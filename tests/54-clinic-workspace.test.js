@@ -30,7 +30,11 @@ test('contextual «+»: each page gets its own actions, every action is a real c
   await p.evaluate(() => { closeSheet(); tab = 'dom'; ui.dom = 'research'; }); await p.click('#fab'); assert(await p.$('#sheetRoot [data-addsheet]:not([data-ctx])'), 'domain without its own menu should open the full menu');
   await p.evaluate(() => { closeSheet(); clinicSheet(); }); await click('#sheetRoot [data-act=ctxAdd][data-v=clinic]');
   for (const a of ['newCase', 'cPick', 'apptList']) assert(await p.$(`#sheetRoot [data-ctx=clinic] [data-act=${a}]`), 'clinic menu lacks ' + a);
-  await click('#sheetRoot [data-act=quick]'); assert(await p.$('#sheetRoot [data-addsheet]:not([data-ctx])'), '«همهٔ گزینه‌ها» did not open the full menu');
+  // the clinical menu has no route to the general menu: no «همهٔ گزینه‌ها», no general actions
+  assert(!(await p.$('#sheetRoot [data-ctx=clinic] [data-act=quick]')) && !(await p.$('#sheetRoot [data-ctx=clinic] [data-act=new]')) && !(await p.$('#sheetRoot [data-ctx=clinic] [data-act=bulk]')), 'clinic menu leads to the general menu');
+  assert(await p.evaluate(() => { const o = tab, d = ui.dom; tab = 'dom'; ui.dom = 'clinic'; const k = fabKey(); tab = o; ui.dom = d; return k === 'clinic' && CTX_NOQUICK.includes(k); }), 'domain «طب کل‌نگر» FAB would offer the full menu');
+  // other menus keep it
+  await p.evaluate(() => ctxAdd('tasks')); await settle(p); assert(await p.$('#sheetRoot [data-ctx=tasks] [data-act=quick]'), 'other menus lost «همهٔ گزینه‌ها»');
   await p.evaluate(() => { closeSheet(); tab = 'today'; render(); });
 });
 

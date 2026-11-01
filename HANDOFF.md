@@ -647,5 +647,5 @@
 - Not included: trips, recurring payments, cheques without `due`, month grid of other modules' own calendars, drag-to-reschedule.
 
 ## v4.38 — «+» on domain pages
-- Root cause: domain pages (tab `dom`, `ui.dom` = clinic «طب کل‌نگر», trade, money, …) were not in `fabKey`, so the FAB fell back to `quickAdd` (full menu). `FAB_DOM` maps clinic→clinic, trade→biz, people, tasks, money (money keeps `moneyAdd`); other domains still open the full menu. Test 54 extended (fails on 4.37).
+- Root cause: domain pages (tab `dom`, `ui.dom` = clinic «طب کل‌نگر», trade, money, …) were not in `fabKey`, so the FAB fell back to `quickAdd` (full menu). `FAB_DOM` maps clinic→clinic, trade→biz, people, tasks, money (money keeps `moneyAdd`); other domains still open the full menu. The clinic menu has no «همهٔ گزینه‌ها» (`CTX_NOQUICK`). Test 54 extended (fails on 4.37).
 
