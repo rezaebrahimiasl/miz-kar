@@ -21,6 +21,13 @@ test('contextual «+»: each page gets its own actions, every action is a real c
     await p.evaluate(t => { closeSheet(); tab = t; }, t); await p.click('#fab'); await p.waitForSelector(`#sheetRoot [data-ctx="${k}"]`);
     assert(await p.$(`#sheetRoot [data-ctx="${k}"] [data-act="${must}"]`), `${k}: «${must}» missing`); }
   await p.evaluate(() => { closeSheet(); tab = 'money'; }); await p.click('#fab'); assert(!(await p.$('#sheetRoot [data-ctx]')), 'money page lost its own menu');
+  // domain pages (tab 'dom'): «طب کل‌نگر» → clinic actions only; trade → stock; money → money menu; others → full menu
+  for (const [dom, k, must, never] of [['clinic', 'clinic', 'newCase', 'new'], ['trade', 'biz', 'buyNew', 'newCase'], ['people', 'people', 'new', 'buyNew']]) {
+    await p.evaluate(d => { closeSheet(); tab = 'dom'; ui.dom = d; }, dom); await p.click('#fab'); await p.waitForSelector(`#sheetRoot [data-ctx="${k}"]`);
+    assert(await p.$(`#sheetRoot [data-ctx="${k}"] [data-act="${must}"]`) && !(await p.$(`#sheetRoot [data-ctx="${k}"] [data-act="${never}"]`)), `domain ${dom}: wrong menu`); }
+  assert(await p.evaluate(() => !CTX_ADD.clinic().filter(Boolean).some(x => x[0] === 'new' || x[0] === 'bulk' || x[0] === 'saleNew')), 'clinic menu has general or other-module actions');
+  await p.evaluate(() => { closeSheet(); tab = 'dom'; ui.dom = 'money'; }); await p.click('#fab'); assert(await p.$('#sheetRoot [data-act=accVoucher]') && !(await p.$('#sheetRoot [data-ctx]')), 'money domain lost the money menu');
+  await p.evaluate(() => { closeSheet(); tab = 'dom'; ui.dom = 'research'; }); await p.click('#fab'); assert(await p.$('#sheetRoot [data-addsheet]:not([data-ctx])'), 'domain without its own menu should open the full menu');
   await p.evaluate(() => { closeSheet(); clinicSheet(); }); await click('#sheetRoot [data-act=ctxAdd][data-v=clinic]');
   for (const a of ['newCase', 'cPick', 'apptList']) assert(await p.$(`#sheetRoot [data-ctx=clinic] [data-act=${a}]`), 'clinic menu lacks ' + a);
   await click('#sheetRoot [data-act=quick]'); assert(await p.$('#sheetRoot [data-addsheet]:not([data-ctx])'), '«همهٔ گزینه‌ها» did not open the full menu');

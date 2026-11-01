@@ -292,7 +292,7 @@ html body .row2{grid-template-columns:1fr 1fr}
 /* Google sign-in returns here with #access_token=…; take it before anything else reads the address, keep it only in this tab's memory */
 (()=>{const h=location.hash;if(!/[#&](access_token|error)=/.test(h)||!/state=/.test(h))return;const q=new URLSearchParams(h.slice(1));let s=null;try{s=JSON.parse(sessionStorage.getItem('miz.gc.st')||'null');sessionStorage.removeItem('miz.gc.st')}catch(_){}history.replaceState(null,'',location.pathname+location.search);if(!s||s.st!==q.get('state'))return;
  if(q.get('access_token')){try{sessionStorage.setItem('miz.gc.tok',JSON.stringify({t:q.get('access_token'),exp:Date.now()+(Number(q.get('expires_in'))||3600)*1000-120000}));sessionStorage.removeItem('miz.gc.tried')}catch(_){}window._gcBack={ok:1,ret:s.ret}}else window._gcBack={err:q.get('error')||'خطا',silent:s.silent,ret:s.ret}})();
-const APP_VER='4.37';
+const APP_VER='4.38';
 // the app's separate files and their version markers; all must carry APP_VER (start-up guard, stashLatest; sw.js PARTS is the same list, checked by tests/00)
 const APP_PARTS={'js/core.js':'CORE_VER','js/engine.js':'ENGINE_VER','js/backup.js':'BACKUP_VER'};
 /* ---------- Start-up guard: js/core.js (dates, digits, formatting) and js/engine.js (information engine) must be loaded and of this same version before anything reads or writes data. Otherwise nothing below runs: the data on the phone stays untouched and a recovery screen offers a reload ---------- */
@@ -2411,6 +2411,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['4.38',[['therapy','check','«+» در صفحهٔ طب کل‌نگر','در صفحهٔ «طب کل‌نگر» دکمهٔ «+» فقط کارهای همان بخش را نشان می‌دهد (مراجع تازه، ویزیت، نوبت، برنامهٔ نوبت‌ها)؛ صفحه‌های تجارت و انبار، افراد، کارها و مالی هم «+» خودشان را دارند.']]],
  ['4.37',[['affairs','cal','تقویم مدیریت','کارها، نوبت‌ها (با ساعت شروع و پایان)، سررسید دریافتنی و پرداختنی و هشدارهای انبار در یک تقویم روزانه، هفتگی و ماهانه؛ موارد گذشته و بی‌تاریخ جدا در «نیاز به توجه». با فیلتر مشاوره، مالی، انبار و کارها؛ هر مورد رکورد خودش را باز می‌کند و کارها را همان‌جا می‌شود انجام‌شده یا به فردا منتقل کرد. از صفحهٔ امروز و «+» کارها باز می‌شود.','mcal']]],
  ['4.36',[['therapy','check','ویزیت به نوبت خودش وصل است','هر ویزیت تازه دقیقاً به نوبتی که انجام شد وصل می‌شود؛ اگر مراجع چند نوبت باز دارد باید انتخاب کنی. نوبتی که ویزیتی به آن وصل است حذف نمی‌شود (می‌شود لغوش کرد) تا تاریخچه گم نشود.']]],
  ['4.35',[['affairs','check','دکمهٔ «+» متناسب با همان صفحه','در کارها، اشخاص و کالا و فروش، «+» کارهای همان بخش را نشان می‌دهد؛ «همهٔ گزینه‌ها» همان فهرست کامل قبلی است.'],['therapy','cal','برنامهٔ نوبت‌ها و وضعیت نوبت','در «مشاوره و ویزیت» دکمهٔ «نوبت‌ها» برنامهٔ امروز، ۷ روز و ۳۰ روز را با ساعت‌های آزاد نشان می‌دهد؛ هر نوبت در انتظار تأیید، تأییدشده، انجام‌شده، لغوشده، نیامده یا جابه‌جاشده است و تاریخچه‌اش می‌ماند. ثبت ویزیت، نوبت همان روز را انجام‌شده می‌کند. دکمهٔ «+» همان صفحه مراجع تازه، ویزیت و نوبت را باز می‌کند.','clinic'],['therapy','cal','نوبت با مدت، نوع خدمت و معرف','هر نوبت ساعت شروع و پایان (مثلاً ۱۰:۰۰–۱۰:۴۵)، نوع خدمت (ویزیت، جلسهٔ درمان، ماساژ، حجامت…)، معرف و یادداشت دارد؛ هم‌پوشانی با بازهٔ زمانی سنجیده می‌شود و ساعت پایان واقعی با ثبت ویزیت ذخیره می‌شود. صفحهٔ مشاوره نوبت‌های گذشتهٔ بی‌وضعیت و مراجعانی را که نوبت بعدی ندارند نشان می‌دهد.']]],
@@ -3851,7 +3852,9 @@ const CTX_ADD={
  clinic:()=>[['newCase','','user','therapy','مراجع تازه (پرونده)'],['cPick','visit','therapy','therapy','ویزیت یا جلسهٔ درمان','برای مراجعی که پرونده دارد'],['cPick','book','cal','therapy','نوبت تازه'],['apptList','','cal','therapy','برنامهٔ نوبت‌ها','امروز، هفته، ماه'],['clinic','','note','therapy','پیگیری‌ها و پرونده‌ها'],['reports','','chart','finance','گزارش‌ها']]};
 function ctxAdd(k){const L=(CTX_ADD[k]?CTX_ADD[k]():[]).filter(Boolean);if(!L.length)return quickAdd();
   openSheet(`<div data-addsheet data-ctx="${k}"><h3>ثبت و دسترسی سریع</h3><div class="tiles">${L.map(([a,v,ic,ar,t,sm])=>`<button class="tile" data-act="${a}"${v?` data-v="${v}"`:''}>${badge(ar,ic)}<span><b>${t}</b>${sm?`<small>${sm}</small>`:''}</span></button>`).join('')}</div><div class="acts" style="margin-top:12px"><button class="btn" data-act="quick">همهٔ گزینه‌ها</button><button class="btn ghost" data-act="close">بستن</button></div></div>`)}
-const fabKey=()=>tab==='biz'?'biz':tab==='people'?'people':tab==='tasks'?'tasks':'';
+// the «+» context: the tab, or for a domain page (tab 'dom') the module it shows; '' = full menu
+const FAB_DOM={clinic:'clinic',trade:'biz',people:'people',tasks:'tasks',money:'money'};
+const fabKey=()=>{const k=tab==='dom'?FAB_DOM[ui.dom]||'':tab;return ['biz','people','tasks','clinic','money'].includes(k)?k:''};
 // pick a client (active case) for a visit or an appointment
 function cPickSheet(mode){const L=S.cases.filter(c=>c.status!=='closed').sort((a,b)=>(b.updated||'').localeCompare(a.updated||''));
   openSheet(`<h3>${badge('therapy','user')} ${mode==='book'?'نوبت برای کدام مراجع؟':'ویزیت کدام مراجع؟'}</h3><input id="f_cpq" placeholder="جستجوی نام یا کد" style="margin-bottom:8px"><div class="list" id="cpL">${L.map(c=>`<button class="row" data-act="${mode==='book'?'cBook':'newVisit'}" data-id="${c.id}" data-q="${esc((c.code||'')+' '+(pname(c.personId)||''))}"><div class="main"><div class="ttl">${esc(c.code)}${c.personId?' · '+esc(pname(c.personId)):''}</div></div></button>`).join('')||'<div class="empty">پرونده‌ای در جریان نیست.</div>'}</div>
@@ -6125,7 +6128,7 @@ addEventListener('popstate',e=>{if(document.getElementById('hv'))return;if(windo
   v.addEventListener('touchend',e=>{if(!ok||dir!==1)return;const dx=e.changedTouches[0].clientX-x0;const o=order();const i=o.indexOf(tab==='deals'||tab==='stock'?'biz':tab);const j=dx>0?i+1:i-1;
     if(Math.abs(dx)<55||i<0||j<0||j>=o.length)return reset();v.style.transition='none';goTab(o[j]);v.style.transform=`translateX(${dx>0?-36:36}px)`;v.style.opacity='.55';requestAnimationFrame(()=>requestAnimationFrame(reset))},{passive:true});
   v.addEventListener('touchcancel',()=>{if(dir===1)reset()},{passive:true})})();
-document.getElementById('fab').addEventListener('click',()=>tab==='money'?moneyAdd():fabKey()?ctxAdd(fabKey()):quickAdd());
+document.getElementById('fab').addEventListener('click',()=>{const k=fabKey();k==='money'?moneyAdd():k?ctxAdd(k):quickAdd()});
 document.getElementById('btnSearch').addEventListener('click',searchSheet);
 document.getElementById('btnMenu').addEventListener('click',menuSheet);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.getElementById('sheetRoot').hidden)closeSheet()});

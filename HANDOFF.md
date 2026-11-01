@@ -646,3 +646,6 @@
 - `mcItems()` (read-only, key `collection/id` so nothing appears twice): open tasks (appointments = `caseId`, with `tLen` ranges), receivable/payable rows with `due` and a remainder, lots flagged by `lotSuspect` (undated). `mcal(view, date, filter)`: day / week / month (month grid → day), «نیاز به توجه» (past or undated), filters (`MC`: clinic, fin, stock, task); rows open their own record (`viewCase`, `editTask`, `viewLedger`, `viewLot`); `mcTask` done / tomorrow. Entry: Today page banner (counts), tasks «+». No new store.
 - Not included: trips, recurring payments, cheques without `due`, month grid of other modules' own calendars, drag-to-reschedule.
 
+## v4.38 — «+» on domain pages
+- Root cause: domain pages (tab `dom`, `ui.dom` = clinic «طب کل‌نگر», trade, money, …) were not in `fabKey`, so the FAB fell back to `quickAdd` (full menu). `FAB_DOM` maps clinic→clinic, trade→biz, people, tasks, money (money keeps `moneyAdd`); other domains still open the full menu. Test 54 extended (fails on 4.37).
+
