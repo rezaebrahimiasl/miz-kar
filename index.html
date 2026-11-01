@@ -3806,7 +3806,7 @@ function stmtPrint(pid){const p=byId('people',pid);const d={type:'letter',person
 function viewPerson(id){const p=byId('people',id);if(!p){toast('شخص پیدا نشد');return}
   const b=balances(id);const deals=S.deals.filter(d=>d.personId===id);const tasks=S.tasks.filter(t=>t.personId===id&&t.status!=='done'&&t.status!=='archived');const led=S.ledger.filter(l=>l.personId===id).sort((a,c)=>(c.date||'').localeCompare(a.date||''));
   const bs=Object.entries(b).filter(([,v])=>Math.abs(v)>0.0001);
-  openSheet(`<div class="det"><h3 style="display:flex;align-items:center;gap:8px">${esc(p.name)}<button class="btn ghost" data-act="editPerson" data-id="${id}" style="margin-inline-start:auto;padding:6px 10px;font-size:13px">✎ مشخصات</button></h3><div class="sub" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">${(p.roles||[]).map(r=>`<span class="pill">${esc(r)}</span>`).join('')}</div><dl>
+  openSheet(`<div class="det"><h3 style="display:flex;align-items:center;gap:8px">${esc(p.name)}<button class="btn ghost" data-act="pTimeline" data-id="${id}" style="padding:4px 10px">تاریخچه</button><button class="btn ghost" data-act="editPerson" data-id="${id}" style="margin-inline-start:auto;padding:6px 10px;font-size:13px">✎ مشخصات</button></h3><div class="sub" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">${(p.roles||[]).map(r=>`<span class="pill">${esc(r)}</span>`).join('')}</div><dl>
    ${p.org?`<dt>سازمان</dt><dd>${esc(p.org)}</dd>`:''}${p.phone?`<dt>تلفن</dt><dd dir="ltr" style="text-align:right">${esc(p.phone)}</dd>`:''}${p.email?`<dt>ایمیل/لینک</dt><dd dir="ltr" style="text-align:right">${esc(p.email)}</dd>`:''}
    ${(p.occ||[]).length?`<dt>مناسبت‌ها</dt><dd>${p.occ.map(o=>`${esc(o.t)}: ${fa(o.d)} ${MONTHS[o.m-1]}${o.y?' '+fa(o.y)+' ('+fa(jOf(today()).jy-o.y)+' سال)':''}`).join('<br>')}</dd>`:''}
    <dt>آخرین ارتباط</dt><dd>${(()=>{const lt=lastTouch(p);return (lt?jNice(lt)+' ('+fa(diffDays(today(),lt))+' روز پیش)':'ثبت نشده')+(Number(p.every)?' · '+esc((EVERY.find(e=>e[0]===Number(p.every))||[,''])[1]):'')})()} <button class="link" data-act="touched" data-id="${id}">خبر گرفتم ✓</button></dd>
@@ -3887,6 +3887,21 @@ function mcal(v,d,f){v=v||ui.mcV||'day';d=d||ui.mcD||today();f=f===undefined?(ui
   ${v==='month'?'':days.map(x=>{const L=inR.filter(i=>i.date===x);return v==='day'||L.length?block(jNice(x),L.length,`<div class="list">${L.map(row).join('')||'<div class="empty">چیزی ثبت نشده.</div>'}</div>`):''}).join('')}
   ${v==='month'?`<div class="list">${inR.map(row).join('')||'<div class="empty">در این ماه چیزی نیست.</div>'}</div>`:''}
   <div class="acts" style="margin-top:12px"><button class="btn" data-act="new" data-v="task">کار تازه</button>${on('clinic')?'<button class="btn" data-act="cPick" data-v="book">نوبت</button>':''}<button class="btn ghost" data-act="close">بستن</button></div></div>`)}
+/* ---------- Person timeline: read-only, from the original records linked by personId (nothing copied). Entry:
+   {date, mod, kind, sum, col, id, act}; key col/id so nothing appears twice. Clinical entries carry no clinical content (only
+   that a visit/appointment happened) and are left out when clinical=false (views outside the person page / clinic) ---------- */
+function personTimeline(pid,clinical=true){if(!pid)return[];const out=new Map();const add=(col,x,e)=>{const k=col+'/'+x.id;if(!out.has(k))out.set(k,{date:e.date||'',mod:e.mod,kind:e.kind,sum:e.sum||'',col,id:x.id,act:e.act||''})};
+  S.ledger.filter(l=>!l.void&&l.personId===pid&&!l.docId).forEach(l=>add('ledger',l,{date:l.date,mod:'fin',kind:{paid:'پرداخت',received:'دریافت',receivable:'دریافتنی',payable:'پرداختنی'}[l.kind]||l.kind,sum:money(l.amount,l.currency)+((l.kind==='receivable'||l.kind==='payable')?(l.settled||remOf(l)<0.5?' · تسویه شد':' · مانده '+money(remOf(l),l.currency)):''),act:'viewLedger'}));
+  S.docs.filter(d=>!d.void&&d.personId===pid).forEach(d=>add('docs',d,{date:d.date,mod:'fin',kind:docTitle(d),sum:d.no?'شمارهٔ '+fa(d.no):'',act:'docView'}));
+  if(clinical){const C=S.cases.filter(c=>c.personId===pid);const ids=new Set(C.map(c=>c.id));
+    S.visits.filter(v=>!v.void&&ids.has(v.caseId)).forEach(v=>add('visits',v,{date:v.date,mod:'clinic',kind:'ویزیت',sum:'جلسهٔ '+fa(v.no||''),act:''}));
+    S.tasks.filter(t=>t.caseId&&ids.has(t.caseId)&&t.due).forEach(t=>add('tasks',t,{date:t.due,mod:'clinic',kind:'نوبت: '+APPT[apptOf(t)][0],sum:t.time?apptRange(t):'',act:''}));
+    C.forEach(c=>add('cases',c,{date:(c.created||'').slice(0,10),mod:'clinic',kind:'پروندهٔ '+(c.code||''),sum:'',act:'viewCase'}))}
+  // undated entries last; same date: stable by collection
+  return [...out.values()].sort((a,b)=>(b.date||'0').localeCompare(a.date||'0')||a.col.localeCompare(b.col))}
+function pTimelineSheet(pid){const L=personTimeline(pid,true);const p=byId('people',pid);
+  openSheet(`<div data-ptl><h3>${badge('affairs','cal')} تاریخچهٔ ${esc(p?p.name:'')}</h3><div class="list">${L.map(e=>`<${e.act?`button class="row" data-act="${e.act}" data-id="${e.col==='tasks'||e.col==='visits'?'':e.id}"`:'div class="row"'} data-ref="${e.col}/${e.id}"><div class="main"><div class="ttl" style="font-size:14px">${esc(e.kind)}</div><div class="sub"><span>${e.date?jShort(e.date):'بی‌تاریخ'}</span><span class="pill">${e.mod==='clinic'?'مشاوره':'مالی و اسناد'}</span>${e.sum?`<span>${esc(e.sum)}</span>`:''}</div></div></${e.act?'button':'div'}>`).join('')||'<div class="empty">سابقه‌ای ثبت نشده.</div>'}</div>
+  <div class="acts" style="margin-top:12px"><button class="btn ghost" data-act="viewPerson" data-id="${pid}">بازگشت</button></div></div>`)}
 // open appointments of a client on or before a date (candidates for the visit being recorded)
 const apptOpenFor=(caseId,date)=>S.tasks.filter(t=>t.caseId===caseId&&t.status==='open'&&(t.due||'')<=date).sort((a,b)=>(b.due||'').localeCompare(a.due||'')||(a.time||'').localeCompare(b.time||''));
 // an appointment a visit points to (visit.apptId) is never deleted for good; it can be cancelled instead
@@ -5556,6 +5571,7 @@ document.addEventListener('click',e=>recvBatch(async()=>{
     case'clinic':clinicSheet();break;
     case'ctxAdd':ctxAdd(b.dataset.v);break;
     case'quick':quickAdd();break;
+    case'pTimeline':pTimelineSheet(id);break;
     case'mcal':mcal(b.dataset.v||'',b.dataset.d||'');break;
     case'mcalF':mcal('', '', b.dataset.v||'');break;
     case'mcTask':{const t=byId('tasks',id);if(!t)break;if(b.dataset.v==='done')await save('tasks',id,{status:'done',doneAt:nowTs()});else await save('tasks',id,{due:addDays(t.due&&t.due>today()?t.due:today(),Number(b.dataset.v)||1)});if(document.querySelector('#sheetRoot [data-mcal]'))mcal();break}
