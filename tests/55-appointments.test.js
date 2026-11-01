@@ -40,9 +40,14 @@ test('two appointments the same day: a visit completes only one and records the 
     for (const t of S.tasks.filter(t => t.caseId === 'c_a' && t.due !== today() && t.status === 'open')) await save('tasks', t.id, { status: 'done', appt: 'cancelled' }); });
   await p.reload(); await settle(p);
   await p.evaluate(() => { closeSheet(); formVisit('c_a'); }); await p.waitForSelector('#sheetRoot form[data-form=visit]');
-  await p.evaluate(() => { const e = document.getElementById('f_vn'); if (e) { e.value = 'جلسهٔ آزمون'; e.dispatchEvent(new Event('input', { bubbles: true })); } }); await submitForm(p); await settle(p);
+  await p.evaluate(() => { const e = document.getElementById('f_vn'); if (e) { e.value = 'جلسهٔ آزمون'; e.dispatchEvent(new Event('input', { bubbles: true })); } }); 
+  // two open appointments that day: saving without choosing is refused, nothing is written
+  const nv0 = await p.evaluate(() => S.visits.length); await p.click('#sheetRoot form[data-form=visit] button.pri'); await settle(p);
+  assert((await p.evaluate(() => S.visits.length)) === nv0, 'a visit was saved without choosing among two appointments');
+  await p.evaluate(() => { document.getElementById('f_vap').value = 't_m1'; }); await submitForm(p); await settle(p);
   const A = (await T()).filter(x => x.id === 't_m1' || x.id === 't_m2'); const done = A.filter(x => x.st === 'done');
   assert(done.length === 1 && A.filter(x => x.open).length === 1 && /^\d\d:\d\d$/.test(done[0].endAt || ''), 'same-day: ' + JSON.stringify(A));
+  assert(done[0].id === 't_m1' && await p.evaluate(() => S.visits.some(v => !v.void && v.caseId === 'c_a' && v.apptId === 't_m1')), 'visit not linked to the chosen appointment');
 });
 
 test('proactive: past appointment without outcome and a client with no next appointment are listed on the clinic page with actions', async () => {

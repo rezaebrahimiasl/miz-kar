@@ -25,7 +25,7 @@
 | checkins | habit check-ins per month | habitId, month, days | habits |
 | vouchers | manual journal vouchers | date, desc, lines[{acc, dr, cr, personId, bank, refId, due, desc}], void | people (in lines) |
 | cases | clinical cases | code, personId, status, plan, contact, outcome, lastVisit | people |
-| visits | clinical visits | caseId, no, date, obs, interp, iv, response, scores, next, nextDate | cases |
+| visits | clinical visits | caseId, apptId (the appointment task it completed; older visits have none), no, date, obs, interp, iv, response, scores, next, nextDate | cases |
 | qtopics | Quran research topics | kw, from | — |
 | qverses | verses linked to topics | topicId, s, a, a2, text, note, kws | qtopics |
 | campaigns | batched group messages | title, msg, nums, batch, sent, meetId | meets |

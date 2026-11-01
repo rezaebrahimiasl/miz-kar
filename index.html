@@ -292,7 +292,7 @@ html body .row2{grid-template-columns:1fr 1fr}
 /* Google sign-in returns here with #access_token=…; take it before anything else reads the address, keep it only in this tab's memory */
 (()=>{const h=location.hash;if(!/[#&](access_token|error)=/.test(h)||!/state=/.test(h))return;const q=new URLSearchParams(h.slice(1));let s=null;try{s=JSON.parse(sessionStorage.getItem('miz.gc.st')||'null');sessionStorage.removeItem('miz.gc.st')}catch(_){}history.replaceState(null,'',location.pathname+location.search);if(!s||s.st!==q.get('state'))return;
  if(q.get('access_token')){try{sessionStorage.setItem('miz.gc.tok',JSON.stringify({t:q.get('access_token'),exp:Date.now()+(Number(q.get('expires_in'))||3600)*1000-120000}));sessionStorage.removeItem('miz.gc.tried')}catch(_){}window._gcBack={ok:1,ret:s.ret}}else window._gcBack={err:q.get('error')||'خطا',silent:s.silent,ret:s.ret}})();
-const APP_VER='4.35';
+const APP_VER='4.36';
 // the app's separate files and their version markers; all must carry APP_VER (start-up guard, stashLatest; sw.js PARTS is the same list, checked by tests/00)
 const APP_PARTS={'js/core.js':'CORE_VER','js/engine.js':'ENGINE_VER','js/backup.js':'BACKUP_VER'};
 /* ---------- Start-up guard: js/core.js (dates, digits, formatting) and js/engine.js (information engine) must be loaded and of this same version before anything reads or writes data. Otherwise nothing below runs: the data on the phone stays untouched and a recovery screen offers a reload ---------- */
@@ -869,7 +869,8 @@ function formVisit(caseId,v={}){const c=byId('cases',caseId);if(!c)return;const 
   openSheet(`<h3>${esc(c.code)} · جلسهٔ ${fa(no)}${c.plan&&c.plan.n?' از '+fa(c.plan.n):''}</h3>
   ${prev&&!v.id&&prev.next?`<div class="banner" style="margin:0 0 8px">📋 برنامهٔ جلسهٔ قبل: ${esc(prev.next)}</div>`:''}${W.length&&!v.id?`<details style="margin:0 0 8px"><summary style="font-size:12.5px;color:var(--warn)">⚠️ احتیاط‌های این پرونده (${fa(W.length)})</summary><div style="font-size:12.5px;line-height:1.9">${W.map(esc).join('<br>')}</div></details>`:''}
   <form data-form="visit" data-id="${v.id||''}" data-case="${caseId}" data-no="${no}">
-  ${dateField('f_vdt','تاریخ',v.date||today())}
+  ${dateField('f_vdt','تاریخ',v.date||today())}${(()=>{if(v.id)return '';const O=apptOpenFor(caseId,v.date||today());if(!O.length)return '';
+   return `<div class="fld"><label for="f_vap">نوبتِ این ویزیت</label><select id="f_vap">${O.length>1?'<option value="">— کدام نوبت؟ (انتخاب لازم است)</option>':''}${O.map(t=>`<option value="${t.id}">${jShort(t.due)} ${t.time?apptRange(t):''} ${esc(t.svc||'')}</option>`).join('')}<option value="-">بدون نوبت</option></select></div>`})()}
   <div class="chips wrap" style="margin:-4px 0 10px">${CFMT.map(x=>`<button type="button" class="chip" data-act="vFmt" data-v="${x}" aria-pressed="${(v.fmt||'حضوری')===x}">${x}</button>`).join('')}</div><input type="hidden" id="f_vfmt" value="${esc(v.fmt||'حضوری')}">
   ${vs.length||v.id?`<div class="fld"><label>حال کلی نسبت به جلسهٔ قبل</label><div class="chips">${[['up','🟢 بهتر'],['same','⚪ همان'],['down','🔴 بدتر']].map(([k,l])=>`<button type="button" class="chip" data-act="vGlob" data-v="${k}" aria-pressed="${v.glob===k}">${l}</button>`).join('')}</div><input type="hidden" id="f_vglob" value="${esc(v.glob||'')}"></div>`:''}
   <div class="fld"><label>نمره‌ها (۰ تا ۱۰)</label>${cVars(c).map(x=>scoreField(x,v.scores?v.scores[x.n]:'',pv(x.n))).join('')}</div>
@@ -894,6 +895,9 @@ async function saveVisit(f,id){const caseId=f.dataset.case;const c=byId('cases',
   const iv=[...f.querySelectorAll('.ivr')].map(r=>({n:r.querySelector('.iv_n').value.trim(),layer:r.querySelector('.iv_l').value,dose:r.querySelector('.iv_d').value.trim(),goal:r.querySelector('.iv_g').value.trim()})).filter(x=>x.n);
   const d={caseId,no:Number(f.dataset.no),date,fmt:val('f_vfmt'),glob:val('f_vglob'),free:val('f_vfree'),focus:val('f_vfocus'),obs:val('f_vobs'),interp:val('f_vint'),iv,response:val('f_vresp'),adverse:val('f_vadv'),scores,hw:val('f_vhw'),risk:val('f_vrisk'),next:val('f_vnext'),nextDate:nd,nextTime:val('f_vnt'),pearl:val('f_vpearl'),void:false};
   if(!d.obs&&!d.free&&!iv.length&&!Object.keys(scores).length&&!d.response&&f.dataset.force!=='1'){f.dataset.force='1';return toast('ویزیت تقریباً خالی است؛ اگر عمداً است دوباره «ذخیره» بزن')}
+  if(!id){const O=apptOpenFor(caseId,date),sel=document.getElementById('f_vap'),pick=sel?sel.value:'';
+    if(O.length>1&&!pick)return toast('این مراجع چند نوبت باز دارد؛ نوبتِ همین ویزیت را انتخاب کن');
+    const a=pick&&pick!=='-'?O.find(t=>t.id===pick):O.length===1&&!sel?O[0]:null;if(pick&&pick!=='-'&&!a)return toast('نوبت انتخاب‌شده دیگر باز نیست؛ فرم را دوباره باز کن');d.apptId=a?a.id:''}
   if(!(await save('visits',id,d)))return;
   {const fee=toBase(num(val('f_vfee'))||0,'تومان');if(fee>0&&!S.ledger.some(l=>!l.void&&l.visitOf===caseId+'#'+d.no)){const k=val('f_vpay')||'received';await save('ledger',null,{kind:k,personId:(c&&c.personId)||'',amount:fee,currency:'تومان',about:'ویزیت '+fa(d.no)+(c?' · '+(c.code||''):''),category:'درمان و مشاوره',instrument:k==='received'?'نقد/کارت':'نسیه',acct:k==='received'?val('f_vacct'):'',date,due:k==='receivable'?addDays(date,30):'',visitOf:caseId+'#'+d.no,settled:false,void:false})}}
   if(c&&d.risk!==c.risk)await save('cases',caseId,{risk:d.risk,lastVisit:date});else if(c)await save('cases',caseId,{lastVisit:date});
@@ -901,8 +905,8 @@ async function saveVisit(f,id){const caseId=f.dataset.case;const c=byId('cases',
   // a new visit completes this client's open appointments up to its date (all of them when the next one is set here)
   if(!id&&c){const nx=nd&&c.status!=='closed';const now=new Date();const endT=date===today()?mHM(now.getHours()*60+now.getMinutes()):'';
     // exactly one appointment is completed: the latest open one on or before the visit date (on that date, the one nearest the current time)
-    const due=S.tasks.filter(t=>t.caseId===caseId&&t.status==='open'&&(t.due||'')<=date);const same=due.filter(t=>t.due===date),nowM=endT?taskMin({time:endT}):null;
-    const dist=t=>{const x=taskMin(t);return x==null||nowM==null?0:Math.abs(x-nowM)};const hit=same.length?same.sort((a,b)=>dist(a)-dist(b))[0]:due.sort((a,b)=>(b.due||'').localeCompare(a.due||''))[0];
+const nowM=endT?taskMin({time:endT}):null;
+    const hit=d.apptId?byId('tasks',d.apptId):null;
     if(hit)await save('tasks',hit.id,{status:'done',appt:'done',doneAt:nowTs(),endAt:endT,note:(hit.note||'')+'\nویزیت ثبت شد'});
     if(nx)for(const t of S.tasks.filter(t=>t.caseId===caseId&&t.status==='open'&&(t.due||'')>date))await save('tasks',t.id,{status:'done',appt:'moved',doneAt:nowTs(),note:(t.note||'')+'\nبا نوبت بعدیِ ویزیت جایگزین شد'})}
   if(!id&&nd&&c&&c.status!=='closed'){
@@ -1271,12 +1275,12 @@ const simTitle=(a,b)=>{a=nrm(a);b=nrm(b);return a&&b&&(a===b||(Math.min(a.length
 
 /* ---------- Activity log: every record in the order it was written; tap to open, fix, finish, delete or restore ---------- */
 function idbDel(col,id){return new Promise((res,rej)=>{const t=idb.transaction('docs','readwrite');t.objectStore('docs').delete(col+'/'+id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
-async function delDoc(col,id){const d=byId(col,id);if(!d)return false;await snapTake('del',10);undoRec(col,id);try{let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}tr.unshift({col,doc:d,at:nowTs()});try{localStorage.setItem('miz.trash',JSON.stringify(tr.slice(0,60)))}catch(_){}
+async function delDoc(col,id){const d=byId(col,id);if(!d)return false;if(col==='tasks'&&apptLinked(id)){toast('این نوبت به یک ویزیت وصل است و حذف نمی‌شود؛ می‌توانی لغوش کنی');return false}await snapTake('del',10);undoRec(col,id);try{let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}tr.unshift({col,doc:d,at:nowTs()});try{localStorage.setItem('miz.trash',JSON.stringify(tr.slice(0,60)))}catch(_){}
   try{drSet(drGet().filter(x=>{const a0=((x.op&&x.op.args)||[])[0];return !(a0===id||(a0&&a0.id===id))}))}catch(_){} // drafts of forms opened FOR the deleted record go with it; drafts of other records that merely refer to it are kept
   if(mode==='cloud')await db.collection(col).doc(id).delete();else{await idbDel(col,id);S[col]=S[col].filter(x=>x.id!==id);if(!(col==='meta'&&id==='tomb'))await tombAdd(col,id);render()}return true}catch(e){toast('حذف نشد: '+(e.message||''));return false}}
 async function undoDel(i){let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}const x=tr[i];if(!x)return;await putRaw(x.col,{...x.doc,updated:nowTs()});tr.splice(i,1);try{localStorage.setItem('miz.trash',JSON.stringify(tr))}catch(_){}if(mode==='local')render();toast('برگردانده شد ✓');logSheet()}
 const LOGT2={
-  tasks:{n:'کار',g:'work',del:1,a:x=>x.area||'affairs',i:()=>undefined,t:x=>x.title,open:x=>formTask(x),st:x=>x.status==='done'?['انجام شد','ok']:x.status==='archived'?['کنار گذاشته شد','']:null,restore:x=>({status:'open'})},
+  tasks:{n:'کار',g:'work',del:x=>!apptLinked(x.id),a:x=>x.area||'affairs',i:()=>undefined,t:x=>x.title,open:x=>formTask(x),st:x=>x.status==='done'?['انجام شد','ok']:x.status==='archived'?['کنار گذاشته شد','']:null,restore:x=>({status:'open'})},
   deals:{n:'فرصت',g:'work',del:1,a:x=>(PIPES[x.pipe]||{}).area||'sales',i:()=>'marketers',t:x=>x.title,open:x=>viewDeal(x.id),st:x=>x.status&&x.status!=='open'?[x.status==='won'?'موفق':'بسته',x.status==='won'?'ok':'']:null},
   people:{n:'شخص',g:'people',del:x=>!S.ledger.some(l=>l.personId===x.id)&&!S.moves.some(m=>m.personId===x.id)&&!S.lots.some(l=>l.supplierId===x.id)&&!S.cases.some(c=>c.personId===x.id),a:x=>x.area||'affairs',i:()=>'user',t:x=>x.name,open:x=>viewPerson(x.id),st:x=>x.status==='archived'?['برداشته شد','']:null,restore:x=>({status:'active'})},
   ledger:{n:'حساب',g:'money',a:()=>'finance',i:()=>'finance',t:x=>`${LSHORT[x.kind]||''} ${money(x.amount,x.currency)}${x.personId?' · '+pname(x.personId):''}${x.about?' · '+x.about:''}`,open:x=>viewLedger(x.id),st:x=>x.void?['باطل','bad']:x.settled?['تسویه','ok']:null,restore:x=>({void:false})},
@@ -2407,6 +2411,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['4.36',[['therapy','check','ویزیت به نوبت خودش وصل است','هر ویزیت تازه دقیقاً به نوبتی که انجام شد وصل می‌شود؛ اگر مراجع چند نوبت باز دارد باید انتخاب کنی. نوبتی که ویزیتی به آن وصل است حذف نمی‌شود (می‌شود لغوش کرد) تا تاریخچه گم نشود.']]],
  ['4.35',[['affairs','check','دکمهٔ «+» متناسب با همان صفحه','در کارها، اشخاص و کالا و فروش، «+» کارهای همان بخش را نشان می‌دهد؛ «همهٔ گزینه‌ها» همان فهرست کامل قبلی است.'],['therapy','cal','برنامهٔ نوبت‌ها و وضعیت نوبت','در «مشاوره و ویزیت» دکمهٔ «نوبت‌ها» برنامهٔ امروز، ۷ روز و ۳۰ روز را با ساعت‌های آزاد نشان می‌دهد؛ هر نوبت در انتظار تأیید، تأییدشده، انجام‌شده، لغوشده، نیامده یا جابه‌جاشده است و تاریخچه‌اش می‌ماند. ثبت ویزیت، نوبت همان روز را انجام‌شده می‌کند. دکمهٔ «+» همان صفحه مراجع تازه، ویزیت و نوبت را باز می‌کند.','clinic'],['therapy','cal','نوبت با مدت، نوع خدمت و معرف','هر نوبت ساعت شروع و پایان (مثلاً ۱۰:۰۰–۱۰:۴۵)، نوع خدمت (ویزیت، جلسهٔ درمان، ماساژ، حجامت…)، معرف و یادداشت دارد؛ هم‌پوشانی با بازهٔ زمانی سنجیده می‌شود و ساعت پایان واقعی با ثبت ویزیت ذخیره می‌شود. صفحهٔ مشاوره نوبت‌های گذشتهٔ بی‌وضعیت و مراجعانی را که نوبت بعدی ندارند نشان می‌دهد.']]],
  ['4.34',[['finance','check','قیمت غیرعادی را می‌شود تأیید کرد','اگر قیمت یک محموله درست است ولی غیرعادی به نظر می‌رسد، «این قیمت درست است» را بزن؛ تا وقتی قیمت بیش از ۱۰٪ تغییر نکند دوباره هشدار نمی‌آید. قیمتِ نوع دیگری از همان کالا دیگر مرجع مقایسه نیست، و اختلاف خیلی زیاد (۵۰ برابر) جدا به‌عنوان احتمال خطای ورود نشان داده می‌شود.']]],
  ['4.33',[['affairs','box','نسخه‌های خودکار مطمئن‌تر','پیش از به‌روزرسانی برنامه و در اولین اجرای نسخهٔ تازه هم یک نسخهٔ کامل از داده‌ها روی همین گوشی ساخته می‌شود. هر نسخه بعد از ساختن بررسی می‌شود، نسخهٔ تکراری ساخته نمی‌شود، آخرین نسخهٔ روزانه و پرداده‌ترین نسخه هیچ‌وقت کنار گذاشته نمی‌شوند و نسخهٔ خراب علامت می‌خورد و بازیابی نمی‌شود. وضعیت آخرین نسخه در «ایمنی و پشتیبان» دیده می‌شود.']]],
@@ -3851,6 +3856,10 @@ function cPickSheet(mode){const L=S.cases.filter(c=>c.status!=='closed').sort((a
   <div class="acts" style="margin-top:10px"><button class="btn" data-act="newCase">مراجع تازه</button><button class="btn ghost" data-act="close">بستن</button></div>`);
   const q=document.getElementById('f_cpq');if(q)q.oninput=()=>{const t=nrm(q.value);document.querySelectorAll('#cpL [data-q]').forEach(b=>b.hidden=t&&!nrm(b.dataset.q).includes(t))}}
 /* ---------- Appointments: open tasks with caseId; status in task.appt (pending, confirmed, cancelled, noshow, moved); a visit closes it as done ---------- */
+// open appointments of a client on or before a date (candidates for the visit being recorded)
+const apptOpenFor=(caseId,date)=>S.tasks.filter(t=>t.caseId===caseId&&t.status==='open'&&(t.due||'')<=date).sort((a,b)=>(b.due||'').localeCompare(a.due||'')||(a.time||'').localeCompare(b.time||''));
+// an appointment a visit points to (visit.apptId) is never deleted for good; it can be cancelled instead
+const apptLinked=id=>S.visits.some(v=>!v.void&&v.apptId===id);
 // proactive: past appointments with no outcome, and active clients with no open appointment whose interval since the last visit has passed
 function apptNeeds(){const t0=today();const past=S.tasks.filter(t=>t.caseId&&t.status==='open'&&t.due&&t.due<t0);
   const again=S.cases.filter(c=>c.status!=='closed'&&!S.tasks.some(t=>t.caseId===c.id&&t.status==='open')).map(c=>{const lv=cVisits(c.id).slice(-1)[0];const d=lv?diffDays(t0,lv.date):null;return{c,d,ev:(c.plan&&c.plan.every)||7}}).filter(x=>x.d==null||x.d>=x.ev).sort((a,b)=>(b.d??1e9)-(a.d??1e9));return{past,again}}
