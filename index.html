@@ -378,7 +378,7 @@ async function initDb(){
 }
 function showConn(m){const b=document.getElementById('conn');b.textContent=m;b.hidden=false}
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
-function idbPut(col,doc){return new Promise((res,rej)=>{const t=idb.transaction('docs','readwrite');t.objectStore('docs').put({k:col+'/'+doc.id,col,doc});t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+/* idbPut removed (4.40): every write goes through Store.tx (save0/putRaw/licSet/ladmSave) */
 async function save(col,id,data,B){{const cb=closeBlock(col,id,data);if(cb){closeToast(cb);return false}}if(data&&!ui.lockSkip){const m=lockMsg(col,data,id);if(m){const k=m+col+(id||'');if(!(ui.lockOk&&ui.lockOk[k]>Date.now())){if(!await askConfirm(m)){toast('ثبت نشد؛ تاریخ را بررسی کن');return false}ui.lockOk={...(ui.lockOk||{}),[k]:Date.now()+15000}}await lockAfter(col,data,id,B)}}const prev=col==='tasks'&&id?byId('tasks',id):null;const was=prev?{...prev}:null;const ok=await save0(col,id,data,B);
   if(ok&&was&&was.repeat&&was.status!=='done'&&data.status==='done'){const nd=nextOcc(was.due||today(),was.repeat);const sw=was.start&&was.due?diffDays(was.due,was.start):0;await putRaw('tasks',{id:newId(),title:was.title,area:was.area||'',priority:was.priority||3,personId:was.personId||'',dealId:was.dealId||'',note:was.note||'',tag:was.tag||'',city:was.city||'',fup:was.fup||0,payAmt:was.payAmt||0,payCat:was.payCat||'',start:sw>0?addDays(nd,-sw):'',repeat:was.repeat,due:nd,status:'open',created:nowTs(),updated:nowTs()},B);if(mode==='local')render();setTimeout(()=>toast('نوبت بعدی: '+jNice(nd)+' ↻'),2300)}
   if(ok&&was&&was.status!=='done'&&data.status==='done'){
@@ -527,7 +527,9 @@ async function save0(col,id,data,B){if(mode==='local'&&!LOAD_OK){toast('داده
       Store.stage(B,col,doc,o);Store.undo(B,()=>undoRec(col,id||null));const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);return true}
     if(mode==='local'&&idb){
       // the record is built when its turn in Store.tx comes; memory, undo, dirty state and the screen change only after the disk write succeeded
-      const r=await Store.tx(w=>{const o=id?S[col].find(x=>x.id===id):null;const doc=o?{...o,...data,updated:nowTs()}:{id:id||newId(),...data,created:nowTs(),updated:nowTs()};w.put(col,doc);
+      // a record that existed when the save was asked for but is gone when its turn comes (deleted meanwhile, e.g. by sync) is not recreated as a stub
+      const had=!!(id&&(S[col].find(x=>x.id===id)||Store.held(col,id)));/* exists, or is being deleted by the running operation */
+      const r=await Store.tx(w=>{const o=id?S[col].find(x=>x.id===id):null;if(had&&!o)throw new Error('این ردیف همین حالا حذف شد؛ تغییر ذخیره نشد');const doc=o?{...o,...data,updated:nowTs()}:{id:id||newId(),...data,created:nowTs(),updated:nowTs()};w.put(col,doc);
         w.after(()=>{undoRec(col,id||null);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);markDirty()})});
       if(!r.ok)throw r.error||new Error('write failed');render();return true}
     toast('ثبت ممکن نیست؛ محل ذخیره در دسترس نیست');return false
@@ -567,9 +569,11 @@ function askConfirm(msg,ok,danger){return dlg(`<div style="font-size:14.5px;line
 function askText(msg,def){return dlg(`<div style="font-size:14.5px;line-height:1.9;white-space:pre-wrap;margin-bottom:8px">${esc(msg)}</div><input value="${esc(def||'')}" style="width:100%"><div class="acts" style="margin-top:12px"><button class="btn pri" data-dv="ok">تأیید</button><button class="btn ghost" data-dv="no">انصراف</button></div>`)}
 async function typedConfirm(msg,word){const w=word||'جایگزین کن';const a=await askText(msg+'\n\nبرای ادامه دقیقاً بنویس: «'+w+'»','');return a!=null&&a.trim()===w}
 async function applyData(data,all,reason){if(!LOAD_OK)return toast('اول داده‌ها باید سالم خوانده شوند');await snapTake(reason);window._noUnsent=false;let n=0;const now=nowTs();
-  for(const c of COLS){if(c==='contacts')continue;const a=data[c]||[];for(const d of a){if(!d||!d.id)continue;if(c==='vault'&&d.id==='bio')continue;const cur=S[c].find(x=>x.id===d.id);if(!cur){await putRaw(c,{...d,updated:now});n++}else if(all&&JSON.stringify(cur)!==JSON.stringify(d)){await putRaw(c,{...d,updated:now});n++}}
-    if(all)for(const cur of S[c].slice()){if(c==='meta'&&['tomb','conflicts','profile','lic','licAdmin'].includes(cur.id))continue;if(c==='vault'&&cur.id==='bio')continue;if(!a.some(x=>x&&x.id===cur.id)){if(mode==='local')await idbDel(c,cur.id);S[c]=S[c].filter(x=>x.id!==cur.id);await tombAdd(c,cur.id);n++}}}
-  rebuildContacts();render();return n}
+  // atomic: every write and delete of this apply is one transaction (or none); the plan is made inside the operation, from the state it holds
+  const r=await Store.batch('apply',async B=>{n=0;
+  for(const c of COLS){if(c==='contacts')continue;const a=data[c]||[];for(const d of a){if(!d||!d.id)continue;if(c==='vault'&&d.id==='bio')continue;const cur=S[c].find(x=>x.id===d.id);if(!cur){await putRaw(c,{...d,updated:now},B);n++}else if(all&&JSON.stringify(cur)!==JSON.stringify(d)){await putRaw(c,{...d,updated:now},B);n++}}
+    if(all)for(const cur of S[c].slice()){if(c==='meta'&&['tomb','conflicts','profile','lic','licAdmin'].includes(cur.id))continue;if(c==='vault'&&cur.id==='bio')continue;if(!a.some(x=>x&&x.id===cur.id)){await delRaw(c,cur.id,B);await tombAdd(c,cur.id,B);n++}}}});
+  if(r===Store.BUSY){toast('بازیابی دیگری در حال انجام است');return 0}rebuildContacts();render();return n}
 /* restore preview: never applied before the user sees what changes */
 function restorePlan(data,withDel){const T=(tombDoc().items)||{};const P={add:0,upd:0,old:0,del:0,same:0,rows:[]};for(const c of COLS){for(const d of (data[c]||[])){if(!d||!d.id)continue;const cur=S[c].find(x=>x.id===d.id);const tk=T[c+'/'+d.id];if(!cur){if(tk&&tk>=(d.updated||'')&&!withDel){P.del++;continue}P.add++;P.rows.push([c,d])}else if((d.updated||'')>(cur.updated||'')){P.upd++;P.rows.push([c,d])}else if(JSON.stringify(cur)===JSON.stringify(d))P.same++;else P.old++}}return P}
 function restorePreview(j,src){window._rsJ=j;const P=restorePlan(j.data,false),P2=restorePlan(j.data,true);const fileN=COLS.filter(c=>c!=='contacts').reduce((a,c)=>a+((j.data[c]||[]).length),0);
@@ -581,7 +585,7 @@ function restorePreview(j,src){window._rsJ=j;const P=restorePlan(j.data,false),P
   <div class="acts"><button class="btn pri" data-act="rsGo">بازیابی</button><button class="btn ghost" data-act="close">انصراف</button></div>`)}
 async function restoreApply(withDel){return recvBatch(()=>restoreApply0(withDel))}
 async function restoreApply0(withDel){const j=window._rsJ;if(!j)return;if(!LOAD_OK)return toast('اول داده‌ها باید سالم خوانده شوند');if(!(await snapTake('restore'))&&mode==='local'&&!(await askConfirm('نسخهٔ پیش از بازیابی (برای برگشت) ساخته نشد؛ احتمالاً فضای ذخیره پر است.\nبدون آن بازیابی را ادامه بدهم؟','ادامه بدون نسخهٔ برگشت',true)))return toast('بازیابی انجام نشد؛ داده‌ها دست نخورد');const P=restorePlan(j.data,withDel);let n=0;
-  try{for(const [c,d] of P.rows){await putRaw(c,d);n++}}catch(e){toast('بازیابی نیمه‌کاره ماند: '+(e.code||e.message));render();return}
+  try{const r=await Store.batch('restore',async B=>{n=0;for(const [c,d] of P.rows){await putRaw(c,d,B);n++}});if(r===Store.BUSY)return toast('بازیابی دیگری در حال انجام است')}catch(e){toast('بازیابی انجام نشد و چیزی تغییر نکرد: '+(e.code||e.message));render();return}
   const ls=lsRestore(j.ls);rebuildContacts();render();closeSheet();toast(fa(n)+' ردیف بازیابی یا به‌روز شد'+(ls?' · '+fa(ls)+' تنظیم':'')+(CT.length?' · '+fa(CT.length)+' مخاطب':''))}
 /* recovery mode */
 function recoverySheet(){openSheet(`<h3>${badge('finance','warn')} حالت بازیابی</h3><div class="banner" style="margin:0 0 10px">${svg('warn')} <span style="flex:1">${LOAD_OK?`${fa(BAD.length)} ردیف خراب پیدا شد و کنار گذاشته شد؛ بقیهٔ داده‌ها سالم خوانده شد.`:'داده‌های این گوشی خوانده نشد. چیزی پاک نشده و چیزی به ابر فرستاده نمی‌شود تا تصمیم بگیری.'}${LOAD_ERR?'<br><small>'+esc(LOAD_ERR)+'</small>':''}</span></div>
@@ -597,7 +601,7 @@ function recoverySheet(){openSheet(`<h3>${badge('finance','warn')} حالت با
 const CONF=()=>(S.meta.find(x=>x.id==='conflicts')||{list:[]}).list||[];
 const openConf=()=>CONF().filter(x=>x.open);
 const docLabel=(c,d)=>d?(d.name||d.title||d.desc||d.about||d.product&&lotName(d)||(d.no?docTitle(d)+' '+d.no:'')||d.id):'';
-async function confSave(list){const cd=S.meta.find(x=>x.id==='conflicts')||{id:'conflicts'};const pv=window._noUnsent;window._noUnsent=true;try{const op=list.filter(x=>x.open);await putRaw('meta',{...cd,id:'conflicts',list:[...op,...list.filter(x=>!x.open).slice(0,Math.max(0,80-op.length))],updated:nowTs(),created:cd.created||nowTs()})}finally{window._noUnsent=pv}}
+async function confSave(list,B){const cd=S.meta.find(x=>x.id==='conflicts')||{id:'conflicts'};const pv=window._noUnsent;window._noUnsent=true;try{const op=list.filter(x=>x.open);await putRaw('meta',{...cd,id:'conflicts',list:[...op,...list.filter(x=>!x.open).slice(0,Math.max(0,80-op.length))],updated:nowTs(),created:cd.created||nowTs()},B)}finally{window._noUnsent=pv}}
 function conflictsSheet(){const L=openConf();if(!L.length){closeSheet();return toast('تعارضی نمانده ✓')}const T=c=>(LOGT2[c]||{}).n||c;
   const diff=(a,b)=>[...new Set(Object.keys(a||{}).concat(Object.keys(b||{})))].filter(k=>!['updated','created','id'].includes(k)&&JSON.stringify((a||{})[k])!==JSON.stringify((b||{})[k]));
   const v=x=>x==null?'—':typeof x==='object'?JSON.stringify(x).slice(0,80):String(x).slice(0,80);
@@ -608,8 +612,9 @@ function conflictsSheet(){const L=openConf();if(!L.length){closeSheet();return t
    <div class="acts" style="margin-top:6px"><button class="btn" data-act="confPick" data-id="${x.key}" data-v="local">این گوشی</button><button class="btn" data-act="confPick" data-id="${x.key}" data-v="remote">${x.remote?'دستگاه دیگر':'حذف شود'}</button></div></div></div>`}).join('')}
   <div class="acts">${L.length>1?'<button class="btn" data-act="confPick" data-v="local">همه: این گوشی</button><button class="btn" data-act="confPick" data-v="remote">همه: دستگاه دیگر</button>':''}<button class="btn ghost" data-act="close">بعداً</button></div>`)}
 async function confPick(key,side){const L=CONF();const P=L.filter(x=>x.open&&(!key||x.key===key));if(!P.length)return;await snapTake('conflict',5);
-  for(const x of P){const d=side==='remote'?x.remote:x.local;if(d)await putRaw(x.col,{...d,updated:nowTs()});else{if(mode==='local')await idbDel(x.col,x.id);S[x.col]=S[x.col].filter(z=>z.id!==x.id)}x.open=false;x.pick=side;x.doneAt=nowTs()}
-  await confSave(L);render();if(GH.cfg.sync)ghSync();conflictsSheet()}
+  const L0=JSON.parse(JSON.stringify(L));
+  try{const r=await Store.batch('conflict',async B=>{for(const x of P){const d=side==='remote'?x.remote:x.local;if(d)await putRaw(x.col,{...d,updated:nowTs()},B);else await delRaw(x.col,x.id,B);x.open=false;x.pick=side;x.doneAt=nowTs()}
+    await confSave(L,B)});if(r===Store.BUSY)return toast('در حال انجام است')}catch(e){L.splice(0,L.length,...L0);toast('انجام نشد و چیزی تغییر نکرد: '+(e.message||'خطا'));return}render();if(GH.cfg.sync)ghSync();conflictsSheet()}
 /* minimal xlsx (Office Open XML) writer/reader — no external library; long text split into a «_long» sheet so Excel's 32767-char cell limit cannot cut it */
 const crcT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
 const crc32=u=>{let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=crcT[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
@@ -1279,7 +1284,12 @@ const near=(a,b,d=2)=>a&&b&&Math.abs(diffDays(a,b))<=d;
 const simTitle=(a,b)=>{a=nrm(a);b=nrm(b);return a&&b&&(a===b||(Math.min(a.length,b.length)>=6&&(a.includes(b)||b.includes(a))))};
 
 /* ---------- Activity log: every record in the order it was written; tap to open, fix, finish, delete or restore ---------- */
-function idbDel(col,id){return new Promise((res,rej)=>{const t=idb.transaction('docs','readwrite');t.objectStore('docs').delete(col+'/'+id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+// the one way to delete a record: cloud → the cloud API; inside operation B → staged (Store.stageDel); otherwise one Store.tx with
+// the ownership check (waits for an operation that holds the record) — memory changes only after the disk delete succeeded
+async function delRaw(col,id,B){if(mode==='cloud'){await db.collection(col).doc(id).delete();S[col]=S[col].filter(x=>x.id!==id);return}
+  if(B){await Store.settle(col,id);Store.stageDel(B,col,id);return}
+  const r=await Store.tx(w=>{w.del(col,id);w.after(()=>{S[col]=S[col].filter(x=>x.id!==id)})});if(!r.ok)throw r.error||new Error('delete failed')}
+/* idbDel removed (4.40): every delete goes through delRaw → Store.tx / Store.stageDel */
 async function delDoc(col,id){const d=byId(col,id);if(!d)return false;if(col==='tasks'&&apptLinked(id)){toast('این نوبت به یک ویزیت وصل است و حذف نمی‌شود؛ می‌توانی لغوش کنی');return false}await snapTake('del',10);undoRec(col,id);try{let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}tr.unshift({col,doc:d,at:nowTs()});try{localStorage.setItem('miz.trash',JSON.stringify(tr.slice(0,60)))}catch(_){}
   try{drSet(drGet().filter(x=>{const a0=((x.op&&x.op.args)||[])[0];return !(a0===id||(a0&&a0.id===id))}))}catch(_){} // drafts of forms opened FOR the deleted record go with it; drafts of other records that merely refer to it are kept
   if(mode==='cloud')await db.collection(col).doc(id).delete();else{const r=await Store.tx(w=>{w.del(col,id);w.after(()=>{S[col]=S[col].filter(x=>x.id!==id)})});if(!r.ok)throw r.error||new Error('delete failed');if(!(col==='meta'&&id==='tomb'))await tombAdd(col,id);render()}return true}catch(e){toast('حذف نشد: '+(e.message||''));return false}}
@@ -2976,7 +2986,7 @@ function billPasteSheet(){openSheet(`<h3>${badge('finance','bell')} قبض از 
 /* ---------- Multi-device sync over the private GitHub repo (encrypted), tombstones for deletes, device list, conflicts kept ---------- */
 const devName=()=>{try{let n=localStorage.getItem('miz.dev');if(!n){n=/Android|iPhone|Mobile/i.test(navigator.userAgent)?'گوشی':'رایانه';n+=' '+Math.random().toString(36).slice(2,5);localStorage.setItem('miz.dev',n)}return n}catch(_){return 'دستگاه'}};
 const tombDoc=()=>S.meta.find(x=>x.id==='tomb')||{id:'tomb',items:{}};
-async function tombAdd(col,id){const t=tombDoc();await putRaw('meta',{...t,items:{...(t.items||{}),[col+'/'+id]:nowTs()},updated:nowTs(),created:t.created||nowTs()})}
+async function tombAdd(col,id,B){const t=tombDoc();await putRaw('meta',{...t,items:{...(t.items||{}),[col+'/'+id]:nowTs()},updated:nowTs(),created:t.created||nowTs()},B)}
 function syncData(){const b=backupData();b.data={...b.data,vault:(b.data.vault||[]).filter(x=>x.id!=='bio')};return b}
 let syncBusy=false;
 async function ghSync(manual){await Store.idle();/* external output: only committed state */const c=GH.cfg;if(!c.token||!c.repo){if(manual)ghSheet();return}if(!c.pass){if(manual)toast('برای همگام‌سازی، رمز رمزنگاری لازم است');return ghPush0(manual)}if(syncBusy||ghBusy)return;if(!navigator.onLine){if(manual)toast('اینترنت وصل نیست؛ بعداً خودش همگام می‌شود');return}
@@ -2990,21 +3000,22 @@ async function ghSync(manual){await Store.idle();/* external output: only commit
       GH.cfg={...GH.cfg,last:nowTs(),syncAt:nowTs(),err:'',blocked:0,allowShrink:false,devs:snap.devs};ghDirty=false;unsentClear();if(openConf().length){render();if(manual)setTimeout(conflictsSheet,300);else toast(fa(openConf().length)+' تعارض همگام‌سازی؛ در «امروز» ببین')}try{localStorage.setItem('miz.lastBackup',today())}catch(_){}try{gcKick(2000)}catch(_){}if(GH.cfg.cal)await calPush(false);if(got)render();if(manual)toast(got?fa(got)+' تغییر از دستگاه‌های دیگر آمد ✓':'همگام است ✓');return}
     throw new Error('هم‌زمان با دستگاه دیگر؛ چند لحظه بعد دوباره')}
   catch(e){const m=e instanceof TypeError?'به گیت‌هاب وصل نشد؛ اینترنت یا فیلترشکن را بررسی کن.':(e.message||'خطا');GH.cfg={...GH.cfg,err:m};if(manual)toast(m)}finally{syncBusy=false;ghBusy=false}}
-async function syncMerge(data){window._noUnsent=true;try{return await syncMerge0(data)}finally{window._noUnsent=false}}
+// atomic: everything one sync applies (records, deletions, tombstones, conflicts) is one transaction, or nothing
+async function syncMerge(data){window._noUnsent=true;try{const r=await Store.batch('sync',B=>syncMerge0(data,B));if(r===Store.BUSY)throw new Error('sync already running');return r}finally{window._noUnsent=false}}
 const syncEq=(a,b)=>{const o=x=>x&&typeof x==='object'?Array.isArray(x)?x.map(o):Object.keys(x).sort().reduce((r,k)=>{if(k!=='updated'&&k!=='created')r[k]=o(x[k]);return r},{}):x;return JSON.stringify(o(a))===JSON.stringify(o(b))};// same content (key order and «updated/created» ignored)
-async function syncMerge0(data){UB=null;const last=GH.cfg.syncAt||'';let n=0;const OC=new Set(openConf().map(x=>x.key));const NC=[];const T0={...(tombDoc().items||{})},T={...T0};const rT=((data.meta||[]).find(x=>x.id==='tomb')||{}).items||{};Object.entries(rT).forEach(([k,v])=>{if(!T[k]||v>T[k])T[k]=v});const conf=[];
+async function syncMerge0(data,B){UB=null;const last=GH.cfg.syncAt||'';let n=0;const OC=new Set(openConf().map(x=>x.key));const NC=[];const T0={...(tombDoc().items||{})},T={...T0};const rT=((data.meta||[]).find(x=>x.id==='tomb')||{}).items||{};Object.entries(rT).forEach(([k,v])=>{if(!T[k]||v>T[k])T[k]=v});const conf=[];
   for(const c of COLS){const DM=new Map();for(const d of (data[c]||[]))if(d&&d.id){const o=DM.get(d.id);if(!o||(d.updated||'')>(o.updated||''))DM.set(d.id,d)}// the same id twice in a payload: only its newest copy
     for(const d of DM.values()){if(!d||!d.id||(c==='vault'&&d.id==='bio')||(c==='meta'&&(d.id==='tomb'||d.id==='conflicts')))continue;const tk=T[c+'/'+d.id];if(tk&&tk>=(d.updated||''))continue;if(OC.has(c+'/'+d.id))continue;const cur=S[c].find(x=>x.id===d.id);
-      if(!cur){await putRaw(c,d);n++;continue}if(!last&&!syncEq(cur,d)){NC.push({key:c+'/'+d.id,col:c,id:d.id,local:cur,remote:d,at:nowTs(),open:true,first:true});continue}// first sync of this device: different copies on both sides are never chosen silently
-      if((d.updated||'')>(cur.updated||'')){if(last&&(cur.updated||'')>last&&!syncEq(cur,d)){NC.push({key:c+'/'+d.id,col:c,id:d.id,local:cur,remote:d,at:nowTs(),open:true});continue}await putRaw(c,d);n++}
+      if(!cur){await putRaw(c,d,B);n++;continue}if(!last&&!syncEq(cur,d)){NC.push({key:c+'/'+d.id,col:c,id:d.id,local:cur,remote:d,at:nowTs(),open:true,first:true});continue}// first sync of this device: different copies on both sides are never chosen silently
+      if((d.updated||'')>(cur.updated||'')){if(last&&(cur.updated||'')>last&&!syncEq(cur,d)){NC.push({key:c+'/'+d.id,col:c,id:d.id,local:cur,remote:d,at:nowTs(),open:true});continue}await putRaw(c,d,B);n++}
       else if(last&&(d.updated||'')>last&&(cur.updated||'')>last&&!syncEq(cur,d))NC.push({key:c+'/'+d.id,col:c,id:d.id,local:cur,remote:d,at:nowTs(),open:true})}}
   for(const [k,v] of Object.entries(T)){const [c,id]=k.split('/');if(!S[c]||k==='vault/bio'||k==='meta/tomb'||k==='meta/conflicts')continue;// device-only records are never deleted by another device's tombstone
     if(OC.has(k)||NC.some(x=>x.key===k))continue;// an open conflict waits for the user's choice
     const cur=S[c].find(x=>x.id===id);if(cur&&v>=(cur.updated||'')){if(rT[k]===v&&(!T0[k]||v>T0[k])&&(!last||(cur.updated||'')>last)){NC.push({key:k,col:c,id,local:cur,remote:null,deletedAt:v,at:nowTs(),open:true});continue}// deleted on the other device, but changed here since the last sync (or never synced): kept, the user chooses
-      try{if(mode==='local')await idbDel(c,id);S[c]=S[c].filter(x=>x.id!==id);n++}catch(_){}}}
-  if(NC.length){const L=CONF().filter(x=>!NC.some(y=>y.key===x.key));await confSave([...NC,...L])}
-  const t=tombDoc();if(JSON.stringify(t.items||{})!==JSON.stringify(T))await putRaw('meta',{...t,items:T,updated:nowTs(),created:t.created||nowTs()});
-  if(conf.length){const cd=S.meta.find(x=>x.id==='conflicts')||{id:'conflicts',list:[]};await putRaw('meta',{...cd,list:[...conf,...(cd.list||[])].slice(0,50),updated:nowTs(),created:cd.created||nowTs()})}
+      await delRaw(c,id,B);n++}}
+  if(NC.length){const L=CONF().filter(x=>!NC.some(y=>y.key===x.key));await confSave([...NC,...L],B)}
+  const t=tombDoc();if(JSON.stringify(t.items||{})!==JSON.stringify(T))await putRaw('meta',{...t,items:T,updated:nowTs(),created:t.created||nowTs()},B);
+  if(conf.length){const cd=S.meta.find(x=>x.id==='conflicts')||{id:'conflicts',list:[]};await putRaw('meta',{...cd,list:[...conf,...(cd.list||[])].slice(0,50),updated:nowTs(),created:cd.created||nowTs()},B)}
   if(n)rebuildContacts();return n}
 function syncSheet(){const c=GH.cfg;const devs=Object.entries(c.devs||{}).sort((a,b)=>b[1].localeCompare(a[1]));const cf=(S.meta.find(x=>x.id==='conflicts')||{}).list||[];
   openSheet(`<h3>${badge('affairs','box')} همگام‌سازی چند دستگاه</h3>
@@ -4986,8 +4997,10 @@ function undoEdit(){const h=window._undoHead;window._undo=null;const x=document.
   if(h.col==='docs')editRoute('doc',h.id);else if(h.col==='vouchers')formVoucher(r);else if(h.col==='ledger')editRoute('ledger',h.id);else if(h.col==='moves')editRoute('move',h.id);else if(h.col==='lots')formLot(r);else if(h.col==='cheques')formCheque(r);
   setTimeout(()=>toast('همان فرم باز شد؛ اصلاح کن و ثبت بزن (نسخهٔ قبل در سابقه می‌ماند)، یا «انصراف» تا همان‌طور بماند'),300)}
 async function undoDo(){const ops=window._undo;if(!ops)return;window._undo=null;UB=null;const x=document.getElementById('undoBar');if(x)x.remove();{const v=document.getElementById('hv');if(v)v.remove()}
-  const hasFin=ops.some(o=>UNDO_FIN.includes(o.col));let bad=0;for(const o of ops.slice().reverse()){try{const cur=byId(o.col,o.id);if(hasFin&&o.col==='people'&&!o.prev)continue;if(UNDO_FIN.includes(o.col)&&cur){const at=nowTs();if(!o.prev){await putRaw(o.col,{...cur,void:true,voidReason:'برگردان بلافاصله پس از ثبت',voidAt:at,updated:at});continue}await putRaw(o.col,{...o.prev,hist:[...(cur.hist||[]),{at,why:'برگردان به نسخهٔ قبل',was:Object.fromEntries(Object.keys(cur).filter(k=>JSON.stringify(cur[k])!==JSON.stringify(o.prev[k])&&!['updated','hist'].includes(k)).map(k=>[k,cur[k]]))}],updated:at});continue}if(o.prev){await putRaw(o.col,{...o.prev,updated:nowTs()});const T=tombDoc();if(T.items&&T.items[o.col+'/'+o.id]){const it={...T.items};delete it[o.col+'/'+o.id];await putRaw('meta',{...T,items:it,updated:nowTs()})}}else if(byId(o.col,o.id)){if(mode==='cloud')await db.collection(o.col).doc(o.id).delete();else{await idbDel(o.col,o.id);S[o.col]=S[o.col].filter(z=>z.id!==o.id);await tombAdd(o.col,o.id)}}}catch(_){bad++}}
-  UB=null;ghDirty=true;closeSheet();render();toast(bad?'برگرداندن کامل نشد: '+fa(bad)+' مورد ذخیره نشد؛ «همهٔ ثبت‌ها» را ببین':'برگشت به حالت قبل ✓')}
+  const hasFin=ops.some(o=>UNDO_FIN.includes(o.col));let bad=0;
+  // atomic: the whole undo is one transaction (or nothing)
+  try{const r=await Store.batch('undo',async B=>{for(const o of ops.slice().reverse()){const cur=byId(o.col,o.id);if(hasFin&&o.col==='people'&&!o.prev)continue;if(UNDO_FIN.includes(o.col)&&cur){const at=nowTs();if(!o.prev){await putRaw(o.col,{...cur,void:true,voidReason:'برگردان بلافاصله پس از ثبت',voidAt:at,updated:at},B);continue}await putRaw(o.col,{...o.prev,hist:[...(cur.hist||[]),{at,why:'برگردان به نسخهٔ قبل',was:Object.fromEntries(Object.keys(cur).filter(k=>JSON.stringify(cur[k])!==JSON.stringify(o.prev[k])&&!['updated','hist'].includes(k)).map(k=>[k,cur[k]]))}],updated:at},B);continue}if(o.prev){await putRaw(o.col,{...o.prev,updated:nowTs()},B);const T=tombDoc();if(T.items&&T.items[o.col+'/'+o.id]){const it={...T.items};delete it[o.col+'/'+o.id];await putRaw('meta',{...T,items:it,updated:nowTs()},B)}}else if(byId(o.col,o.id)){if(mode==='cloud')await db.collection(o.col).doc(o.id).delete();else{await delRaw(o.col,o.id,B);await tombAdd(o.col,o.id,B)}}}});if(r===Store.BUSY)bad=ops.length}catch(_){bad=ops.length}
+  UB=null;ghDirty=true;closeSheet();render();toast(bad?'برگرداندن انجام نشد و چیزی تغییر نکرد؛ «همهٔ ثبت‌ها» را ببین':'برگشت به حالت قبل ✓')}
 /* ---------- fold the attention block: first 3 items, the rest on demand ---------- */
 function attnFold(){const b=document.getElementById('attnBox');if(!b||b.dataset.f)return;b.dataset.f='1';const K=[...b.children].filter(x=>x.textContent.trim());const n=document.getElementById('attnN');if(n)n.textContent=fa(K.length);if(K.length<=3||ui.attnAll)return;K.slice(3).forEach(x=>x.hidden=true);b.insertAdjacentHTML('beforeend',`<button class="btn ghost" data-act="attnAll" style="width:100%;margin-top:8px">${fa(K.length-3)} مورد دیگر</button>`)}
 /* ---------- 3.59 ledger form helpers ---------- */
