@@ -79,7 +79,7 @@ test('two operations at once on different documents: the first fails, the second
   const r = await p.evaluate(async vid => { const real = window.save, st = Store.stage; const ofA = x => x && (x.id === vid || x.docId === vid);
     // the void of document A waits a little at every write (so B is requested while A is still running) and fails at its last write
     window.save = async (...a) => { if (a[1] && (byId(a[0], a[1]) || {}).docId === vid || a[1] === vid) await new Promise(r => setTimeout(r, 30)); return real(...a); };
-    Store.stage = function (col, doc, prev) { if (ofA(doc) && col === 'docs') throw new Error('synthetic failure of A'); return st.apply(this, arguments); };
+    Store.stage = function (B, col, doc, prev) { if (ofA(doc) && col === 'docs') throw new Error('synthetic failure of A'); return st.apply(this, arguments); };
     const A = docVoid(vid, true); await new Promise(r => setTimeout(r, 10)); const B = postDoc({ ...byId('docs', 'd_b2') }, 'd_b2', 'payable', '', '');
     const [ra, rb] = await Promise.all([A, B]); window.save = real; Store.stage = st;
     return { ra, rb: !!(rb && !rb.failed), aVoid: !!byId('docs', vid).void, aRows: docLinked(vid).led.some(l => l.void), bPosted: !!byId('docs', 'd_b2').posted, bLots: S.lots.filter(l => !l.void && l.docId === 'd_b2').length }; }, vid);

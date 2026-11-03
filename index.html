@@ -379,7 +379,7 @@ async function initDb(){
 function showConn(m){const b=document.getElementById('conn');b.textContent=m;b.hidden=false}
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 function idbPut(col,doc){return new Promise((res,rej)=>{const t=idb.transaction('docs','readwrite');t.objectStore('docs').put({k:col+'/'+doc.id,col,doc});t.oncomplete=res;t.onerror=()=>rej(t.error)})}
-async function save(col,id,data){{const cb=closeBlock(col,id,data);if(cb){closeToast(cb);return false}}if(data&&!ui.lockSkip){const m=lockMsg(col,data,id);if(m){const k=m+col+(id||'');if(!(ui.lockOk&&ui.lockOk[k]>Date.now())){if(!await askConfirm(m)){toast('ثبت نشد؛ تاریخ را بررسی کن');return false}ui.lockOk={...(ui.lockOk||{}),[k]:Date.now()+15000}}await lockAfter(col,data,id)}}const prev=col==='tasks'&&id?byId('tasks',id):null;const was=prev?{...prev}:null;const ok=await save0(col,id,data);
+async function save(col,id,data,B){{const cb=closeBlock(col,id,data);if(cb){closeToast(cb);return false}}if(data&&!ui.lockSkip){const m=lockMsg(col,data,id);if(m){const k=m+col+(id||'');if(!(ui.lockOk&&ui.lockOk[k]>Date.now())){if(!await askConfirm(m)){toast('ثبت نشد؛ تاریخ را بررسی کن');return false}ui.lockOk={...(ui.lockOk||{}),[k]:Date.now()+15000}}await lockAfter(col,data,id)}}const prev=col==='tasks'&&id?byId('tasks',id):null;const was=prev?{...prev}:null;const ok=await save0(col,id,data,B);
   if(ok&&was&&was.repeat&&was.status!=='done'&&data.status==='done'){const nd=nextOcc(was.due||today(),was.repeat);const sw=was.start&&was.due?diffDays(was.due,was.start):0;await putRaw('tasks',{id:newId(),title:was.title,area:was.area||'',priority:was.priority||3,personId:was.personId||'',dealId:was.dealId||'',note:was.note||'',tag:was.tag||'',city:was.city||'',fup:was.fup||0,payAmt:was.payAmt||0,payCat:was.payCat||'',start:sw>0?addDays(nd,-sw):'',repeat:was.repeat,due:nd,status:'open',created:nowTs(),updated:nowTs()});if(mode==='local')render();setTimeout(()=>toast('نوبت بعدی: '+jNice(nd)+' ↻'),2300)}
   if(ok&&was&&was.status!=='done'&&data.status==='done'){
     if(Number(was.fup)>0)await putRaw('tasks',{id:newId(),title:'پیگیری: '+was.title,area:was.area||'',priority:was.priority||3,personId:was.personId||'',city:was.city||'',tag:was.tag||'',due:addDays(today(),Number(was.fup)),status:'open',created:nowTs(),updated:nowTs()});
@@ -516,27 +516,28 @@ function catManual(){const c=document.getElementById('f_cat');if(!c)return;c.dat
 async function catRuleSave(){const x=document.getElementById('f_catr');if(!x||!x.checked||!val('f_cat'))return;const R={...CATR()};R[x.dataset.kw]={cat:val('f_cat'),dir:catDir()};await putRaw('meta',{id:'catrules',r:R,created:nowTs(),updated:nowTs()})}
 function aboutList(){let d=document.getElementById('aboutList');if(!d){d=document.createElement('datalist');d.id='aboutList';document.body.appendChild(d)}const seen=new Set(),L=[];S.ledger.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).forEach(l=>{const a=(l.about||'').trim();if(a&&!seen.has(a)&&L.length<60){seen.add(a);L.push(a)}});d.innerHTML=L.map(a=>`<option value="${esc(a)}">`).join('')}
 const insOf=l=>(l.kind==='receivable'||l.kind==='payable')&&l.category!==LOAN&&(!l.instrument||l.instrument==='نقد/کارت')?'نسیه':(l.instrument||'');
-async function save0(col,id,data){if(mode==='local'&&!LOAD_OK){toast('داده‌ها هنوز سالم خوانده نشده؛ ثبت ممکن نیست');return false}if(mode==='cloud'){markDirty();undoRec(col,id||null)}if(data&&col==='ledger'&&data.acct)data.acct=acctCanon(data.acct);if(data&&col==='recurs'&&data.bank)data.bank=acctCanon(data.bank);if(col==='ledger'&&data){const k=data.kind||(id&&(byId('ledger',id)||{}).kind);const cat=data.category!==undefined?data.category:(id&&(byId('ledger',id)||{}).category);if((k==='receivable'||k==='payable')&&cat!==LOAN&&(data.instrument==='نقد/کارت'||(!id&&!data.instrument)))data.instrument='نسیه'}
+async function save0(col,id,data,B){if(mode==='local'&&!LOAD_OK){toast('داده‌ها هنوز سالم خوانده نشده؛ ثبت ممکن نیست');return false}if(mode==='cloud'){markDirty();undoRec(col,id||null)}if(data&&col==='ledger'&&data.acct)data.acct=acctCanon(data.acct);if(data&&col==='recurs'&&data.bank)data.bank=acctCanon(data.bank);if(col==='ledger'&&data){const k=data.kind||(id&&(byId('ledger',id)||{}).kind);const cat=data.category!==undefined?data.category:(id&&(byId('ledger',id)||{}).category);if((k==='receivable'||k==='payable')&&cat!==LOAN&&(data.instrument==='نقد/کارت'||(!id&&!data.instrument)))data.instrument='نسیه'}
   try{
     if(mode==='cloud'){
       if(id){await db.collection(col).doc(id).update({...data,updated:nowTs()})}
       else{await db.collection(col).doc().set({...data,created:nowTs(),updated:nowTs()})}
       return true}
-    if(mode==='local'&&idb&&Store._b){// inside Store.batch: memory now, disk at the end of the operation (one transaction)
+    if(mode==='local'&&idb&&B){// part of operation B (Store.batch): memory now, disk at the end of the operation (one transaction)
       const o=id?S[col].find(x=>x.id===id):null;const doc=o?{...o,...data,updated:nowTs()}:{id:id||newId(),...data,created:nowTs(),updated:nowTs()};
-      Store.stage(col,doc,o);undoRec(col,id||null);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);return true}
+      Store.stage(B,col,doc,o);Store.undo(B,()=>undoRec(col,id||null));const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);return true}
     if(mode==='local'&&idb){
+      if(Store.held(col,id))await Store.idle();/* an ordinary write to a record an active operation has staged waits for that operation to end */
       // the record is built when its turn in Store.tx comes; memory, undo, dirty state and the screen change only after the disk write succeeded
       const r=await Store.tx(w=>{const o=id?S[col].find(x=>x.id===id):null;const doc=o?{...o,...data,updated:nowTs()}:{id:id||newId(),...data,created:nowTs(),updated:nowTs()};w.put(col,doc);
         w.after(()=>{undoRec(col,id||null);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);markDirty()})});
       if(!r.ok)throw r.error||new Error('write failed');render();return true}
     toast('ثبت ممکن نیست؛ محل ذخیره در دسترس نیست');return false
-  }catch(e){if(Store._b)Store._b.err=Store._b.err||e;/* inside an atomic operation a failed write fails the whole operation */toast(e.code==='quota_exceeded'||(e&&e.name)==='QuotaExceededError'?'ظرفیت پایگاه داده پر است':'ثبت نشد: '+(e.code||e.message||'خطا'));return false}
+  }catch(e){if(B)B.err=B.err||e;/* inside an atomic operation a failed write fails the whole operation */toast(e.code==='quota_exceeded'||(e&&e.name)==='QuotaExceededError'?'ظرفیت پایگاه داده پر است':'ثبت نشد: '+(e.code||e.message||'خطا'));return false}
 }
-async function putRaw(col,doc){if(mode==='local'&&!LOAD_OK)throw new Error('داده‌ها هنوز سالم خوانده نشده');if(col==='ledger'&&doc&&(doc.kind==='receivable'||doc.kind==='payable')&&(!doc.instrument||doc.instrument==='نقد/کارت'))doc.instrument='نسیه';
+async function putRaw(col,doc,B){if(mode==='local'&&!LOAD_OK)throw new Error('داده‌ها هنوز سالم خوانده نشده');if(col==='ledger'&&doc&&(doc.kind==='receivable'||doc.kind==='payable')&&(!doc.instrument||doc.instrument==='نقد/کارت'))doc.instrument='نسیه';
   if(mode==='cloud'){markDirty();undoRec(col,doc&&doc.id);const {id,...rest}=doc;await db.collection(col).doc(id).set(rest)}
-  else if(Store._b){try{Store.stage(col,doc,S[col].find(x=>x.id===doc.id))}catch(e){Store._b.err=Store._b.err||e;throw e}undoRec(col,doc&&doc.id);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc)}
-  else{const r=await Store.tx(w=>{w.put(col,doc);w.after(()=>{undoRec(col,doc&&doc.id);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);markDirty()})});if(!r.ok)throw r.error||new Error('write failed')}
+  else if(B){try{Store.stage(B,col,doc,S[col].find(x=>x.id===doc.id))}catch(e){B.err=B.err||e;throw e}Store.undo(B,()=>undoRec(col,doc&&doc.id));const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc)}
+  else{if(Store.held(col,doc.id))await Store.idle();const r=await Store.tx(w=>{w.put(col,doc);w.after(()=>{undoRec(col,doc&&doc.id);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);markDirty()})});if(!r.ok)throw r.error||new Error('write failed')}
 }
 /* ---------- Data safety: load integrity, unsent counter, shrink guard, local snapshots, recovery, conflicts, xlsx ---------- */
 let LOAD_OK=false,BAD=[],LOAD_ERR='';
@@ -2046,12 +2047,17 @@ async function syncCatalog(manual){const site=(PROF().site||'').trim();if(!site)
 setTimeout(()=>{try{const d=CATALOG_DOC();const last=d.at||d.tried||'';if(navigator.onLine&&PROF().site&&(!last||Date.now()-new Date(last).getTime()>12*3600e3))syncCatalog(false)}catch(_){}},7000);
 
 /* ---------- Posting invoices: stock moves, purchases and money, all from one document ---------- */
-async function personByName(n){n=(n||'').trim();if(!n)return'';const p=S.people.find(x=>x.name===n);if(p)return p.id;const id=newId();await putRaw('people',{id,name:n,roles:['تأمین‌کننده'],status:'active',created:nowTs(),updated:nowTs()});return id}
+const mkPersonByName=(save,putRaw,personByName,openFlow,closeFlows)=>async function personByName(n){n=(n||'').trim();if(!n)return'';const p=S.people.find(x=>x.name===n);if(p)return p.id;const id=newId();await putRaw('people',{id,name:n,roles:['تأمین‌کننده'],status:'active',created:nowTs(),updated:nowTs()});return id};
 let LOT_REUSE=[],LEG_SET=[];const takeLot=prod=>{const i=LOT_REUSE.findIndex(id=>{const l=byId('lots',id);return l&&(!prod||l.product===prod)});return i>=0?LOT_REUSE.splice(i,1)[0]:newId()};
 // atomic (Store.batch): every record of one posting is written in one transaction, or none; one posting per document at a time
+const personByName=(...a)=>mkPersonByName(save,putRaw)(...a),openFlow=(...a)=>mkOpenFlow(save,putRaw)(...a),closeFlows=(...a)=>mkCloseFlows(save,putRaw)(...a);
+// the functions an operation uses: every write is bound to operation B (no global "current operation"), so an unrelated write
+// made while B waits (for a dialog, for example) is never staged into B
+function opsFor(B){const sv=(c,i,d)=>save(c,i,d,B),pr=(c,d)=>putRaw(c,d,B);const pbn=mkPersonByName(sv,pr),of=mkOpenFlow(sv,pr),cf=mkCloseFlows(sv,pr);
+  return {postDoc0:mkPostDoc0(sv,pr,pbn,of,cf),docVoid0:mkDocVoid0(sv,pr),mergePeople0:mkMergePeople0(sv,pr)}}
 const POST_NONE=()=>({led:[],lots:[],moves:[],failed:true});
-async function postDoc(d,id,...a){{const d0=byId('docs',id);if(d0&&d0.posted){toast('این سند قبلاً ثبت شده است');return POST_NONE()}}/* the posted flag is written in the same transaction: a retry after success does nothing */let r;try{r=await Store.batch('post:'+(id||d.id||''),()=>postDoc0(d,id,...a))}catch(e){toast('ثبت حساب و انبار انجام نشد و چیزی تغییر نکرد: '+((e&&(e.name==='QuotaExceededError'?'حافظه پر است':e.message))||'خطا'));return POST_NONE()}if(r===Store.BUSY){toast('این سند در حال ثبت است');return POST_NONE()}return r}
-async function postDoc0(d,id,led,acct,ext){const date=d.date,pid=d.personId||'',t=docTotal(d),now=nowTs();const out={moves:0,lots:0,led:0};
+async function postDoc(d,id,...a){{const d0=byId('docs',id);if(d0&&d0.posted){toast('این سند قبلاً ثبت شده است');return POST_NONE()}}/* the posted flag is written in the same transaction: a retry after success does nothing */let r;try{r=await Store.batch('post:'+(id||d.id||''),B=>opsFor(B).postDoc0(d,id,...a))}catch(e){toast('ثبت حساب و انبار انجام نشد و چیزی تغییر نکرد: '+((e&&(e.name==='QuotaExceededError'?'حافظه پر است':e.message))||'خطا'));return POST_NONE()}if(r===Store.BUSY){toast('این سند در حال ثبت است');return POST_NONE()}return r}
+const mkPostDoc0=(save,putRaw,personByName,openFlow,closeFlows)=>async function postDoc0(d,id,led,acct,ext){const date=d.date,pid=d.personId||'',t=docTotal(d),now=nowTs();const out={moves:0,lots:0,led:0};
   const ledRow=async(kind,amount,category,about,extra={})=>{if(!amount||led==='none')return;const lid=newId();if((kind==='receivable'||kind==='payable')&&extra.personId==null&&!extra.pack)(out.cr=out.cr||[]).push({id:lid,kind,amount});await putRaw('ledger',{id:lid,kind,personId:extra.personId!=null?extra.personId:pid,amount,currency:'تومان',about,category,acct:['received','paid'].includes(kind)?acct:'',instrument:'نقد/کارت',date,due:['receivable','payable'].includes(kind)?(d.due||addDays(date,30)):'',docId:id,settled:false,void:false,created:now,updated:now,...extra});out.led++};
   if(d.type==='invoice'){const byCat={},byCatE={},GV=isGive(led),prods=new Set();
     for(const x of d.items){let lotId=x.src==='lot'?x.lotId:'';const prod=lotId?(byId('lots',lotId)||{}).product:(x.src==='new'&&x.nProd&&x.nProd!=='سایر'?x.nProd:guessProd(x.desc));prods.add(prod);
@@ -2078,7 +2084,7 @@ async function postDoc0(d,id,led,acct,ext){const date=d.date,pid=d.personId||'',
   if(d.type==='sret'||d.type==='pret'){const byCat={};for(const x of d.items){if(!x.lotId)continue;const l=byId('lots',x.lotId);await putRaw('moves',{id:newId(),kind:d.type==='sret'?'ret':'pret',lotId:x.lotId,personId:pid,date,qty:x.qty,price:x.price,currency:'تومان',docId:id,note:DT[d.type][0]+' '+d.no,void:false,created:now,updated:now});out.moves++;const cat=d.type==='sret'?(PROD_CAT[l&&l.product]||'سایر درآمد'):'خرید و تأمین کالا';byCat[cat]=(byCat[cat]||0)+x.qty*x.price}
     const NO=(d.type==='sret'&&led==='payable')||(d.type==='pret'&&led==='receivable');for(const [cat,v] of Object.entries(byCat))await ledRow(NO?(d.type==='sret'?'received':'paid'):led,v,cat,DT[d.type][0]+' '+d.no,{ret:d.type,...(NO?{netOff:true,settles:true,acct:'',instrument:d.type==='sret'?'کم از طلب':'کم از بدهی'}:{})})}
   if(Number(d.payNow)>0&&(out.cr||[]).length){let left=Number(d.payNow);for(const c of out.cr){if(left<=0.5)break;const a=Math.min(left,c.amount);left-=a;await putRaw('ledger',{id:newId(),kind:c.kind==='receivable'?'received':'paid',personId:pid,amount:a,currency:'تومان',about:(c.kind==='receivable'?'دریافت همزمان ':'پرداخت همزمان ')+DT[d.type][0]+' '+d.no,category:'',refId:c.id,acct:acctCanon(d.payAcct||myAccts()[0]||''),instrument:'نقد/کارت',date,docId:id,settled:false,void:false,created:now,updated:now});out.led++}}
-  await save('docs',id,{posted:true});return out}
+  await save('docs',id,{posted:true});return out};
 
 /* ---------- Letters, contracts, invoices and pro-formas on your letterhead ---------- */
 const DT={invoice:['فاکتور فروش','ف'],purchase:['فاکتور خرید','خ'],proforma:['پیش‌فاکتور','پ'],sret:['برگشت از فروش','بف'],pret:['برگشت از خرید','بخ'],letter:['نامه','ن'],contract:['قرارداد','ق'],count:['برگه شمارش انبار','ش'],prod:['برگهٔ تولید','ت']};
@@ -2752,11 +2758,11 @@ function docLinked(id){return{lots:S.lots.filter(x=>x.docId===id),moves:S.moves.
 // otherwise (e.g. a void interrupted before 4.40) the operation runs and completes it
 function docVoidDone(id,v){const d=byId('docs',id);if(!d||!!d.void!==!!v)return false;const K=(d.posted||d.type==='count')?docLinked(id):{lots:[],moves:[],led:[]};
   return [...K.moves,...K.lots,...K.led].every(x=>!!x.void===!!v)&&S.docs.filter(z=>z.viaSale===id).every(z=>!!z.void===!!v)}
-async function docVoid(id,v){if(docVoidDone(id,v))return true;let r;try{r=await Store.batch('void:'+id,()=>docVoid0(id,v))}catch(e){toast('انجام نشد و چیزی تغییر نکرد: '+((e&&e.message)||'خطا'));return false}if(r===Store.BUSY){toast('در حال انجام است');return false}return r}
-async function docVoid0(id,v){const d=byId('docs',id);if(!d)return false;const K=(d.posted||d.type==='count')?docLinked(id):{lots:[],moves:[],led:[]};
+async function docVoid(id,v){if(docVoidDone(id,v))return true;let r;try{r=await Store.batch('void:'+id,B=>opsFor(B).docVoid0(id,v))}catch(e){toast('انجام نشد و چیزی تغییر نکرد: '+((e&&e.message)||'خطا'));return false}if(r===Store.BUSY){toast('در حال انجام است');return false}return r}
+const mkDocVoid0=(save,putRaw,personByName,openFlow,closeFlows)=>async function docVoid0(id,v){const d=byId('docs',id);if(!d)return false;const K=(d.posted||d.type==='count')?docLinked(id):{lots:[],moves:[],led:[]};
   if(v){const ids=new Set(K.moves.map(m=>m.id));const busy=K.lots.filter(l=>!l.void&&lotMoves(l.id).some(m=>!ids.has(m.id)));if(busy.length){toast(`از «${busy.map(lotName).join('، ')}» بعد از این سند فروش یا ارسال ثبت شده؛ اول آن‌ها را باطل کن`);return false}}
   const at=nowTs(),why='حذف '+docTitle(d)+' '+(d.no||'');for(const [c,arr] of [['moves',K.moves],['lots',K.lots],['ledger',K.led]])for(const x of arr)if(!!x.void!==v)await save(c,x.id,v?{void:true,voidReason:why,voidAt:at}:{void:false});
-  await save('docs',id,{void:v});for(const pd of S.docs.filter(z=>z.viaSale===id&&!!z.void!==v))await save('docs',pd.id,{void:v});return true}
+  await save('docs',id,{void:v});for(const pd of S.docs.filter(z=>z.viaSale===id&&!!z.void!==v))await save('docs',pd.id,{void:v});return true};
 function viewCount(id){const d=byId('docs',id);if(!d)return;const K=docLinked(id);
   openSheet(`<h3>${badge('sales','box')} برگه شمارش انبار <bdi dir="ltr">${esc(d.no||'')}</bdi></h3><div class="sub" style="margin-bottom:10px">${jNice(d.date)} · ${countSum(d)}${d.void?' · <span class="pill bad">حذف‌شده</span>':''}</div>
   <div class="list">${K.lots.map(lotRow).join('')}${K.moves.map(moveRow).join('')||''}</div>
@@ -3080,12 +3086,12 @@ function peopleDups(){const P=S.people.filter(p=>p.status!=='archived');const pa
   P.forEach(p=>{const n=pClean(p.name);if(n.length>=3){if(byN[n])u(p.id,byN[n]);else byN[n]=p.id}pPhones(p).forEach(t=>{if(byT[t])u(p.id,byT[t]);else byT[t]=p.id})});const G={};P.forEach(p=>{const r=f(p.id);(G[r]=G[r]||[]).push(p)});return Object.values(G).filter(g=>g.length>1)}
 function refCount(pid){let n=0;const hit=v=>v===pid||(Array.isArray(v)&&v.some(hit))||(v&&typeof v==='object'&&!Array.isArray(v)&&Object.values(v).some(hit));COLS.forEach(c=>{if(c==='contacts')return;(S[c]||[]).forEach(x=>{if(x.id!==pid&&Object.entries(x).some(([k,v])=>k!=='id'&&hit(v)))n++})});return n}
 // atomic (Store.batch): all references move and the source is archived together; merging an already merged pair is a no-op
-async function mergePeople(keep,src){const S0=byId('people',src);if(!S0||S0.mergedInto===keep||keep===src)return 0;let r;try{r=await Store.batch('merge:'+src,()=>mergePeople0(keep,src))}catch(e){toast('یکی کردن انجام نشد و چیزی تغییر نکرد: '+((e&&e.message)||'خطا'));return 0}if(r===Store.BUSY){toast('در حال انجام است');return 0}return r}
-async function mergePeople0(keep,src){const K=byId('people',keep),Sx=byId('people',src);if(!K||!Sx)return;const rp=(v,d)=>v===src?keep:d>3?v:Array.isArray(v)?v.map(y=>rp(y,d+1)):(v&&typeof v==='object')?Object.fromEntries(Object.entries(v).map(([k,y])=>[k,rp(y,d+1)])):v;let n=0;
+async function mergePeople(keep,src){const S0=byId('people',src);if(!S0||S0.mergedInto===keep||keep===src)return 0;let r;try{r=await Store.batch('merge:'+src,B=>opsFor(B).mergePeople0(keep,src))}catch(e){toast('یکی کردن انجام نشد و چیزی تغییر نکرد: '+((e&&e.message)||'خطا'));return 0}if(r===Store.BUSY){toast('در حال انجام است');return 0}return r}
+const mkMergePeople0=(save,putRaw,personByName,openFlow,closeFlows)=>async function mergePeople0(keep,src){const K=byId('people',keep),Sx=byId('people',src);if(!K||!Sx)return;const rp=(v,d)=>v===src?keep:d>3?v:Array.isArray(v)?v.map(y=>rp(y,d+1)):(v&&typeof v==='object')?Object.fromEntries(Object.entries(v).map(([k,y])=>[k,rp(y,d+1)])):v;let n=0;
   for(const c of COLS){if(c==='contacts')continue;for(const x of (S[c]||[]).slice()){if(x.id===src)continue;const y={};let ch=false;for(const [k,v] of Object.entries(x)){const w=k==='id'?v:rp(v,0);if(JSON.stringify(w)!==JSON.stringify(v))ch=true;y[k]=w}if(ch){await putRaw(c,{...y,updated:nowTs()});n++}}}
   const ph=[...new Set([...String(K.phone||'').split(/\s*[،,]\s*/),...String(Sx.phone||'').split(/\s*[،,]\s*/)].map(x=>x.trim()).filter(Boolean))].join(' ، ');
   await save('people',keep,{phone:ph,roles:[...new Set([...(K.roles||[]),...(Sx.roles||[])])],email:K.email||Sx.email||'',org:K.org||Sx.org||'',note:[K.note,Sx.note&&('از «'+Sx.name+'»: '+Sx.note)].filter(Boolean).join('\n'),hist:[...(K.hist||[]),{at:nowTs(),merged:Sx.name,refs:n}]});
-  await save('people',src,{status:'archived',mergedInto:keep,note:(Sx.note?Sx.note+'\n':'')+'یکی شد با «'+K.name+'»'});return n}
+  await save('people',src,{status:'archived',mergedInto:keep,note:(Sx.note?Sx.note+'\n':'')+'یکی شد با «'+K.name+'»'});return n};
 function healthIssues(){const t=today(),I=[];const L=S.ledger.filter(l=>!l.void&&!l.pending);
   const unc=L.filter(l=>(l.kind==='received'||l.kind==='paid')&&!l.category&&!(l.refId||l.settles));if(unc.length)I.push({k:'unc',t:'دریافت و پرداخت بدون دسته',d:'در سود و زیان و گزارش‌ها جای درستی نمی‌نشینند.',rows:unc,row:ledgerRow});
   const noA=L.filter(l=>(l.kind==='received'||l.kind==='paid')&&!l.acct&&!l.netOff&&!/تهاتر|کم از/.test(l.instrument||'')&&!/مستقیم/.test(l.evidence||''));if(noA.length)I.push({k:'acct',t:'دریافت و پرداخت بدون حساب',d:'موجودی حساب‌ها با بانک نمی‌خواند؛ حساب (بلوبانک یا نقد) را مشخص کن.',rows:noA,row:ledgerRow});
@@ -4443,10 +4449,10 @@ function personTrade(id){const mv=S.moves.filter(m=>m.personId===id&&!m.void);co
   return Object.entries(by).sort().reverse().map(([k,v])=>{const [y,p,u]=k.split('|');return `<div class="row"><div class="main"><div class="ttl">${esc(p)} · سال ${fa(y)}</div></div><div class="end">${fmtQ(v.q,u)}${v.amt?`<div class="sub">${money(v.amt,v.cur)}</div>`:''}</div></div>`}).join('')}
 
 /* ---------- Flow follow-up: quotes, samples and credit are chased until they close ---------- */
-async function openFlow(flow,title,days,area){const dup=S.tasks.find(t=>t.status==='open'&&t.flow&&t.flow.kind===flow.kind&&t.flow.personId===flow.personId&&t.flow.product===flow.product);
+const mkOpenFlow=(save,putRaw,personByName,openFlow,closeFlows)=>async function openFlow(flow,title,days,area){const dup=S.tasks.find(t=>t.status==='open'&&t.flow&&t.flow.kind===flow.kind&&t.flow.personId===flow.personId&&t.flow.product===flow.product);
   if(dup){await save('tasks',dup.id,{due:addDays(today(),days)});return}
-  await save('tasks',null,{title,due:addDays(today(),days),priority:2,area,personId:flow.personId||'',dealId:'',note:'ساخته‌شده خودکار برای پیگیری تا نتیجه',status:'open',flow})}
-async function closeFlows(pred,why){for(const t of S.tasks.filter(t=>t.status==='open'&&pred(t)))await save('tasks',t.id,{status:'done',doneAt:nowTs(),note:(t.note?t.note+' · ':'')+'بسته شد خودکار: '+why})}
+  await save('tasks',null,{title,due:addDays(today(),days),priority:2,area,personId:flow.personId||'',dealId:'',note:'ساخته‌شده خودکار برای پیگیری تا نتیجه',status:'open',flow})};
+const mkCloseFlows=(save,putRaw,personByName,openFlow,closeFlows)=>async function closeFlows(pred,why){for(const t of S.tasks.filter(t=>t.status==='open'&&pred(t)))await save('tasks',t.id,{status:'done',doneAt:nowTs(),note:(t.note?t.note+' · ':'')+'بسته شد خودکار: '+why})};
 function flowSummary(){const ot=openTasks().filter(t=>t.flow);const c=k=>ot.filter(t=>t.flow.kind===k).length;
   const openK=k=>S.ledger.filter(l=>!l.void&&!l.settled&&l.kind===k&&remOf(l)>0.5);const recv=openK('receivable').length,pay=openK('payable').length;
   const short=S.lots.filter(l=>!l.void&&lotStat(l).rem<-1e-9);
