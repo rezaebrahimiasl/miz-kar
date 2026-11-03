@@ -1288,7 +1288,8 @@ const simTitle=(a,b)=>{a=nrm(a);b=nrm(b);return a&&b&&(a===b||(Math.min(a.length
 /* ---------- Activity log: every record in the order it was written; tap to open, fix, finish, delete or restore ---------- */
 // the one way to delete a record: cloud → the cloud API; inside operation B → staged (Store.stageDel); otherwise one Store.tx with
 // the ownership check (waits for an operation that holds the record) — memory changes only after the disk delete succeeded
-async function delRaw(col,id,B){if(mode==='cloud'){await db.collection(col).doc(id).delete();S[col]=S[col].filter(x=>x.id!==id);return}
+const DEL_CLOUD_MSG='حذف در نمای داخل Claude (حالت ابری) انجام نمی‌شود، چون آنجا هنوز نشانهٔ حذف (برای همگام‌سازی) ثبت نمی‌شود. در برنامهٔ گوشی حذف کن.';
+async function delRaw(col,id,B){if(mode==='cloud')throw new Error(DEL_CLOUD_MSG);
   if(B){await Store.settle(col,id);Store.stageDel(B,col,id);return}
   const r=await Store.tx(w=>{w.del(col,id);w.after(()=>{S[col]=S[col].filter(x=>x.id!==id)})});if(!r.ok)throw r.error||new Error('delete failed')}
 /* idbDel removed (4.40): every delete goes through delRaw → Store.tx / Store.stageDel */
@@ -1296,7 +1297,9 @@ async function delDoc(col,id){const d=byId(col,id);if(!d)return false;if(col==='
   // trash and drafts change only after the delete is committed (they are in localStorage, outside the transaction)
   const after=()=>{try{let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}tr.unshift({col,doc:d,at:nowTs()});localStorage.setItem('miz.trash',JSON.stringify(tr.slice(0,60)))}catch(_){}
     try{drSet(drGet().filter(x=>{const a0=((x.op&&x.op.args)||[])[0];return !(a0===id||(a0&&a0.id===id))}))}catch(_){}}; // drafts of forms opened FOR the deleted record go with it; drafts of other records that merely refer to it are kept
-  try{if(mode==='cloud'){undoRec(col,id);await db.collection(col).doc(id).delete();after();return true}/* cloud: one delete, no tombstone (as before) */
+  // cloud mode: no safe tombstone yet (another copy could bring the record back) → deletion is refused there; nothing is recorded or changed
+  if(mode==='cloud'){toast(DEL_CLOUD_MSG);return false}
+  try{
     // local: the delete, its tombstone and its undo entry are one operation (all or nothing)
     const r=await Store.batch('del:'+col+'/'+id,async B=>{Store.undo(B,()=>undoRec(col,id));await delRaw(col,id,B);if(!(col==='meta'&&id==='tomb'))await tombAdd(col,id,B)});
     if(r===Store.BUSY){toast('در حال حذف است');return false}after();render();return true}catch(e){toast('حذف نشد: '+(e.message||''));return false}}

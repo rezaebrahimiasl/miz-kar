@@ -75,5 +75,14 @@ test('6 cloud mode: multi-record operations are refused with a clear message; no
   assert(r.merge === 0 && r.post && r.apply === 'refused' && r.batch === 'refused' && r.same && /حالت ابری/.test(r.toast), 'cloud: ' + JSON.stringify(r));
   const v = await invariants(p); assert(!v.length, v.join('; ')); assert(!o.errors.length, o.errors.join(' | '));
 });
+test('6b cloud mode: deletion is refused before anything is recorded — no cloud call, no undo entry, trash, drafts or memory change', async () => {
+  const r = await p.evaluate(async () => { const id = S.people[0].id; let calls = 0; const realDb = db; undoOpen();
+    const before = { undo: UB.ops.length, trash: localStorage.getItem('miz.trash') || '', drafts: JSON.stringify(drGet()), n: S.people.length };
+    mode = 'cloud'; db = { collection: () => ({ doc: () => ({ delete: async () => { calls++; throw new Error('synthetic cloud failure'); } }) }) };
+    let res, raw; try { res = await delDoc('people', id); raw = await delRaw('people', id).then(() => 'ran', e => e.message); } finally { mode = 'local'; db = realDb; }
+    return { res, raw, calls, same: UB.ops.length === before.undo && (localStorage.getItem('miz.trash') || '') === before.trash && JSON.stringify(drGet()) === before.drafts && S.people.length === before.n && !!byId('people', id),
+      toast: document.getElementById('toast').textContent }; });
+  assert(r.res === false && r.calls === 0 && r.same && /حالت ابری/.test(r.toast) && /حالت ابری/.test(r.raw), 'cloud delete: ' + JSON.stringify(r));
+});
 test('cleanup', async () => { await o.ctx.close(); await srv.close(); });
 run(__filename);
