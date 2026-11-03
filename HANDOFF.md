@@ -678,4 +678,5 @@
 - `save0`: a record that existed at request time (or is staged for deletion) but is gone at its turn → refused (no stub). Sequential "delete then save the same id" still recreates the record, as before.
 - Quiet changes (`_noUnsent` at staging time) are counted at commit with `_noUnsent` set (sync/conflict list, as before).
 - Test 64 (6 of 9 fail on `560c07e`). Remaining: on-screen display of staged state; printed reports don't wait; `snapApply`/«ghVerApply» rely on `applyData` (now atomic).
+- Self-review corrections of `fb62f06` (branch `stage2-fix`; the external reviewer's list was not available in this session): (1) `Store.read(fn)` — external outputs read committed state at the moment of reading; (2) `snapTake` read after `snapList`; (3) `bk2` read after its confirmation dialog; (4) `gcSync` plan after network calls; (5) `ghPush0`/`ghSync`: unsent counter and `ghDirty` cleared only if nothing changed since the uploaded snapshot (before: changes made during the upload were marked as sent — also before 4.40); (6) failed `confPick` re-shows the restored conflict list. Test 65 (6 of 8 fail on `fb62f06`).
 

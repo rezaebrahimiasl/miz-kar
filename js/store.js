@@ -49,6 +49,9 @@ const Store={_q:Promise.resolve(),_RETRY:Symbol('retry'),_inflight:new Map(),
     if(u&&UB===u){for(let i=n;i<u.ops.length;i++)B.uops.add(u.ops[i]);u.seen.forEach(k=>{if(!s0.has(k))B.useen.add(k)})}},
   held(col,id){const B=this._act;return !!(B&&id&&B.owns(col+'/'+id))},
   idle(){return this._act?this._act.end:Promise.resolve()},
+  // run fn (synchronous) at a moment no operation is active: what it reads is committed state (for backups, sync and other
+  // external outputs). Waiting only at the start of a function is not enough when other awaits follow before the read.
+  async read(fn){for(;;){await this.idle();if(!this._act)return fn()}},
   batch(key,fn){if(typeof mode!=='undefined'&&mode!=='local')return fn();if(key&&this._busy.has(key))return Promise.resolve(this.BUSY);if(key)this._busy.add(key);
     const go=()=>this._batch(key,fn);const p=this._bq.then(go,go);this._bq=p.then(()=>{},()=>{});return p},
   async _batch(key,fn){let endR;const B={orig:new Map(),puts:new Map(),dels:new Map(),quiet:0,owns:k=>B.puts.has(k)||B.dels.has(k),n:0,uops:new Set(),useen:new Set(),end:new Promise(r=>endR=r),batch:()=>{throw new Error('nested operation: an operation must not start another one (it would wait for itself)')}};this._act=B;

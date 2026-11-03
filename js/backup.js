@@ -27,7 +27,7 @@ function snapData(){const b=backupData();b.data={...b.data,contacts:[]};const co
   return {h:snapHash(JSON.stringify(b.data)),counts,n:Object.values(counts).reduce((a,x)=>a+x,0),txt:JSON.stringify(b)}}
 // take a copy (of the data now, or of D captured earlier by snapData); returns its id (or the id of an identical newest copy), or null when no verified copy could be made
 async function snapTake(reason,minGapMin,D){if(!D&&typeof Store!=='undefined')await Store.idle();/* a copy holds only committed state */if(!LOAD_OK||mode!=='local')return null;try{const L=await snapList();if(minGapMin&&L[0]&&L[0].reason===reason&&Date.now()-new Date(L[0].at)<minGapMin*60000)return null;
-  D=D||snapData();const h=D.h;if(L[0]&&L[0].h===h&&snapCheck(L[0]))return L[0].id;
+  D=D||(typeof Store!=='undefined'?await Store.read(()=>snapData()):snapData());const h=D.h;if(L[0]&&L[0].h===h&&snapCheck(L[0]))return L[0].id;
   const s={id:newId(),at:nowTs(),reason,n:D.n,counts:D.counts,h,ver:APP_VER,txt:D.txt};if(!snapCheck(s))return null;
   const keep=snapKeep([s,...L],await snapMax());
   const d=await snapOpen();await new Promise((res,rej)=>{const t=d.transaction('snaps','readwrite');const st=t.objectStore('snaps');st.put(s);L.filter(x=>!keep.has(x.id)).forEach(x=>st.delete(x.id));t.oncomplete=res;t.onerror=()=>rej(t.error)});
