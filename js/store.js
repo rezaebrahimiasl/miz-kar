@@ -20,6 +20,23 @@ const Store={_q:Promise.resolve(),
         // a memory callback failed: the disk is right, memory may be half-updated → reload exactly the written records from disk
         try{console.warn('Store.tx after',err)}catch(_){}Store.resync(ops).then(()=>end({ok:true,ops,afterError:err}),()=>end({ok:true,ops,afterError:err}))};t.onerror=()=>{};/* a failed request aborts the whole transaction (not prevented); the result is reported by onabort */t.onabort=()=>end({ok:false,error:t.error||new Error('transaction aborted')})});
     const p=this._q.then(run,run);this._q=p.then(()=>{},()=>{});return p},
+  /* Store.batch(key, fn): makes a multi-record business operation atomic (unit of work). While fn runs, save0/putRaw stage their
+     records: memory (S) changes at once, so fn reads its own writes and may still ask the user; nothing touches the disk. When fn
+     finishes, all staged records are committed in ONE transaction (Store.tx); on any error or a failed commit, memory is put back
+     exactly as it was and nothing was written. key: one run per key at a time (a second call while the first runs returns
+     Store.BUSY — protects against double taps). Follow-up updates (recvKick) are held until the end. Cloud mode: fn runs as before. */
+  _b:null,_busy:new Set(),BUSY:Symbol('busy'),
+  stage(col,doc,prev){const B=this._b,k=col+'/'+doc.id;if(!B.orig.has(k))B.orig.set(k,prev?JSON.parse(JSON.stringify(prev)):null);B.puts.set(k,[col,doc]);B.n++},
+  async batch(key,fn){if(typeof mode!=='undefined'&&mode!=='local')return fn();if(key&&this._busy.has(key))return this.BUSY;if(this._b)return fn();/* nested: part of the running operation */if(key)this._busy.add(key);
+    const B={orig:new Map(),puts:new Map(),n:0,ub:typeof UB!=='undefined'?UB:null};B.ubn=B.ub?B.ub.ops.length:0;this._b=B;const hold=typeof _rvH!=='undefined';if(hold)_rvH++;
+    const rollback=()=>{for(const [k,o] of B.orig){const i=k.indexOf('/'),col=k.slice(0,i),id=k.slice(i+1);if(!S[col])continue;const j=S[col].findIndex(x=>x.id===id);if(o){if(j>=0)S[col][j]=o;else S[col].push(o)}else if(j>=0)S[col].splice(j,1)}
+      try{if(B.ub&&UB===B.ub){UB.ops.length=B.ubn;B.orig.forEach((_,k)=>UB.seen.delete(k))}}catch(_){}};/* undo entries of the failed operation are dropped */
+    try{let res;try{res=await fn()}finally{this._b=null}if(B.err)throw B.err;
+      const r=B.puts.size?await this.tx(w=>{for(const [col,doc] of B.puts.values())w.put(col,doc)}):{ok:true};
+      if(!r.ok)throw r.error||new Error('write failed');B.done=true;
+      for(let i=0;i<B.n;i++)try{markDirty()}catch(_){}return res}
+    catch(e){if(!B.done)rollback();throw e}
+    finally{if(key)this._busy.delete(key);if(hold){_rvH--;if(!_rvH&&typeof _rvP!=='undefined'&&_rvP){_rvP=0;try{recvKick()}catch(_){}}}try{render()}catch(_){}}},
   // reload the given records from disk into memory (S); used when a memory callback failed after a successful transaction
   resync(ops){return new Promise(res=>{try{const t=idb.transaction('docs','readonly'),st=t.objectStore('docs');
     for(const [op,col,x] of ops){const id=op==='put'?x.id:x;const q=st.get(col+'/'+id);q.onsuccess=()=>{if(!S[col])return;const d=q.result&&q.result.doc;const i=S[col].findIndex(z=>z.id===id);if(d){if(i>=0)S[col][i]=d;else S[col].push(d)}else if(i>=0)S[col].splice(i,1)}}

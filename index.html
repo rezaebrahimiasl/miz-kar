@@ -522,16 +522,20 @@ async function save0(col,id,data){if(mode==='local'&&!LOAD_OK){toast('داده�
       if(id){await db.collection(col).doc(id).update({...data,updated:nowTs()})}
       else{await db.collection(col).doc().set({...data,created:nowTs(),updated:nowTs()})}
       return true}
+    if(mode==='local'&&idb&&Store._b){// inside Store.batch: memory now, disk at the end of the operation (one transaction)
+      const o=id?S[col].find(x=>x.id===id):null;const doc=o?{...o,...data,updated:nowTs()}:{id:id||newId(),...data,created:nowTs(),updated:nowTs()};
+      Store.stage(col,doc,o);undoRec(col,id||null);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);return true}
     if(mode==='local'&&idb){
       // the record is built when its turn in Store.tx comes; memory, undo, dirty state and the screen change only after the disk write succeeded
       const r=await Store.tx(w=>{const o=id?S[col].find(x=>x.id===id):null;const doc=o?{...o,...data,updated:nowTs()}:{id:id||newId(),...data,created:nowTs(),updated:nowTs()};w.put(col,doc);
         w.after(()=>{undoRec(col,id||null);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);markDirty()})});
       if(!r.ok)throw r.error||new Error('write failed');render();return true}
     toast('ثبت ممکن نیست؛ محل ذخیره در دسترس نیست');return false
-  }catch(e){toast(e.code==='quota_exceeded'||(e&&e.name)==='QuotaExceededError'?'ظرفیت پایگاه داده پر است':'ثبت نشد: '+(e.code||e.message||'خطا'));return false}
+  }catch(e){if(Store._b)Store._b.err=Store._b.err||e;/* inside an atomic operation a failed write fails the whole operation */toast(e.code==='quota_exceeded'||(e&&e.name)==='QuotaExceededError'?'ظرفیت پایگاه داده پر است':'ثبت نشد: '+(e.code||e.message||'خطا'));return false}
 }
 async function putRaw(col,doc){if(mode==='local'&&!LOAD_OK)throw new Error('داده‌ها هنوز سالم خوانده نشده');if(col==='ledger'&&doc&&(doc.kind==='receivable'||doc.kind==='payable')&&(!doc.instrument||doc.instrument==='نقد/کارت'))doc.instrument='نسیه';
   if(mode==='cloud'){markDirty();undoRec(col,doc&&doc.id);const {id,...rest}=doc;await db.collection(col).doc(id).set(rest)}
+  else if(Store._b){try{Store.stage(col,doc,S[col].find(x=>x.id===doc.id))}catch(e){Store._b.err=Store._b.err||e;throw e}undoRec(col,doc&&doc.id);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc)}
   else{const r=await Store.tx(w=>{w.put(col,doc);w.after(()=>{undoRec(col,doc&&doc.id);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);markDirty()})});if(!r.ok)throw r.error||new Error('write failed')}
 }
 /* ---------- Data safety: load integrity, unsent counter, shrink guard, local snapshots, recovery, conflicts, xlsx ---------- */
@@ -1278,7 +1282,7 @@ const simTitle=(a,b)=>{a=nrm(a);b=nrm(b);return a&&b&&(a===b||(Math.min(a.length
 function idbDel(col,id){return new Promise((res,rej)=>{const t=idb.transaction('docs','readwrite');t.objectStore('docs').delete(col+'/'+id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
 async function delDoc(col,id){const d=byId(col,id);if(!d)return false;if(col==='tasks'&&apptLinked(id)){toast('این نوبت به یک ویزیت وصل است و حذف نمی‌شود؛ می‌توانی لغوش کنی');return false}await snapTake('del',10);undoRec(col,id);try{let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}tr.unshift({col,doc:d,at:nowTs()});try{localStorage.setItem('miz.trash',JSON.stringify(tr.slice(0,60)))}catch(_){}
   try{drSet(drGet().filter(x=>{const a0=((x.op&&x.op.args)||[])[0];return !(a0===id||(a0&&a0.id===id))}))}catch(_){} // drafts of forms opened FOR the deleted record go with it; drafts of other records that merely refer to it are kept
-  if(mode==='cloud')await db.collection(col).doc(id).delete();else{await idbDel(col,id);S[col]=S[col].filter(x=>x.id!==id);if(!(col==='meta'&&id==='tomb'))await tombAdd(col,id);render()}return true}catch(e){toast('حذف نشد: '+(e.message||''));return false}}
+  if(mode==='cloud')await db.collection(col).doc(id).delete();else{const r=await Store.tx(w=>{w.del(col,id);w.after(()=>{S[col]=S[col].filter(x=>x.id!==id)})});if(!r.ok)throw r.error||new Error('delete failed');if(!(col==='meta'&&id==='tomb'))await tombAdd(col,id);render()}return true}catch(e){toast('حذف نشد: '+(e.message||''));return false}}
 async function undoDel(i){let tr=[];try{tr=JSON.parse(localStorage.getItem('miz.trash')||'[]')}catch(_){}const x=tr[i];if(!x)return;await putRaw(x.col,{...x.doc,updated:nowTs()});tr.splice(i,1);try{localStorage.setItem('miz.trash',JSON.stringify(tr))}catch(_){}if(mode==='local')render();toast('برگردانده شد ✓');logSheet()}
 const LOGT2={
   tasks:{n:'کار',g:'work',del:x=>!apptLinked(x.id),a:x=>x.area||'affairs',i:()=>undefined,t:x=>x.title,open:x=>formTask(x),st:x=>x.status==='done'?['انجام شد','ok']:x.status==='archived'?['کنار گذاشته شد','']:null,restore:x=>({status:'open'})},
@@ -2044,7 +2048,10 @@ setTimeout(()=>{try{const d=CATALOG_DOC();const last=d.at||d.tried||'';if(naviga
 /* ---------- Posting invoices: stock moves, purchases and money, all from one document ---------- */
 async function personByName(n){n=(n||'').trim();if(!n)return'';const p=S.people.find(x=>x.name===n);if(p)return p.id;const id=newId();await putRaw('people',{id,name:n,roles:['تأمین‌کننده'],status:'active',created:nowTs(),updated:nowTs()});return id}
 let LOT_REUSE=[],LEG_SET=[];const takeLot=prod=>{const i=LOT_REUSE.findIndex(id=>{const l=byId('lots',id);return l&&(!prod||l.product===prod)});return i>=0?LOT_REUSE.splice(i,1)[0]:newId()};
-async function postDoc(d,id,led,acct,ext){const date=d.date,pid=d.personId||'',t=docTotal(d),now=nowTs();const out={moves:0,lots:0,led:0};
+// atomic (Store.batch): every record of one posting is written in one transaction, or none; one posting per document at a time
+const POST_NONE=()=>({led:[],lots:[],moves:[],failed:true});
+async function postDoc(d,id,...a){{const d0=byId('docs',id);if(d0&&d0.posted){toast('این سند قبلاً ثبت شده است');return POST_NONE()}}/* the posted flag is written in the same transaction: a retry after success does nothing */let r;try{r=await Store.batch('post:'+(id||d.id||''),()=>postDoc0(d,id,...a))}catch(e){toast('ثبت حساب و انبار انجام نشد و چیزی تغییر نکرد: '+((e&&(e.name==='QuotaExceededError'?'حافظه پر است':e.message))||'خطا'));return POST_NONE()}if(r===Store.BUSY){toast('این سند در حال ثبت است');return POST_NONE()}return r}
+async function postDoc0(d,id,led,acct,ext){const date=d.date,pid=d.personId||'',t=docTotal(d),now=nowTs();const out={moves:0,lots:0,led:0};
   const ledRow=async(kind,amount,category,about,extra={})=>{if(!amount||led==='none')return;const lid=newId();if((kind==='receivable'||kind==='payable')&&extra.personId==null&&!extra.pack)(out.cr=out.cr||[]).push({id:lid,kind,amount});await putRaw('ledger',{id:lid,kind,personId:extra.personId!=null?extra.personId:pid,amount,currency:'تومان',about,category,acct:['received','paid'].includes(kind)?acct:'',instrument:'نقد/کارت',date,due:['receivable','payable'].includes(kind)?(d.due||addDays(date,30)):'',docId:id,settled:false,void:false,created:now,updated:now,...extra});out.led++};
   if(d.type==='invoice'){const byCat={},byCatE={},GV=isGive(led),prods=new Set();
     for(const x of d.items){let lotId=x.src==='lot'?x.lotId:'';const prod=lotId?(byId('lots',lotId)||{}).product:(x.src==='new'&&x.nProd&&x.nProd!=='سایر'?x.nProd:guessProd(x.desc));prods.add(prod);
@@ -2740,7 +2747,9 @@ function countSheet(){const L=S.lots.filter(l=>!l.void&&Math.abs(lotStat(l).rem)
 
 const countSum=d=>{const it=d.items||[];const n=it.filter(x=>x.nw).length,a=it.length-n;return [n?fa(n)+' کالای تازه':'',a?fa(a)+' اصلاح':''].filter(Boolean).join('، ')||'—'};
 function docLinked(id){return{lots:S.lots.filter(x=>x.docId===id),moves:S.moves.filter(x=>x.docId===id),led:S.ledger.filter(x=>x.docId===id)}}
-async function docVoid(id,v){const d=byId('docs',id);if(!d)return false;const K=(d.posted||d.type==='count')?docLinked(id):{lots:[],moves:[],led:[]};
+// atomic (Store.batch): the document and all its linked rows are voided (or restored) together; a repeat is a no-op
+async function docVoid(id,v){{const d0=byId('docs',id);if(d0&&!!d0.void===!!v)return true}/* already in that state: nothing to do */let r;try{r=await Store.batch('void:'+id,()=>docVoid0(id,v))}catch(e){toast('انجام نشد و چیزی تغییر نکرد: '+((e&&e.message)||'خطا'));return false}if(r===Store.BUSY){toast('در حال انجام است');return false}return r}
+async function docVoid0(id,v){const d=byId('docs',id);if(!d)return false;const K=(d.posted||d.type==='count')?docLinked(id):{lots:[],moves:[],led:[]};
   if(v){const ids=new Set(K.moves.map(m=>m.id));const busy=K.lots.filter(l=>!l.void&&lotMoves(l.id).some(m=>!ids.has(m.id)));if(busy.length){toast(`از «${busy.map(lotName).join('، ')}» بعد از این سند فروش یا ارسال ثبت شده؛ اول آن‌ها را باطل کن`);return false}}
   const at=nowTs(),why='حذف '+docTitle(d)+' '+(d.no||'');for(const [c,arr] of [['moves',K.moves],['lots',K.lots],['ledger',K.led]])for(const x of arr)if(!!x.void!==v)await save(c,x.id,v?{void:true,voidReason:why,voidAt:at}:{void:false});
   await save('docs',id,{void:v});for(const pd of S.docs.filter(z=>z.viaSale===id&&!!z.void!==v))await save('docs',pd.id,{void:v});return true}
@@ -3066,7 +3075,9 @@ const pPhones=p=>String(p.phone||'').split(/[^\d۰-۹+]+/).map(x=>normDigits(x))
 function peopleDups(){const P=S.people.filter(p=>p.status!=='archived');const par={};const f=x=>par[x]===x?x:(par[x]=f(par[x]));P.forEach(p=>par[p.id]=p.id);const u=(a,b)=>{par[f(a)]=f(b)};const byN={},byT={};
   P.forEach(p=>{const n=pClean(p.name);if(n.length>=3){if(byN[n])u(p.id,byN[n]);else byN[n]=p.id}pPhones(p).forEach(t=>{if(byT[t])u(p.id,byT[t]);else byT[t]=p.id})});const G={};P.forEach(p=>{const r=f(p.id);(G[r]=G[r]||[]).push(p)});return Object.values(G).filter(g=>g.length>1)}
 function refCount(pid){let n=0;const hit=v=>v===pid||(Array.isArray(v)&&v.some(hit))||(v&&typeof v==='object'&&!Array.isArray(v)&&Object.values(v).some(hit));COLS.forEach(c=>{if(c==='contacts')return;(S[c]||[]).forEach(x=>{if(x.id!==pid&&Object.entries(x).some(([k,v])=>k!=='id'&&hit(v)))n++})});return n}
-async function mergePeople(keep,src){const K=byId('people',keep),Sx=byId('people',src);if(!K||!Sx)return;const rp=(v,d)=>v===src?keep:d>3?v:Array.isArray(v)?v.map(y=>rp(y,d+1)):(v&&typeof v==='object')?Object.fromEntries(Object.entries(v).map(([k,y])=>[k,rp(y,d+1)])):v;let n=0;
+// atomic (Store.batch): all references move and the source is archived together; merging an already merged pair is a no-op
+async function mergePeople(keep,src){const S0=byId('people',src);if(!S0||S0.mergedInto===keep||keep===src)return 0;let r;try{r=await Store.batch('merge:'+src,()=>mergePeople0(keep,src))}catch(e){toast('یکی کردن انجام نشد و چیزی تغییر نکرد: '+((e&&e.message)||'خطا'));return 0}if(r===Store.BUSY){toast('در حال انجام است');return 0}return r}
+async function mergePeople0(keep,src){const K=byId('people',keep),Sx=byId('people',src);if(!K||!Sx)return;const rp=(v,d)=>v===src?keep:d>3?v:Array.isArray(v)?v.map(y=>rp(y,d+1)):(v&&typeof v==='object')?Object.fromEntries(Object.entries(v).map(([k,y])=>[k,rp(y,d+1)])):v;let n=0;
   for(const c of COLS){if(c==='contacts')continue;for(const x of (S[c]||[]).slice()){if(x.id===src)continue;const y={};let ch=false;for(const [k,v] of Object.entries(x)){const w=k==='id'?v:rp(v,0);if(JSON.stringify(w)!==JSON.stringify(v))ch=true;y[k]=w}if(ch){await putRaw(c,{...y,updated:nowTs()});n++}}}
   const ph=[...new Set([...String(K.phone||'').split(/\s*[،,]\s*/),...String(Sx.phone||'').split(/\s*[،,]\s*/)].map(x=>x.trim()).filter(Boolean))].join(' ، ');
   await save('people',keep,{phone:ph,roles:[...new Set([...(K.roles||[]),...(Sx.roles||[])])],email:K.email||Sx.email||'',org:K.org||Sx.org||'',note:[K.note,Sx.note&&('از «'+Sx.name+'»: '+Sx.note)].filter(Boolean).join('\n'),hist:[...(K.hist||[]),{at:nowTs(),merged:Sx.name,refs:n}]});
