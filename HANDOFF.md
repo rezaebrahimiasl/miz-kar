@@ -649,3 +649,8 @@
 ## v4.38 — «+» on domain pages
 - Root cause: domain pages (tab `dom`, `ui.dom` = clinic «طب کل‌نگر», trade, money, …) were not in `fabKey`, so the FAB fell back to `quickAdd` (full menu). `FAB_DOM` maps clinic→clinic, trade→biz, people, tasks, money (money keeps `moneyAdd`); other domains still open the full menu. The clinic menu has no «همهٔ گزینه‌ها» (`CTX_NOQUICK`). Test 54 extended (fails on 4.37).
 
+## v4.40 — Phase 1: Store.tx (local branch `store-tx`, not released)
+- `js/store.js` (part, `STORE_VER`): `Store.tx(plan)` — `plan(w)` queues `w.put/w.del` and `w.after(fn)`; one readwrite transaction on `docs`; on `oncomplete` the `after` callbacks update memory, then the promise resolves `{ok:true}`; on error/abort `{ok:false,error}` and nothing changes. Serialised queue; the plan runs when its turn comes (read-modify-write safe).
+- `save0` (local) and `putRaw` (local) use it: undo record, memory update and `markDirty` happen only after the disk write; failures behave as before (save → toast + false; putRaw throws). Cloud mode unchanged (same order as before). `idbPut` remains for other direct callers.
+- Not in this phase: multi-record operations (`postDoc`, `docVoid`, `mergePeople`) still write record by record — each single write is now atomic, the operation is not (Phase 2–4). Test 59.
+

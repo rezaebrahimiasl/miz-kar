@@ -21,6 +21,7 @@ Statements marked **[unverified]** were not confirmed against the code.
 | `qr.js` | QR code generator, used for device pairing |
 | `js/core.js` | core utilities (Jalali calendar, dates, digits, escaping, number and money formatting); classic script loaded before the main script, version marker `CORE_VER` = `APP_VER` |
 | `js/engine.js` | information engine (`QE`, `qNorm`, `qExec`, `qHtml`, `aiRun`; read-only); classic script loaded after `js/core.js` and before the main script, version marker `ENGINE_VER` = `APP_VER` |
+| `js/store.js` | storage transactions: `Store.tx(plan)` commits queued writes in one IndexedDB transaction and applies memory changes (`w.after`) only after it completed; serialised; used by `save0`/`putRaw` in local mode; version marker `STORE_VER` = `APP_VER` |
 | `js/backup.js` | automatic local backups (snapshots in IndexedDB `miz-kar-snap`: take, verify, de-duplicate, retain, start-up/update copies, status); classic script loaded after `js/engine.js`, version marker `BACKUP_VER` = `APP_VER` |
 | `logo.webp`, `icon2-*.png` | brand images (`icon-192.png` and `icon-512.png` are not referenced by the app) |
 | `tests/` | developer test suite (see `tests/README.md`); never loaded by the app |
@@ -91,7 +92,7 @@ Statements marked **[unverified]** were not confirmed against the code.
 | Aspect | Behaviour |
 |---|---|
 | Cache names | `miz-kar-v<version>` (the versioned app shell), `miz-shell` (last-resort copy of `index.html`), `miz-share` (incoming shares) |
-| Pre-cached files (`SHELL`) | `./`, `index.html`, `manifest.webmanifest`, `icon2-192.png`, `icon2-512.png`, `icon2-maskable-512.png`, `logo.webp`, `qr.js`, `js/core.js`, `js/engine.js`, `js/backup.js` |
+| Pre-cached files (`SHELL`) | `./`, `index.html`, `manifest.webmanifest`, `icon2-192.png`, `icon2-512.png`, `icon2-maskable-512.png`, `logo.webp`, `qr.js`, `js/core.js`, `js/engine.js`, `js/backup.js`, `js/store.js` |
 | Install | `fetchAll()` downloads every `SHELL` file with `cache:'reload'`; `./` and `index.html` must pass `appOnly()`. Only if every file succeeds is the new cache written and the browser's `self.skipWaiting` called; otherwise the install fails and the current version and its cache stay in use |
 | Shell rule (v4.22) | the offline shell is only ever the real app: `isApp()` requires the version declaration, `isShellUrl()` is the scope's own `/` or `index.html`; `shellFromCache()` reads this version's cache first and `miz-shell` only if it passes `isApp()` |
 | Activate | deletes every cache not in `KEEP`, then claims clients |

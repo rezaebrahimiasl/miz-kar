@@ -288,16 +288,17 @@ html body .row2{grid-template-columns:1fr 1fr}
 <script src="js/core.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/backup.js"></script>
+<script src="js/store.js"></script>
 <script>
 /* Google sign-in returns here with #access_token=…; take it before anything else reads the address, keep it only in this tab's memory */
 (()=>{const h=location.hash;if(!/[#&](access_token|error)=/.test(h)||!/state=/.test(h))return;const q=new URLSearchParams(h.slice(1));let s=null;try{s=JSON.parse(sessionStorage.getItem('miz.gc.st')||'null');sessionStorage.removeItem('miz.gc.st')}catch(_){}history.replaceState(null,'',location.pathname+location.search);if(!s||s.st!==q.get('state'))return;
  if(q.get('access_token')){try{sessionStorage.setItem('miz.gc.tok',JSON.stringify({t:q.get('access_token'),exp:Date.now()+(Number(q.get('expires_in'))||3600)*1000-120000}));sessionStorage.removeItem('miz.gc.tried')}catch(_){}window._gcBack={ok:1,ret:s.ret}}else window._gcBack={err:q.get('error')||'خطا',silent:s.silent,ret:s.ret}})();
-const APP_VER='4.39';
+const APP_VER='4.40';
 // the app's separate files and their version markers; all must carry APP_VER (start-up guard, stashLatest; sw.js PARTS is the same list, checked by tests/00)
-const APP_PARTS={'js/core.js':'CORE_VER','js/engine.js':'ENGINE_VER','js/backup.js':'BACKUP_VER'};
+const APP_PARTS={'js/core.js':'CORE_VER','js/engine.js':'ENGINE_VER','js/backup.js':'BACKUP_VER','js/store.js':'STORE_VER'};
 /* ---------- Start-up guard: js/core.js (dates, digits, formatting) and js/engine.js (information engine) must be loaded and of this same version before anything reads or writes data. Otherwise nothing below runs: the data on the phone stays untouched and a recovery screen offers a reload ---------- */
-(()=>{const ok=typeof CORE_VER!=='undefined'&&CORE_VER===APP_VER&&typeof ENGINE_VER!=='undefined'&&ENGINE_VER===APP_VER&&[typeof qNorm,typeof qExec,typeof qHtml].every(t=>t==='function')&&typeof BACKUP_VER!=='undefined'&&BACKUP_VER===APP_VER&&[typeof snapTake,typeof snapCheck,typeof snapBoot].every(t=>t==='function')&&[typeof J,typeof jOf,typeof jIso,typeof parseJ,typeof fa,typeof en,typeof esc,typeof addDays,typeof diffDays,typeof today,typeof nfmt,typeof moneyFull,typeof toBase,typeof fromBase].every((t,i)=>t===(i?'function':'object'));if(ok)return;
-  const PV={'js/core.js':typeof CORE_VER==='string'?CORE_VER:undefined,'js/engine.js':typeof ENGINE_VER==='string'?ENGINE_VER:undefined,'js/backup.js':typeof BACKUP_VER==='string'?BACKUP_VER:undefined};const gone=Object.keys(PV).find(f=>PV[f]===undefined),odd=Object.keys(PV).find(f=>PV[f]!==APP_VER);const why=gone?'بخشی از برنامه ('+gone+') بارگذاری نشد.':'بخشی از برنامه با این نسخه یکی نیست ('+(odd?PV[odd]:'?')+' ≠ '+APP_VER+').';window.MIZ_BOOT_FAIL=why;
+(()=>{const ok=typeof CORE_VER!=='undefined'&&CORE_VER===APP_VER&&typeof ENGINE_VER!=='undefined'&&ENGINE_VER===APP_VER&&[typeof qNorm,typeof qExec,typeof qHtml].every(t=>t==='function')&&typeof BACKUP_VER!=='undefined'&&BACKUP_VER===APP_VER&&[typeof snapTake,typeof snapCheck,typeof snapBoot].every(t=>t==='function')&&typeof STORE_VER!=='undefined'&&STORE_VER===APP_VER&&typeof Store==='object'&&[typeof J,typeof jOf,typeof jIso,typeof parseJ,typeof fa,typeof en,typeof esc,typeof addDays,typeof diffDays,typeof today,typeof nfmt,typeof moneyFull,typeof toBase,typeof fromBase].every((t,i)=>t===(i?'function':'object'));if(ok)return;
+  const PV={'js/core.js':typeof CORE_VER==='string'?CORE_VER:undefined,'js/engine.js':typeof ENGINE_VER==='string'?ENGINE_VER:undefined,'js/backup.js':typeof BACKUP_VER==='string'?BACKUP_VER:undefined,'js/store.js':typeof STORE_VER==='string'?STORE_VER:undefined};const gone=Object.keys(PV).find(f=>PV[f]===undefined),odd=Object.keys(PV).find(f=>PV[f]!==APP_VER);const why=gone?'بخشی از برنامه ('+gone+') بارگذاری نشد.':'بخشی از برنامه با این نسخه یکی نیست ('+(odd?PV[odd]:'?')+' ≠ '+APP_VER+').';window.MIZ_BOOT_FAIL=why;
   const d=document.createElement('div');d.id='bootFail';d.setAttribute('role','alert');d.style.cssText='position:fixed;inset:0;z-index:99999;background:#fff;color:#111;font-family:sans-serif;direction:rtl;padding:24px;line-height:2;overflow:auto';
   d.innerHTML='<h2 style="margin-top:0">میز کار باز نشد</h2><p>'+why+' داده‌های تو روی همین گوشی هستند و دست نخورده‌اند.</p><p>با اینترنت «دوباره بارگذاری» را بزن. اگر باز هم همین صفحه آمد، «پاک کردن نسخهٔ ذخیره‌شدهٔ برنامه» فقط فایل‌های برنامه را پاک می‌کند (نه داده‌ها را) و آن‌ها را از نو می‌گیرد.</p><p><button id="bfReload" style="font:inherit;padding:8px 16px;margin:4px">دوباره بارگذاری</button><button id="bfClean" style="font:inherit;padding:8px 16px;margin:4px">پاک کردن نسخهٔ ذخیره‌شدهٔ برنامه</button></p>';
   document.body.appendChild(d);d.querySelector('#bfReload').onclick=()=>location.reload();d.querySelector('#bfClean').onclick=async()=>{try{for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister()}catch(_){}try{for(const k of await caches.keys())if(k.startsWith('miz-kar')||k==='miz-shell')await caches.delete(k)}catch(_){}location.reload()};
@@ -515,23 +516,23 @@ function catManual(){const c=document.getElementById('f_cat');if(!c)return;c.dat
 async function catRuleSave(){const x=document.getElementById('f_catr');if(!x||!x.checked||!val('f_cat'))return;const R={...CATR()};R[x.dataset.kw]={cat:val('f_cat'),dir:catDir()};await putRaw('meta',{id:'catrules',r:R,created:nowTs(),updated:nowTs()})}
 function aboutList(){let d=document.getElementById('aboutList');if(!d){d=document.createElement('datalist');d.id='aboutList';document.body.appendChild(d)}const seen=new Set(),L=[];S.ledger.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).forEach(l=>{const a=(l.about||'').trim();if(a&&!seen.has(a)&&L.length<60){seen.add(a);L.push(a)}});d.innerHTML=L.map(a=>`<option value="${esc(a)}">`).join('')}
 const insOf=l=>(l.kind==='receivable'||l.kind==='payable')&&l.category!==LOAN&&(!l.instrument||l.instrument==='نقد/کارت')?'نسیه':(l.instrument||'');
-async function save0(col,id,data){if(mode==='local'&&!LOAD_OK){toast('داده‌ها هنوز سالم خوانده نشده؛ ثبت ممکن نیست');return false}markDirty();undoRec(col,id||null);if(data&&col==='ledger'&&data.acct)data.acct=acctCanon(data.acct);if(data&&col==='recurs'&&data.bank)data.bank=acctCanon(data.bank);if(col==='ledger'&&data){const k=data.kind||(id&&(byId('ledger',id)||{}).kind);const cat=data.category!==undefined?data.category:(id&&(byId('ledger',id)||{}).category);if((k==='receivable'||k==='payable')&&cat!==LOAN&&(data.instrument==='نقد/کارت'||(!id&&!data.instrument)))data.instrument='نسیه'}
+async function save0(col,id,data){if(mode==='local'&&!LOAD_OK){toast('داده‌ها هنوز سالم خوانده نشده؛ ثبت ممکن نیست');return false}if(mode==='cloud'){markDirty();undoRec(col,id||null)}if(data&&col==='ledger'&&data.acct)data.acct=acctCanon(data.acct);if(data&&col==='recurs'&&data.bank)data.bank=acctCanon(data.bank);if(col==='ledger'&&data){const k=data.kind||(id&&(byId('ledger',id)||{}).kind);const cat=data.category!==undefined?data.category:(id&&(byId('ledger',id)||{}).category);if((k==='receivable'||k==='payable')&&cat!==LOAN&&(data.instrument==='نقد/کارت'||(!id&&!data.instrument)))data.instrument='نسیه'}
   try{
     if(mode==='cloud'){
       if(id){await db.collection(col).doc(id).update({...data,updated:nowTs()})}
       else{await db.collection(col).doc().set({...data,created:nowTs(),updated:nowTs()})}
       return true}
     if(mode==='local'&&idb){
-      let doc;const i=id?S[col].findIndex(x=>x.id===id):-1;
-      if(i>=0){doc={...S[col][i],...data,updated:nowTs()};S[col][i]=doc}
-      else{doc={id:id||newId(),...data,created:nowTs(),updated:nowTs()};S[col].push(doc)}
-      await idbPut(col,doc);render();return true}
+      // the record is built when its turn in Store.tx comes; memory, undo, dirty state and the screen change only after the disk write succeeded
+      const r=await Store.tx(w=>{const o=id?S[col].find(x=>x.id===id):null;const doc=o?{...o,...data,updated:nowTs()}:{id:id||newId(),...data,created:nowTs(),updated:nowTs()};w.put(col,doc);
+        w.after(()=>{undoRec(col,id||null);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);markDirty()})});
+      if(!r.ok)throw r.error||new Error('write failed');render();return true}
     toast('ثبت ممکن نیست؛ محل ذخیره در دسترس نیست');return false
-  }catch(e){toast(e.code==='quota_exceeded'?'ظرفیت پایگاه داده پر است':'ثبت نشد: '+(e.code||e.message||'خطا'));return false}
+  }catch(e){toast(e.code==='quota_exceeded'||(e&&e.name)==='QuotaExceededError'?'ظرفیت پایگاه داده پر است':'ثبت نشد: '+(e.code||e.message||'خطا'));return false}
 }
-async function putRaw(col,doc){if(mode==='local'&&!LOAD_OK)throw new Error('داده‌ها هنوز سالم خوانده نشده');markDirty();undoRec(col,doc&&doc.id);if(col==='ledger'&&doc&&(doc.kind==='receivable'||doc.kind==='payable')&&(!doc.instrument||doc.instrument==='نقد/کارت'))doc.instrument='نسیه';
-  if(mode==='cloud'){const {id,...rest}=doc;await db.collection(col).doc(id).set(rest)}
-  else{const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);await idbPut(col,doc)}
+async function putRaw(col,doc){if(mode==='local'&&!LOAD_OK)throw new Error('داده‌ها هنوز سالم خوانده نشده');if(col==='ledger'&&doc&&(doc.kind==='receivable'||doc.kind==='payable')&&(!doc.instrument||doc.instrument==='نقد/کارت'))doc.instrument='نسیه';
+  if(mode==='cloud'){markDirty();undoRec(col,doc&&doc.id);const {id,...rest}=doc;await db.collection(col).doc(id).set(rest)}
+  else{const r=await Store.tx(w=>{w.put(col,doc);w.after(()=>{undoRec(col,doc&&doc.id);const i=S[col].findIndex(x=>x.id===doc.id);if(i>=0)S[col][i]=doc;else S[col].push(doc);markDirty()})});if(!r.ok)throw r.error||new Error('write failed')}
 }
 /* ---------- Data safety: load integrity, unsent counter, shrink guard, local snapshots, recovery, conflicts, xlsx ---------- */
 let LOAD_OK=false,BAD=[],LOAD_ERR='';
@@ -2411,6 +2412,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
+ ['4.40',[['affairs','lock','ثبت مطمئن‌تر','هر ثبت اول روی حافظهٔ گوشی نوشته و تأیید می‌شود و فقط بعد در صفحه دیده می‌شود؛ اگر نوشتن ممکن نشود (مثلاً پر بودن حافظه)، صفحه و داده‌ها همان‌طور که بودند می‌مانند.']]],
  ['4.39',[['affairs','user','تاریخچهٔ هر شخص','در صفحهٔ هر شخص دکمهٔ «تاریخچه» همهٔ سابقهٔ او را به ترتیب زمان نشان می‌دهد: دریافت و پرداخت و مانده، فاکتورها و اسناد، پروندهٔ مشاوره، ویزیت‌ها و نوبت‌ها (بدون یادداشت‌های بالینی). با زدن هر مورد، خود رکورد باز می‌شود. چیزی تغییر نمی‌کند.']]],
  ['4.38',[['therapy','check','«+» در صفحهٔ طب کل‌نگر','در صفحهٔ «طب کل‌نگر» دکمهٔ «+» فقط کارهای همان بخش را نشان می‌دهد (مراجع تازه، ویزیت، نوبت، برنامهٔ نوبت‌ها) و به فهرست کلی نمی‌رود؛ صفحه‌های تجارت و انبار، افراد، کارها و مالی هم «+» خودشان را دارند.']]],
  ['4.37',[['affairs','cal','تقویم مدیریت','کارها، نوبت‌ها (با ساعت شروع و پایان)، سررسید دریافتنی و پرداختنی و هشدارهای انبار در یک تقویم روزانه، هفتگی و ماهانه؛ موارد گذشته و بی‌تاریخ جدا در «نیاز به توجه». با فیلتر مشاوره، مالی، انبار و کارها؛ هر مورد رکورد خودش را باز می‌کند و کارها را همان‌جا می‌شود انجام‌شده یا به فردا منتقل کرد. از صفحهٔ امروز و «+» کارها باز می‌شود.','mcal']]],
