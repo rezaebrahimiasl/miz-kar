@@ -2748,7 +2748,11 @@ function countSheet(){const L=S.lots.filter(l=>!l.void&&Math.abs(lotStat(l).rem)
 const countSum=d=>{const it=d.items||[];const n=it.filter(x=>x.nw).length,a=it.length-n;return [n?fa(n)+' کالای تازه':'',a?fa(a)+' اصلاح':''].filter(Boolean).join('، ')||'—'};
 function docLinked(id){return{lots:S.lots.filter(x=>x.docId===id),moves:S.moves.filter(x=>x.docId===id),led:S.ledger.filter(x=>x.docId===id)}}
 // atomic (Store.batch): the document and all its linked rows are voided (or restored) together; a repeat is a no-op
-async function docVoid(id,v){{const d0=byId('docs',id);if(d0&&!!d0.void===!!v)return true}/* already in that state: nothing to do */let r;try{r=await Store.batch('void:'+id,()=>docVoid0(id,v))}catch(e){toast('انجام نشد و چیزی تغییر نکرد: '+((e&&e.message)||'خطا'));return false}if(r===Store.BUSY){toast('در حال انجام است');return false}return r}
+// nothing to do only when the document AND every linked row (and documents made from it) already have the requested state;
+// otherwise (e.g. a void interrupted before 4.40) the operation runs and completes it
+function docVoidDone(id,v){const d=byId('docs',id);if(!d||!!d.void!==!!v)return false;const K=(d.posted||d.type==='count')?docLinked(id):{lots:[],moves:[],led:[]};
+  return [...K.moves,...K.lots,...K.led].every(x=>!!x.void===!!v)&&S.docs.filter(z=>z.viaSale===id).every(z=>!!z.void===!!v)}
+async function docVoid(id,v){if(docVoidDone(id,v))return true;let r;try{r=await Store.batch('void:'+id,()=>docVoid0(id,v))}catch(e){toast('انجام نشد و چیزی تغییر نکرد: '+((e&&e.message)||'خطا'));return false}if(r===Store.BUSY){toast('در حال انجام است');return false}return r}
 async function docVoid0(id,v){const d=byId('docs',id);if(!d)return false;const K=(d.posted||d.type==='count')?docLinked(id):{lots:[],moves:[],led:[]};
   if(v){const ids=new Set(K.moves.map(m=>m.id));const busy=K.lots.filter(l=>!l.void&&lotMoves(l.id).some(m=>!ids.has(m.id)));if(busy.length){toast(`از «${busy.map(lotName).join('، ')}» بعد از این سند فروش یا ارسال ثبت شده؛ اول آن‌ها را باطل کن`);return false}}
   const at=nowTs(),why='حذف '+docTitle(d)+' '+(d.no||'');for(const [c,arr] of [['moves',K.moves],['lots',K.lots],['ledger',K.led]])for(const x of arr)if(!!x.void!==v)await save(c,x.id,v?{void:true,voidReason:why,voidAt:at}:{void:false});

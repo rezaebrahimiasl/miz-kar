@@ -64,5 +64,42 @@ test('postDoc: failures at commit and at the 1st/2nd/3rd and the last write chan
   await inv('after posting'); assert(!o.errors.length, o.errors.join(' | '));
 });
 
+test('a failed batch restores the undo list exactly', async () => {
+  const r = await p.evaluate(async () => { undoOpen(); await save('people', null, { name: 'برای واگرد' });
+    const st = Store.stage; let c = 0; Store.stage = function (...a) { if (++c === 2) throw new Error('synthetic'); return st.apply(this, a); };
+    await putRaw('people', { id: 'p_u2', name: 'دوم', created: nowTs(), updated: nowTs() }); await putRaw('ledger', { id: 'l_u2', kind: 'receivable', personId: 'p_u2', amount: 1e6, currency: 'تومان', date: '2026-10-05', instrument: 'نسیه', created: nowTs(), updated: nowTs() });
+    const before = JSON.stringify(UB.ops) + '|' + [...UB.seen].join(',') + '|' + UB.ops.length; const nb = UB.ops.length;
+    const n = await mergePeople('p_a', 'p_u2'); Store.stage = st; return { n, nb, same: before === JSON.stringify(UB.ops) + '|' + [...UB.seen].join(',') + '|' + UB.ops.length }; });
+  assert(r.n === 0 && r.nb >= 1 && r.same, 'undo list after a failed merge: ' + JSON.stringify(r));
+});
+
+test('two operations at once on different documents: the first fails, the second is committed in full and survives a reload', async () => {
+  await p.evaluate(async () => { const n = nowTs(); await putRaw('docs', { id: 'd_b2', type: 'purchase', inv: false, personId: 'p_b', date: '2026-10-06', led: 'payable', items: [{ desc: 'عسل آزمون سه', qty: 5, unit: 'کیلو', price: 1e6 }], created: n, updated: n }); });
+  const vid = await p.evaluate(() => S.docs.find(d => d.type === 'invoice' && !d.void && d.posted).id);
+  const r = await p.evaluate(async vid => { const real = window.save, st = Store.stage; const ofA = x => x && (x.id === vid || x.docId === vid);
+    // the void of document A waits a little at every write (so B is requested while A is still running) and fails at its last write
+    window.save = async (...a) => { if (a[1] && (byId(a[0], a[1]) || {}).docId === vid || a[1] === vid) await new Promise(r => setTimeout(r, 30)); return real(...a); };
+    Store.stage = function (col, doc, prev) { if (ofA(doc) && col === 'docs') throw new Error('synthetic failure of A'); return st.apply(this, arguments); };
+    const A = docVoid(vid, true); await new Promise(r => setTimeout(r, 10)); const B = postDoc({ ...byId('docs', 'd_b2') }, 'd_b2', 'payable', '', '');
+    const [ra, rb] = await Promise.all([A, B]); window.save = real; Store.stage = st;
+    return { ra, rb: !!(rb && !rb.failed), aVoid: !!byId('docs', vid).void, aRows: docLinked(vid).led.some(l => l.void), bPosted: !!byId('docs', 'd_b2').posted, bLots: S.lots.filter(l => !l.void && l.docId === 'd_b2').length }; }, vid);
+  assert(r.ra === false && !r.aVoid && !r.aRows, 'A was not fully rolled back: ' + JSON.stringify(r));
+  assert(r.rb && r.bPosted && r.bLots === 1, 'B was not committed on its own: ' + JSON.stringify(r));
+  await p.reload(); await settle(p);
+  assert(await p.evaluate(vid => !!byId('docs', 'd_b2').posted && S.lots.filter(l => !l.void && l.docId === 'd_b2').length === 1 && !byId('docs', vid).void, vid), 'not on disk after reload');
+  await inv('after concurrent operations');
+});
+
+test('an already-void document with one active linked row (an interrupted pre-4.40 void) is completed on retry', async () => {
+  const id = await p.evaluate(() => S.docs.find(d => d.type === 'invoice' && !d.void && d.posted).id);
+  assert(await p.evaluate(id => docVoid(id, true), id), 'void failed'); await settle(p);
+  await p.evaluate(async id => { const l = docLinked(id).led[0]; await putRaw('ledger', { ...l, void: false }); }, id);   // simulate the half-done void
+  assert(!(await p.evaluate(id => docVoidDone(id, true), id)), 'inconsistent document reported as done');
+  assert(await p.evaluate(id => docVoid(id, true), id), 'retry failed'); await settle(p);
+  const r = await p.evaluate(id => { const K = docLinked(id); return [...K.moves, ...K.lots, ...K.led].every(x => x.void) && byId('docs', id).void; }, id);
+  assert(r, 'retry did not complete the void'); await inv('after completing the void');
+  assert(await p.evaluate(id => docVoid(id, false), id), 'restore failed'); await settle(p); await inv('after restore');
+});
+
 test('cleanup', async () => { await o.ctx.close(); await srv.close(); });
 run(__filename);

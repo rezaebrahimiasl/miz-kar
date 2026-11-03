@@ -25,12 +25,16 @@ const Store={_q:Promise.resolve(),
      finishes, all staged records are committed in ONE transaction (Store.tx); on any error or a failed commit, memory is put back
      exactly as it was and nothing was written. key: one run per key at a time (a second call while the first runs returns
      Store.BUSY — protects against double taps). Follow-up updates (recvKick) are held until the end. Cloud mode: fn runs as before. */
-  _b:null,_busy:new Set(),BUSY:Symbol('busy'),
+  _b:null,_busy:new Set(),BUSY:Symbol('busy'),_bq:Promise.resolve(),
   stage(col,doc,prev){const B=this._b,k=col+'/'+doc.id;if(!B.orig.has(k))B.orig.set(k,prev?JSON.parse(JSON.stringify(prev)):null);B.puts.set(k,[col,doc]);B.n++},
-  async batch(key,fn){if(typeof mode!=='undefined'&&mode!=='local')return fn();if(key&&this._busy.has(key))return this.BUSY;if(this._b)return fn();/* nested: part of the running operation */if(key)this._busy.add(key);
-    const B={orig:new Map(),puts:new Map(),n:0,ub:typeof UB!=='undefined'?UB:null};B.ubn=B.ub?B.ub.ops.length:0;this._b=B;const hold=typeof _rvH!=='undefined';if(hold)_rvH++;
+  // operations never join each other: a second one waits in a queue until the first has committed or rolled back, then runs as its own
+  // unit (its own commit, its own rollback). The key is taken at once, so a double tap is refused even while it waits.
+  batch(key,fn){if(typeof mode!=='undefined'&&mode!=='local')return fn();if(key&&this._busy.has(key))return Promise.resolve(this.BUSY);if(key)this._busy.add(key);
+    const go=()=>this._batch(key,fn);const p=this._bq.then(go,go);this._bq=p.then(()=>{},()=>{});return p},
+  async _batch(key,fn){
+    const B={orig:new Map(),puts:new Map(),n:0,ub:typeof UB!=='undefined'?UB:null};B.ubn=B.ub?B.ub.ops.length:0;B.ubs=B.ub?new Set(B.ub.seen):null;this._b=B;const hold=typeof _rvH!=='undefined';if(hold)_rvH++;
     const rollback=()=>{for(const [k,o] of B.orig){const i=k.indexOf('/'),col=k.slice(0,i),id=k.slice(i+1);if(!S[col])continue;const j=S[col].findIndex(x=>x.id===id);if(o){if(j>=0)S[col][j]=o;else S[col].push(o)}else if(j>=0)S[col].splice(j,1)}
-      try{if(B.ub&&UB===B.ub){UB.ops.length=B.ubn;B.orig.forEach((_,k)=>UB.seen.delete(k))}}catch(_){}};/* undo entries of the failed operation are dropped */
+      try{if(B.ub&&UB===B.ub){UB.ops.length=B.ubn;UB.seen=new Set(B.ubs)}}catch(_){}};/* undo entries of the failed operation are dropped */
     try{let res;try{res=await fn()}finally{this._b=null}if(B.err)throw B.err;
       const r=B.puts.size?await this.tx(w=>{for(const [col,doc] of B.puts.values())w.put(col,doc)}):{ok:true};
       if(!r.ok)throw r.error||new Error('write failed');B.done=true;
