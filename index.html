@@ -1910,7 +1910,7 @@ function devId(){let d='';try{d=localStorage.getItem('miz.devid')||'';if(!d){con
 const reqCode=()=>{const d=devId();return 'MZ-'+d.slice(0,4)+'-'+d.slice(4)};
 let _LIC=null,_licV=null;
 function licGet(){if(_LIC)return _LIC;let L=null;try{L=JSON.parse(localStorage.getItem('miz.lic')||'null')}catch(_){}if(!L){const m=(S.meta||[]).find(x=>x.id==='lic');if(m)L={...m}}return L?(_LIC=L):{}}
-function licSet(L){_LIC={...L};try{localStorage.setItem('miz.lic',JSON.stringify(_LIC))}catch(_){}try{const doc={..._LIC,id:'lic',updated:nowTs(),created:_LIC.created||nowTs()};const i=S.meta.findIndex(x=>x.id==='lic');if(i>=0)S.meta[i]=doc;else S.meta.push(doc);if(mode==='local'&&idb)idbPut('meta',doc)}catch(_){}}
+function licSet(L){_LIC={...L};try{localStorage.setItem('miz.lic',JSON.stringify(_LIC))}catch(_){}try{const doc={..._LIC,id:'lic',updated:nowTs(),created:_LIC.created||nowTs()};const mem=()=>{const i=S.meta.findIndex(x=>x.id==='lic');if(i>=0)S.meta[i]=doc;else S.meta.push(doc)};if(mode==='local'&&idb)Store.tx(w=>{w.put('meta',doc);w.after(mem)});else mem()}catch(_){}}
 function licBoot(){_LIC=null;const L=licGet();if(L.v)return;const has=['people','tasks','ledger','docs','lots','notes'].some(c=>(S[c]||[]).length>2);licSet(has?{v:1,owner:1,start:today()}:{v:1,start:today()})}
 const licOwner=()=>!!(licGet().owner||(S.meta||[]).some(x=>x.id==='licAdmin'));
 function licPay(){const L=licGet();if(!L.code)return null;try{const p=JSON.parse(s8(b64u.dec(L.code.split('.')[0])));return p.d===devId()?p:null}catch(_){return null}}
@@ -1934,7 +1934,7 @@ function licSheet(){const st=licState();const P=licPay();const mods=Object.entri
 /* owner panel */
 const LADM=()=>(S.meta||[]).find(x=>x.id==='licAdmin')||null;
 const LTIERS0=[{n:'پایه',m:[]},{n:'نقره‌ای',m:['stock','docs','cheques','recurs','deals']},{n:'طلایی',m:'*'}];
-async function ladmSave(o){const cur=LADM()||{id:'licAdmin',created:nowTs()};const doc={...cur,...o,id:'licAdmin',updated:nowTs()};const i=S.meta.findIndex(x=>x.id==='licAdmin');if(i>=0)S.meta[i]=doc;else S.meta.push(doc);ghDirty=true;if(mode==='local'&&idb)await idbPut('meta',doc)}
+async function ladmSave(o){const cur=LADM()||{id:'licAdmin',created:nowTs()};const doc={...cur,...o,id:'licAdmin',updated:nowTs()};const mem=()=>{const i=S.meta.findIndex(x=>x.id==='licAdmin');if(i>=0)S.meta[i]=doc;else S.meta.push(doc);ghDirty=true};if(mode==='local'&&idb){const r=await Store.tx(w=>{w.put('meta',doc);w.after(mem)});if(!r.ok)throw r.error||new Error('write failed')}else mem()}
 async function ladmKey(pass,salt){const k=await crypto.subtle.importKey('raw',u8s(pass),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:250000,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
 async function ladmGen(pass){const kp=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);const priv=await crypto.subtle.exportKey('jwk',kp.privateKey);const pub=await crypto.subtle.exportKey('jwk',kp.publicKey);
   const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));const ak=await ladmKey(pass,salt);const enc=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},ak,u8s(JSON.stringify(priv))));

@@ -78,7 +78,8 @@ test('H1 residual: the start-up job (recurring payments) writes several rows as 
   const r = await p.evaluate(async () => { const n = nowTs();
     await putRaw('recurs', { id: 'rq', title: 'اجارهٔ روزانهٔ آزمون', amount: 1e6, per: 'daily', from: addDays(today(), -3), active: true, auto: true, bank: 'بانک الف', cat: 'اجاره', dir: 'out', created: n, updated: n });
     // the fixture's own write schedules a follow-up update; let it run before watching (since 4.40 that happens after the disk write)
-    await new Promise(r => setTimeout(r, 400));
+    for (let i = 0; i < 100 && (_recvT || _recvB); i++) await new Promise(r => setTimeout(r, 20));   // bounded: at most 2 s
+    if (_recvT || _recvB) throw new Error('fixture follow-up did not finish');
     const real = window.recvSync, seen = []; let done = false; const n0 = S.ledger.length;
     window.recvSync = async () => { seen.push({ done, rows: S.ledger.length }); return real(); };
     await bootRun(); done = true; await new Promise(r => setTimeout(r, 300)); window.recvSync = real;
