@@ -8,18 +8,28 @@
  * Loaded by index.html after js/backup.js and before the main script; version-locked with index.html like the other parts.
  * Tests: tests/59-store.test.js. */
 const STORE_VER='4.40';
-const Store={_q:Promise.resolve(),
-  tx(plan){const run=()=>new Promise(res=>{const ops=[],after=[];let t=null;
+const Store={_q:Promise.resolve(),_RETRY:Symbol('retry'),_inflight:new Map(),
+  /* tx(plan, commit): the ownership check runs in the transaction's own turn, right after plan built the writes and before the
+     IndexedDB transaction opens: if any record is staged by the active operation (and this is not that operation's commit), nothing
+     is opened, the turn is given back, the call waits until the operation has ended and then runs plan again from the real state —
+     repeated until no record is held. The queue is never blocked while waiting (no deadlock with the operation's own commit).
+     Records of an open transaction are marked in-flight until it ends (an operation staging such a record waits for it: settle). */
+  tx(plan,commit){const attempt=()=>{const p=this._q.then(()=>run(),()=>run());this._q=p.then(()=>{},()=>{});return p.then(r=>r===this._RETRY?this.idle().then(attempt):r)};
+    const run=()=>new Promise(res=>{const ops=[],after=[];let t=null;
       try{plan({put:(col,doc)=>ops.push(['put',col,doc]),del:(col,id)=>ops.push(['del',col,id]),after:fn=>after.push(fn)});
+        if(!commit&&this._act&&ops.some(([op,col,x])=>this._act.puts.has(col+'/'+(op==='put'?x.id:x))))return res(this._RETRY);
         if(!ops.length){let err=null;for(const f of after)try{f()}catch(e){err=err||e}return res(err?{ok:true,ops,afterError:err}:{ok:true,ops})}
         t=idb.transaction('docs','readwrite');const st=t.objectStore('docs');
         for(const [op,col,x] of ops){if(op==='put')st.put({k:col+'/'+x.id,col,doc:x});else st.delete(col+'/'+x)}}
       catch(e){try{t&&t.abort()}catch(_){}return res({ok:false,error:e})}
-      let done=false;const end=r=>{if(!done){done=true;res(r)}};
+      const keys=ops.map(([op,col,x])=>col+'/'+(op==='put'?x.id:x));keys.forEach(k=>this._inflight.set(k,(this._inflight.get(k)||0)+1));
+      let done=false;const end=r=>{if(!done){done=true;keys.forEach(k=>{const n=(this._inflight.get(k)||1)-1;if(n)this._inflight.set(k,n);else this._inflight.delete(k)});res(r)}};
       t.oncomplete=()=>{let err=null;for(const f of after)try{f()}catch(e){err=err||e}if(!err)return end({ok:true,ops});
         // a memory callback failed: the disk is right, memory may be half-updated → reload exactly the written records from disk
         try{console.warn('Store.tx after',err)}catch(_){}Store.resync(ops).then(()=>end({ok:true,ops,afterError:err}),()=>end({ok:true,ops,afterError:err}))};t.onerror=()=>{};/* a failed request aborts the whole transaction (not prevented); the result is reported by onabort */t.onabort=()=>end({ok:false,error:t.error||new Error('transaction aborted')})});
-    const p=this._q.then(run,run);this._q=p.then(()=>{},()=>{});return p},
+    return attempt()},
+  // an operation about to stage a record that an ordinary transaction is writing right now waits for the queue to pass it
+  async settle(col,id){while(id&&this._inflight.has(col+'/'+id))await this._q},
   /* Store.batch(key, fn): makes a multi-record business operation atomic (unit of work). fn(B) receives the operation B and must
      write only through it (save(c,i,d,B) / putRaw(c,d,B) — see opsFor() in index.html): those writes are staged — memory (S) changes
      at once, so the operation reads its own writes and may still ask the user; nothing touches the disk. When fn finishes, all staged
@@ -38,12 +48,12 @@ const Store={_q:Promise.resolve(),
   idle(){return this._act?this._act.end:Promise.resolve()},
   batch(key,fn){if(typeof mode!=='undefined'&&mode!=='local')return fn();if(key&&this._busy.has(key))return Promise.resolve(this.BUSY);if(key)this._busy.add(key);
     const go=()=>this._batch(key,fn);const p=this._bq.then(go,go);this._bq=p.then(()=>{},()=>{});return p},
-  async _batch(key,fn){let endR;const B={orig:new Map(),puts:new Map(),n:0,uops:new Set(),useen:new Set(),end:new Promise(r=>endR=r)};this._act=B;
+  async _batch(key,fn){let endR;const B={orig:new Map(),puts:new Map(),n:0,uops:new Set(),useen:new Set(),end:new Promise(r=>endR=r),batch:()=>{throw new Error('nested operation: an operation must not start another one (it would wait for itself)')}};this._act=B;
     const hold=typeof _rvH!=='undefined';if(hold)_rvH++;
     const rollback=()=>{for(const [k,o] of B.orig){const i=k.indexOf('/'),col=k.slice(0,i),id=k.slice(i+1);if(!S[col])continue;const j=S[col].findIndex(x=>x.id===id);if(o){if(j>=0)S[col][j]=o;else S[col].push(o)}else if(j>=0)S[col].splice(j,1)}
       try{if(typeof UB!=='undefined'&&UB){UB.ops=UB.ops.filter(o=>!B.uops.has(o));B.useen.forEach(k=>UB.seen.delete(k))}}catch(_){}};/* only this operation's undo entries are dropped */
     try{const res=await fn(B);if(B.err)throw B.err;
-      const r=B.puts.size?await this.tx(w=>{for(const [col,doc] of B.puts.values())w.put(col,doc)}):{ok:true};
+      const r=B.puts.size?await this.tx(w=>{for(const [col,doc] of B.puts.values())w.put(col,doc)},true):{ok:true};
       if(!r.ok)throw r.error||new Error('write failed');B.done=true;
       for(let i=0;i<B.n;i++)try{markDirty()}catch(_){}return res}
     catch(e){if(!B.done)rollback();throw e}
