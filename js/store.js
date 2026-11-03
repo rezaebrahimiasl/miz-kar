@@ -41,7 +41,8 @@ const Store={_q:Promise.resolve(),_RETRY:Symbol('retry'),_inflight:new Map(),
      Operations run one after another (queue); each key at most once at a time (a second call → Store.BUSY, also while queued).
      Follow-up updates (recvKick) are held until the end. Cloud mode: fn runs directly (no B). */
   _act:null,_busy:new Set(),BUSY:Symbol('busy'),_bq:Promise.resolve(),
-  stage(B,col,doc,prev){const k=col+'/'+doc.id;if(!B.orig.has(k))B.orig.set(k,prev?JSON.parse(JSON.stringify(prev)):null);B.dels.delete(k);B.puts.set(k,[col,doc]);if(window._noUnsent)B.quiet++;else B.n++},
+  // quiet: this write is not an unsent change (sync, the conflict list) — decided per operation or per write, never by a global flag
+  stage(B,col,doc,prev,quiet){const k=col+'/'+doc.id;if(!B.orig.has(k))B.orig.set(k,prev?JSON.parse(JSON.stringify(prev)):null);B.dels.delete(k);B.puts.set(k,[col,doc]);if(quiet||B.quietAll)B.quiet++;else B.n++},
   // a delete that belongs to operation B: memory now (the record leaves S), disk at B's commit; restored on rollback
   stageDel(B,col,id){const k=col+'/'+id;const prev=(S[col]||[]).find(x=>x.id===id);if(!B.orig.has(k))B.orig.set(k,prev?JSON.parse(JSON.stringify(prev)):null);B.puts.delete(k);B.dels.set(k,[col,id]);if(S[col])S[col]=S[col].filter(x=>x.id!==id)},/* like the old disk deletes, a delete itself does not count as an unsent change (the tombstone write does) */
   // run an undo recorder for B and remember exactly which undo entries it added (removed again if B fails)
@@ -52,9 +53,11 @@ const Store={_q:Promise.resolve(),_RETRY:Symbol('retry'),_inflight:new Map(),
   // run fn (synchronous) at a moment no operation is active: what it reads is committed state (for backups, sync and other
   // external outputs). Waiting only at the start of a function is not enough when other awaits follow before the read.
   async read(fn){for(;;){await this.idle();if(!this._act)return fn()}},
-  batch(key,fn){if(typeof mode!=='undefined'&&mode!=='local')return fn();if(key&&this._busy.has(key))return Promise.resolve(this.BUSY);if(key)this._busy.add(key);
-    const go=()=>this._batch(key,fn);const p=this._bq.then(go,go);this._bq=p.then(()=>{},()=>{});return p},
-  async _batch(key,fn){let endR;const B={orig:new Map(),puts:new Map(),dels:new Map(),quiet:0,owns:k=>B.puts.has(k)||B.dels.has(k),n:0,uops:new Set(),useen:new Set(),end:new Promise(r=>endR=r),batch:()=>{throw new Error('nested operation: an operation must not start another one (it would wait for itself)')}};this._act=B;
+  CLOUD_MSG:'این کار چندمرحله‌ای در نمای داخل Claude (حالت ابری) انجام نمی‌شود، چون آنجا ثبتِ «همه یا هیچ» ممکن نیست. در برنامهٔ گوشی انجامش بده.',
+  // opt.quiet: all writes of the operation are quiet. Cloud mode has no multi-record transaction → operations are refused (not run half)
+  batch(key,fn,opt){if(typeof mode!=='undefined'&&mode!=='local')return Promise.reject(Object.assign(new Error(this.CLOUD_MSG),{cloud:true}));if(key&&this._busy.has(key))return Promise.resolve(this.BUSY);if(key)this._busy.add(key);
+    const go=()=>this._batch(key,fn,opt);const p=this._bq.then(go,go);this._bq=p.then(()=>{},()=>{});return p},
+  async _batch(key,fn,opt){let endR;const B={quietAll:!!(opt&&opt.quiet),orig:new Map(),puts:new Map(),dels:new Map(),quiet:0,owns:k=>B.puts.has(k)||B.dels.has(k),n:0,uops:new Set(),useen:new Set(),end:new Promise(r=>endR=r),batch:()=>{throw new Error('nested operation: an operation must not start another one (it would wait for itself)')}};this._act=B;
     const hold=typeof _rvH!=='undefined';if(hold)_rvH++;
     const rollback=()=>{for(const [k,o] of B.orig){const i=k.indexOf('/'),col=k.slice(0,i),id=k.slice(i+1);if(!S[col])continue;const j=S[col].findIndex(x=>x.id===id);if(o){if(j>=0)S[col][j]=o;else S[col].push(o)}else if(j>=0)S[col].splice(j,1)}
       try{if(typeof UB!=='undefined'&&UB){UB.ops=UB.ops.filter(o=>!B.uops.has(o));B.useen.forEach(k=>UB.seen.delete(k))}}catch(_){}};/* only this operation's undo entries are dropped */
