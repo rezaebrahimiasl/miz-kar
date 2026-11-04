@@ -1,4 +1,4 @@
-const V='miz-kar-v4.40';const VER=V.slice(9);const KEEP=[V,'miz-shell','miz-share'];const SHELL=['./','index.html','manifest.webmanifest','icon2-192.png','icon2-512.png','icon2-maskable-512.png','logo.webp','qr.js','js/core.js','js/engine.js','js/backup.js','js/store.js'];
+const V='miz-kar-v4.41';const VER=V.slice(9);const KEEP=[V,'miz-shell','miz-share'];const SHELL=['./','index.html','manifest.webmanifest','icon2-192.png','icon2-512.png','icon2-maskable-512.png','logo.webp','qr.js','js/core.js','js/engine.js','js/backup.js','js/store.js','fonts/Vazirmatn-wght.woff2'];
 // Install (O3): download and validate EVERY file first; only then write the new cache and take over.
 // If any file fails (offline, 404, captive portal, broken download) the install fails, the browser keeps the current
 // worker, and activation, which is what deletes old caches, never happens: the last working offline app stays intact.
@@ -30,7 +30,7 @@ async function saveShell(res){try{const t=await appOnly(res);if(!t)return;const 
 async function partFromCache(f){const c=await caches.open(V);if(await c.match('index.html')||await c.match('./')){const h=await c.match(f);if(h)return h}return (await (await caches.open('miz-shell')).match(f))||null}
 self.addEventListener('fetch',e=>{const r=e.request;
   if(r.method==='POST'&&new URL(r.url).pathname.endsWith('/share-target')){e.respondWith((async()=>{try{const f=await r.formData();const text=['title','text','url'].map(k=>f.get(k)).filter(Boolean).join('\n');const img=f.get('image');const c=await caches.open('miz-share');await c.put('share-text',new Response(text));if(img&&img.size)await c.put('share-image',new Response(img,{headers:{'Content-Type':img.type||'image/jpeg'}}));else await c.delete('share-image')}catch(_){}return Response.redirect('./?share=1',303)})());return}
-  if(r.method!=='GET'||r.url.includes('version.json'))return;const u=new URL(r.url);if(u.origin!==self.location.origin&&!u.hostname.includes('fonts.g'))return;
+  if(r.method!=='GET'||r.url.includes('version.json'))return;const u=new URL(r.url);if(u.origin!==self.location.origin)return;
   // Pages: open instantly from the saved copy (works offline); refresh the saved copy in the background
   if(r.mode==='navigate'){e.respondWith((async()=>{const cached=await shellFromCache();
       const net=fetch(r.url.split('?')[0],{cache:'no-store'}).then(async res=>{if(res.ok&&!res.redirected)await saveShell(res.clone());return res});
@@ -38,4 +38,4 @@ self.addEventListener('fetch',e=>{const r=e.request;
       try{return await net}catch(_){return new Response('<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><body style="font-family:sans-serif;direction:rtl;padding:24px;line-height:2">میز کار هنوز روی این گوشی ذخیره نشده. یک بار با اینترنت باز کن؛ از آن به بعد بدون اینترنت هم باز می‌شود.<br><button onclick="location.reload()" style="font:inherit;padding:8px 16px;margin-top:12px">دوباره امتحان کن</button>',{headers:{'Content-Type':'text/html; charset=utf-8'}})}})());return}
   const part=partOf(r.url);if(part&&!new URL(r.url).search){e.respondWith(partFromCache(part).then(h=>h||fetch(r)).catch(()=>fetch(r)));return}
   if(isShellUrl(r.url)){e.respondWith(fetch(r).catch(()=>shellFromCache().then(c=>c||Response.error())));return} // the shell is stored only through saveShell
-  e.respondWith(caches.match(r).then(hit=>hit||fetch(r).then(res=>{if(res.ok&&(r.url.startsWith(self.location.origin)||r.url.includes('fonts.g'))){const cp=res.clone();caches.open(V).then(c=>c.put(r,cp))}return res})))});
+  e.respondWith(caches.match(r).then(hit=>hit||fetch(r).then(res=>{if(res.ok&&r.url.startsWith(self.location.origin)){const cp=res.clone();caches.open(V).then(c=>c.put(r,cp))}return res})))});

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#b8740a">
 <meta name="description" content="میز کار رضا — دستیار شخصی، کسب‌وکار و زنبورداری">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' https://api.github.com https://gist.githubusercontent.com https://generativelanguage.googleapis.com https://www.googleapis.com; frame-src 'self' blob: data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' https://api.github.com https://gist.githubusercontent.com https://generativelanguage.googleapis.com https://www.googleapis.com; frame-src 'self' blob: data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon2-192.png">
 <link rel="apple-touch-icon" href="icon2-192.png">
@@ -41,9 +41,8 @@ html.fs-s body{zoom:.9}html.fs-l body{zoom:1.12}form[data-inv="0"] [data-inv]{di
 </head>
 <body>
 <title>میز کار رضا</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap">
+<!-- O4: Vazirmatn v33.003 (SIL Open Font License 1.1, fonts/OFL.txt), one variable file for every weight; no remote font -->
+<style>@font-face{font-family:"Vazirmatn";src:url("fonts/Vazirmatn-wght.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}</style>
 <style>
 /* Layout: one-column mobile app — sticky header, scrolling view, bottom tab bar, floating add button, bottom sheets */
 :root{
@@ -293,8 +292,10 @@ html body .row2{grid-template-columns:1fr 1fr}
 /* Google sign-in returns here with #access_token=…; take it before anything else reads the address, keep it only in this tab's memory */
 (()=>{const h=location.hash;if(!/[#&](access_token|error)=/.test(h)||!/state=/.test(h))return;const q=new URLSearchParams(h.slice(1));let s=null;try{s=JSON.parse(sessionStorage.getItem('miz.gc.st')||'null');sessionStorage.removeItem('miz.gc.st')}catch(_){}history.replaceState(null,'',location.pathname+location.search);if(!s||s.st!==q.get('state'))return;
  if(q.get('access_token')){try{sessionStorage.setItem('miz.gc.tok',JSON.stringify({t:q.get('access_token'),exp:Date.now()+(Number(q.get('expires_in'))||3600)*1000-120000}));sessionStorage.removeItem('miz.gc.tried')}catch(_){}window._gcBack={ok:1,ret:s.ret}}else window._gcBack={err:q.get('error')||'خطا',silent:s.silent,ret:s.ret}})();
-const APP_VER='4.40';
+const APP_VER='4.41';
 // the app's separate files and their version markers; all must carry APP_VER (start-up guard, stashLatest; sw.js PARTS is the same list, checked by tests/00)
+// the bundled font as @font-face with an absolute address: printed pages are srcdoc frames or blob windows without this page's base
+const fontFace=()=>{let u='fonts/Vazirmatn-wght.woff2';try{u=new URL(u,location.href).href}catch(_){}return `@font-face{font-family:"Vazirmatn";src:url("${u}") format("woff2");font-weight:100 900;font-display:swap}`};
 const APP_PARTS={'js/core.js':'CORE_VER','js/engine.js':'ENGINE_VER','js/backup.js':'BACKUP_VER','js/store.js':'STORE_VER'};
 /* ---------- Start-up guard: js/core.js (dates, digits, formatting) and js/engine.js (information engine) must be loaded and of this same version before anything reads or writes data. Otherwise nothing below runs: the data on the phone stays untouched and a recovery screen offers a reload ---------- */
 (()=>{const ok=typeof CORE_VER!=='undefined'&&CORE_VER===APP_VER&&typeof ENGINE_VER!=='undefined'&&ENGINE_VER===APP_VER&&[typeof qNorm,typeof qExec,typeof qHtml].every(t=>t==='function')&&typeof BACKUP_VER!=='undefined'&&BACKUP_VER===APP_VER&&[typeof snapTake,typeof snapCheck,typeof snapBoot].every(t=>t==='function')&&typeof STORE_VER!=='undefined'&&STORE_VER===APP_VER&&typeof Store==='object'&&[typeof J,typeof jOf,typeof jIso,typeof parseJ,typeof fa,typeof en,typeof esc,typeof addDays,typeof diffDays,typeof today,typeof nfmt,typeof moneyFull,typeof toBase,typeof fromBase].every((t,i)=>t===(i?'function':'object'));if(ok)return;
@@ -372,7 +373,7 @@ async function initDb(){
   try{idb=await new Promise((res,rej)=>{const r=indexedDB.open('miz-kar',1);r.onupgradeneeded=()=>r.result.createObjectStore('docs',{keyPath:'k'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
     const all=await new Promise((res,rej)=>{const q=idb.transaction('docs').objectStore('docs').getAll();q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
     BAD=[];all.forEach(x=>{const ok=x&&typeof x.col==='string'&&x.doc&&typeof x.doc==='object'&&typeof x.doc.id==='string'&&x.k===x.col+'/'+x.doc.id;if(!ok){BAD.push(x);return}if(S[x.col])S[x.col].push(x.doc)});LOAD_OK=true;rebuildContacts();COLS.forEach(c=>loaded.add(c));if(unsentN()>0)ghDirty=true;snapBoot();if(BAD.length)setTimeout(recoverySheet,1500);try{licBoot();licCheck();document.title=licOwner()?'میز کار رضا':'میز کار'}catch(_){}
-    try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(_){}
+    /* O6: persistent storage is requested only when the user taps «درخواست نگه‌داری ماندگار» on the backup page (persistAsk), never here */
   }catch(e){LOAD_OK=false;LOAD_ERR=(e&&(e.name||'')+' '+(e.message||''))||'';showConn('حافظهٔ گوشی خوانده نشد؛ «حالت بازیابی» را ببین. چیزی پاک یا به ابر فرستاده نمی‌شود.');setTimeout(recoverySheet,800)}
   render();
 }
@@ -482,7 +483,9 @@ function asGo(i){const a=AS&&AS.acts[i];if(!a||a.done)return;const pn=a.pid?pnam
   aiApply({...a,person:pn},AS.text)}
 // several plain tasks at once, after one explicit tap; an open task with the same title and day is not made twice
 // called after every form submit: the proposal whose form this was is done only if that submit wrote something
-function asAfter(f){const o=AS&&AS.open;if(!o||o.el!==f)return;if((window._dv||0)>o.dv){AS.acts[o.i].done=true;AS.open=null}}
+/* M3: a proposal is done only when the submit of the form it opened wrote data; dv0 = the write counter at the start of that submit,
+   so a write by something else while the form was open (sync, a recurring job) does not count; cancel or a failed save keeps it */
+function asAfter(f,dv0){const o=AS&&AS.open;if(!o||o.el!==f)return;if((window._dv||0)>Math.max(o.dv,dv0==null?o.dv:dv0)){AS.acts[o.i].done=true;AS.open=null}}
 async function asTasks(){if(!AS)return 0;let n=0;for(const a of AS.acts){if(a.done||a.intent!=='task'||a.issues.length)continue;const due=a.due?parseJ(a.due)||'':'',title=a.title||a.about;
   if(openTasks().some(t=>simTitle(t.title,title)&&(t.due||'')===due)){a.done=true;continue}if(await save('tasks',null,{title,due,personId:a.pid||'',status:'open',priority:3,area:'',note:'از دستیار'})){a.done=true;n++}}return n}
 /* Questions: Gemini turns the question into a small query; the query runs on the phone */
@@ -2024,6 +2027,7 @@ const ACTS=[
  ['پول و کسب‌وکار','aiAskQ','finance','chart','پرسش از داده‌ها','چک‌های سررسید، هزینه به تفکیک دسته، سود ماه‌به‌ماه، صورت‌حساب شخص؛ بدون اینترنت','پرسش از داده گزارش چک سررسید هزینه دسته سود زیان ماهانه صورت حساب گردش حساب شخص',''],
  ['پول و کسب‌وکار','reportsHub','finance','chart','گزارش‌ها','مالی، فروش، هفته و ماه، دفاتر، اضطراری','گزارش دفاتر حسابداری تراز سود زیان',''],
  ['امنیت و تنظیمات','health','finance','check','بررسی سلامت داده‌ها',()=>{const n=healthIssues().reduce((a,x)=>a+x.rows.length,0);return n?fa(n)+' مورد برای رفع':'همه‌چیز مرتب است'},'سلامت داده تکراری یکی کردن افراد بدون دسته بدون حساب منفی خطا',''],
+ ['امنیت و تنظیمات','integ','finance','check','عیب‌یابی داده‌ها','فقط خواندنی: دفاتر، انبار، نسخه‌های سند و پیوندها را می‌سنجد؛ چیزی تغییر نمی‌کند','عیب یابی یکپارچگی درستی داده نسخه سند دو بار تراز',''],
  ['امنیت و تنظیمات','viewPanel','affairs','filter','نما و نمایش صفحه‌ها','اندازهٔ متن، فشردگی، ستون‌ها','نما نمایش اندازه متن فونت فشرده ستون',''],
  ['امنیت و تنظیمات','prefs','affairs','filter','چیدمان و هوشمندی‌ها','بخش‌های «امروز» و کمک‌های هوشمند','چیدمان تنظیم هوشمند خاموش روشن سلیقه',''],
  ['امنیت و تنظیمات','aboutHub','affairs','book','درباره و راهنما',()=>'نسخهٔ '+fa(APP_VER)+' · راهنما، تازه‌ها، نقشهٔ راه','درباره راهنما نسخه به روز رسانی',''],
@@ -2276,7 +2280,7 @@ function docHtml(d){const P=PROF();const SO=(d.items||[]).filter(x=>x.sm!=='cost
   table{width:100%;border-collapse:collapse;margin:8px 0;font-size:13px}th,td{border:1px solid #d9cfbf;padding:6px 8px;text-align:center}th{background:#f6efe2}td.d{text-align:right}.tot td{font-weight:700}.words{background:#faf6ee;border:1px dashed #d9cfbf;border-radius:8px;padding:8px 10px;font-size:13px}.body{white-space:pre-wrap}.terms{white-space:pre-wrap;font-size:13px;margin-top:10px}.sig{display:flex;justify-content:space-between;margin-top:40px;font-size:13px}.sig div{width:45%;text-align:center;border-top:1px solid #999;padding-top:6px}.ft{margin-top:24px;border-top:1px solid #e3d9c8;padding-top:6px;font-size:11.5px;color:#6b6255;white-space:pre-wrap}`;
   const UN=isInv&&!GV?'<div style="font-size:12px;color:#6b6255;text-align:left">مبالغ به میلیون تومان</div>':'';const STL=isInv&&!GV?settleTxt(d):'';const items=GV?`<table><tr><th>ردیف</th><th>شرح</th><th>مقدار</th><th>واحد</th></tr>${d.items.map((x,i)=>`<tr><td>${fa(i+1)}</td><td class="d">${esc(x.desc)}${pkNote(x)}${cmNote(x)}</td><td>${faQ(x.qty||'')}</td><td>${esc(x.unit||'')}</td></tr>`).join('')}</table>${d.memo?`<div class="terms"><b>توضیحات:</b> ${esc(d.memo)}</div>`:''}`:isInv?`<table><tr><th>ردیف</th><th>شرح</th>${SO?'':'<th>مقدار</th><th>واحد</th><th>فی</th>'}<th>مبلغ</th></tr>${d.items.filter(x=>x.sm!=='cost').map((x,i)=>`<tr><td>${fa(i+1)}</td><td class="d">${esc(x.desc)}${pkNote(x)}${cmNote(x)}${x.sm==='cod'?(d.type==='purchase'?' <small>(به عهدهٔ فروشنده، در جمع نیست)</small>':' <small>(پس‌کرایه؛ به عهدهٔ خریدار، در جمع نیست)</small>'):x.sm==='sep'?(d.type==='purchase'?' <small>(جدا پرداخت شد)</small>':' <small>(جدا دریافت شد)</small>'):''}</td>${svc1(x)?(SO?'':`<td></td><td>خدمت</td><td></td>`):`<td>${faQ(x.qty||'')}</td><td>${esc(x.pk?'عدد':x.unit||'')}</td><td>${mtn(x.price)}</td>`}<td>${x.sm==='cod'?'—':mtn((Number(x.qty)||0)*(Number(x.price)||0))}</td></tr>`).join('')}
     <tr class="tot"><td colspan="${SO?2:5}">جمع</td><td>${mtn(t.sub)}</td></tr>${t.disc?`<tr><td colspan="${SO?2:5}">تخفیف${d.discP?' ('+fa(d.discP)+'٪)':''}${discScope(d.items)?' <small>— '+discScope(d.items)+'</small>':''}</td><td>${mtn(t.disc)}</td></tr>`:''}${t.tax?`<tr><td colspan="${SO?2:5}">مالیات و عوارض (${fa(d.tax)}٪)</td><td>${mtn(t.tax)}</td></tr>`:''}<tr class="tot"><td colspan="${SO?2:5}">مبلغ قابل پرداخت</td><td>${mtn(t.total)}</td></tr></table><div class="words"><b>${tmR(t.total)}</b><br>به حروف: ${numWords(t.total)} تومان</div>${d.memo?`<div class="terms" style="margin-top:8px"><b>توضیحات:</b> ${esc(d.memo)}</div>`:''}${STL?`<div class="terms" style="margin-top:8px"><b>نحوهٔ تسویه:</b> ${esc(STL)}</div>`:''}${PB}${(()=>{let tm=d.terms||'';const PM={receivable:'نسیه',received:'نقد',barter:'تهاتری (در عوض کالا یا خدمت)'};if(STL)tm=tm.split('\n').filter(x=>x.trim()!=='پرداخت: ………').join('\n');else if(d.type==='invoice'&&PM[d.led])tm=tm.replace('پرداخت: ………','پرداخت: '+PM[d.led]);return tm?`<div class="terms">${esc(tm)}</div>`:''})()}`:`<div class="body">${esc(d.body||'')}</div>`;
-  return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(docTitle(d)+' '+(d.no||''))}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap"><style>${css}</style></head><body>
+  return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(docTitle(d)+' '+(d.no||''))}</title><style>${fontFace()}</style><style>${css}</style></head><body>
   <div class="bar"><button onclick="print()">چاپ یا ذخیره به PDF</button><button class="g" onclick="history.length>1?history.back():close()">بستن</button></div>
   <div class="hd">${(()=>{const v=docImg(P,['letter','contract'].includes(d.type)?'Letter':'Doc');return v==='none'?`<div class="mono">${esc(ini)}</div>`:v?`<img class="lg" src="${esc(v)}" alt="">`:`<img class="lg" style="border-radius:50%" src="${esc(defLogo())}" alt="">`})()}<div><h1>${esc(P.biz||P.name)}</h1><small>${esc(P.name)}${P.phone?' · تلفن '+esc(P.phone):''}${P.addr?' · '+esc(P.addr):''}</small></div></div>
   <div class="meta">${d.no?`<span>شماره: <b><bdi dir="ltr">${esc(d.no)}</bdi></b></span>`:''}<span>تاریخ: <b>${jLong(d.date)}</b></span>${d.type==='purchase'&&d.place?`<span>ورود به: <b>${esc(d.place)}</b></span>`:''}${to?`<span>${PARTY(d,GV)}: <b>${esc(to)}</b></span>`:''}</div>
@@ -2445,7 +2449,14 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
- ['4.40',[['affairs','lock','ثبت مطمئن‌تر','هر ثبت اول روی حافظهٔ گوشی نوشته و تأیید می‌شود و فقط بعد در صفحه دیده می‌شود؛ اگر نوشتن ممکن نشود (مثلاً پر بودن حافظه)، صفحه و داده‌ها همان‌طور که بودند می‌مانند.']]],
+ ['4.41',[['finance','check','عیب‌یابی داده‌ها','در «تنظیمات» صفحهٔ «عیب‌یابی داده‌ها» دفاتر، انبار، نسخه‌های سند و پیوندها را می‌سنجد؛ از جمله سندهایی که پیش از نسخهٔ ۴٫۲۱ دو نسخهٔ معتبر داشتند. فقط خواندنی است و چیزی را تغییر نمی‌دهد؛ نام اشخاص، مبلغ و اطلاعات درمانی در آن نمی‌آید.','integ'],
+  ['affairs','box','نگه‌داری ماندگار حافظه','در «ایمنی و پشتیبان» دیده می‌شود که مرورگر قول داده داده‌ها را در کمبود جا پاک نکند یا نه، و چقدر جا مصرف شده. درخواستش فقط وقتی فرستاده می‌شود که خودت دکمه را بزنی.','backupSheet'],
+  ['affairs','mic','پیام‌های روشن‌تر برای گفتن با صدا','بدون اینترنت، نبودن اجازهٔ میکروفون یا نبودن امکان در مرورگر، هر کدام پیام خودش را دارد و میکروفون داخلی را از کار نمی‌اندازد. زدن دوبارهٔ میکروفون گوش دادن را تمام می‌کند و متن گفته‌شده می‌ماند.',''],
+  ['finance','note','تأیید پرداخت دوره‌ای از پیامک بانک','تأیید با شمارهٔ پیگیری بانک یک‌جا ثبت می‌شود (همراه ردیف جفتش)؛ همان پیامک ردیف دیگری را تأیید نمی‌کند و دو بار زدن، یک تأیید است.',''],
+  ['affairs','star','پیشنهاد دستیار فقط بعد از ثبت','پیشنهادی که فرمش را باز کرده‌ای فقط وقتی «انجام شد» می‌خورد که همان فرم واقعاً ثبت شود؛ اگر ثبت نشد، پیشنهاد سر جایش می‌ماند.',''],
+  ['affairs','note','قلم برنامه روی خود گوشی','قلم وزیرمتن همراه برنامه است و از اینترنت گرفته نمی‌شود؛ بدون اینترنت هم همان شکل را دارد.',''],
+  ['affairs','lock','«همه یا هیچ» در واگرد و بازیابی','واگرد، بازیابی از پشتیبان یا نسخهٔ خودکار، هم‌گام‌سازی و حذف یا کامل انجام می‌شوند یا اصلاً؛ اگر بازیابی ممکن نشد، پیامش می‌آید و چیزی تغییر نمی‌کند. در نمای داخل Claude (حالت ابری) کارهای چندمرحله‌ای و حذف انجام نمی‌شوند و باید در برنامهٔ گوشی انجام شوند.','']]],
+['4.40',[['affairs','lock','ثبت مطمئن‌تر','هر ثبت اول روی حافظهٔ گوشی نوشته و تأیید می‌شود و فقط بعد در صفحه دیده می‌شود؛ اگر نوشتن ممکن نشود (مثلاً پر بودن حافظه)، صفحه و داده‌ها همان‌طور که بودند می‌مانند.']]],
  ['4.39',[['affairs','user','تاریخچهٔ هر شخص','در صفحهٔ هر شخص دکمهٔ «تاریخچه» همهٔ سابقهٔ او را به ترتیب زمان نشان می‌دهد: دریافت و پرداخت و مانده، فاکتورها و اسناد، پروندهٔ مشاوره، ویزیت‌ها و نوبت‌ها (بدون یادداشت‌های بالینی). با زدن هر مورد، خود رکورد باز می‌شود. چیزی تغییر نمی‌کند.']]],
  ['4.38',[['therapy','check','«+» در صفحهٔ طب کل‌نگر','در صفحهٔ «طب کل‌نگر» دکمهٔ «+» فقط کارهای همان بخش را نشان می‌دهد (مراجع تازه، ویزیت، نوبت، برنامهٔ نوبت‌ها) و به فهرست کلی نمی‌رود؛ صفحه‌های تجارت و انبار، افراد، کارها و مالی هم «+» خودشان را دارند.']]],
  ['4.37',[['affairs','cal','تقویم مدیریت','کارها، نوبت‌ها (با ساعت شروع و پایان)، سررسید دریافتنی و پرداختنی و هشدارهای انبار در یک تقویم روزانه، هفتگی و ماهانه؛ موارد گذشته و بی‌تاریخ جدا در «نیاز به توجه». با فیلتر مشاوره، مالی، انبار و کارها؛ هر مورد رکورد خودش را باز می‌کند و کارها را همان‌جا می‌شود انجام‌شده یا به فردا منتقل کرد. از صفحهٔ امروز و «+» کارها باز می‌شود.','mcal']]],
@@ -3072,7 +3083,7 @@ async function ghVerSheet(sha){const c=GH.cfg;toast('در حال گرفتن نس
     <div class="acts" style="margin-top:12px;flex-direction:column;align-items:stretch">${miss?`<button class="btn pri" data-act="ghVerMiss">فقط ${fa(miss)} ردیف گم‌شده برگردد (امن)</button>`:''}<button class="btn danger" data-act="ghVerAll">برگشت کامل به همین نسخه</button><button class="btn ghost" data-act="ghHist">بازگشت به فهرست</button></div>
     <p class="hint" style="font-size:12px;color:var(--muted)">«برگشت کامل» هر چه بعد از این نسخه ثبت شده را کنار می‌گذارد؛ ولی وضعیت فعلی هم در تاریخچهٔ گیت‌هاب می‌ماند و دوباره برمی‌گردد.</p>`)}catch(e){toast(e.message||'نشد')}}
 async function ghVerApply(all){const j=window._ghVer;if(!j)return;const N=COLS.filter(k=>k!=='contacts').reduce((a,k)=>a+((j.data[k]||[]).length),0);if(all&&!await typedConfirm(`همه‌چیز به این نسخهٔ ابری برگردد؟\nاین نسخه ${N} ردیف دارد و الان ${rowCount()} ردیف هست${N<rowCount()?' (کوچک‌تر)':''}. هر چه بعد از آن ثبت شده کنار می‌رود (یک نسخهٔ خودکار از وضع فعلی ساخته می‌شود).`))return;
-  if(all&&GH.cfg.token&&!cloudBlock(0))await ghPush0(false);if(all&&N<rowCount())GH.cfg={...GH.cfg,allowShrink:true};const n=await applyData(j.data,all,'ver');closeSheet();toast(fa(n)+' ردیف برگشت ✓');if(GH.cfg.sync)ghSync()}
+  if(all&&GH.cfg.token&&!cloudBlock(0))await ghPush0(false);const shrink=all&&N<rowCount();let n;try{n=await applyData(j.data,all,'ver')}catch(e){toast((e&&e.cloud)?e.message:'برنگشت و چیزی تغییر نکرد: '+((e&&e.message)||'خطا'));return}if(shrink)GH.cfg={...GH.cfg,allowShrink:true};/* only after the restore succeeded: a smaller copy may then replace the cloud one */closeSheet();toast(fa(n)+' ردیف برگشت ✓');if(GH.cfg.sync)ghSync()}
 function recoveryPrint(){const c=GH.cfg,P=PROF();const base=location.origin+location.pathname.replace(/miz-kar\/?.*$/,'');const h=`<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>برگهٔ بازیابی</title><style>body{font-family:Vazirmatn,Tahoma,sans-serif;max-width:720px;margin:24px auto;line-height:2;color:#111}h1{font-size:20px}h2{font-size:16px;margin-top:18px;border-bottom:1px solid #ccc}.b{display:inline-block;min-width:260px;border-bottom:1px dotted #555}li{margin:4px 0}small{color:#555}</style></head><body>
 <h1>برگهٔ بازیابی میز کار و صندوق‌یار — ${esc(P.name||'')}</h1><small>تاریخ: ${jShort(today())} · این برگه رمز ندارد؛ رمزها را با دست بنویس و برگه را جای امن نگه دار.</small>
 <h2>نشانی برنامه‌ها</h2><ul><li>میز کار: <b dir="ltr">${esc(base)}miz-kar/</b></li><li>صندوق‌یار: <b dir="ltr">${esc(base)}sandooghyar/</b></li><li>مخزن پشتیبان میز کار: <b dir="ltr">${esc(c.repo||'—')}</b> · صندوق‌یار: <b dir="ltr">rezaebrahimiasl/sandooghyar-backup</b></li></ul>
@@ -3113,6 +3124,60 @@ const mkMergePeople0=(save,putRaw,personByName,openFlow,closeFlows)=>async funct
   const ph=[...new Set([...String(K.phone||'').split(/\s*[،,]\s*/),...String(Sx.phone||'').split(/\s*[،,]\s*/)].map(x=>x.trim()).filter(Boolean))].join(' ، ');
   await save('people',keep,{phone:ph,roles:[...new Set([...(K.roles||[]),...(Sx.roles||[])])],email:K.email||Sx.email||'',org:K.org||Sx.org||'',note:[K.note,Sx.note&&('از «'+Sx.name+'»: '+Sx.note)].filter(Boolean).join('\n'),hist:[...(K.hist||[]),{at:nowTs(),merged:Sx.name,refs:n}]});
   await save('people',src,{status:'archived',mergedInto:keep,note:(Sx.note?Sx.note+'\n':'')+'یکی شد با «'+K.name+'»'});return n};
+/* ---------- WP-3: data-integrity diagnostics (read-only) ----------
+   integCheck() only reads memory (S, BAD) and returns findings; integSheet() shows them; integText() is a copyable report.
+   Nothing here writes, repairs, merges or deletes: every fix is the owner's decision, made elsewhere with its own history.
+   Privacy: findings name records only by type, date, document number or lot code — never a person's name, an amount, a description
+   or anything clinical (cases, visits, visit fees). D1: before 4.21 «برگرداندن این نسخه» could make an older version of a document
+   live again next to the current one, so its stock and money counted twice; such pairs are listed and dated against the 4.21 fix. */
+const D1_FIX='2026-10-27T18:07:37Z';  // 4.21 (af7854d) published; an older version made live again before this is the D1 case
+function integCheck(){const G=[],live=x=>x&&!x.void,add=(k,sev,t,d,items)=>{if(items.length)G.push({k,sev,t,d,items})};
+  const docL=d=>({col:'docs',id:d.id,lbl:docTitle(d)+(d.no?' شمارهٔ '+fa(d.no):''),date:d.date||(d.created||'').slice(0,10)});
+  const rowL=(col,x)=>({col,id:x.id,lbl:col==='ledger'?(x.visitOf?'ردیف مالی ویزیت':({received:'دریافت',paid:'پرداخت',receivable:'طلب',payable:'بدهی'}[x.kind]||'ردیف مالی')):col==='moves'?'حرکت انبار':col==='lots'?'محموله '+(x.code?fa(x.code):''):col,date:x.date||(x.created||'').slice(0,10)});
+  // 1 books: trial balance, unbalanced entries, person balances = receivables − payables, stock value = inventory account (toman)
+  let E=[];try{E=autoEntries()}catch(_){}
+  const B=balancesByAcc(E,'تومان'),nat=c=>{const x=B[c];return x?x.dr-x.cr:0};const bk=[];
+  const tb=Object.values(B).reduce((a,x)=>a+x.dr-x.cr,0);if(Math.abs(tb)>1)bk.push({lbl:'جمع بدهکار و بستانکار دفاتر برابر نیست',date:''});
+  const ub=E.filter(e=>Math.abs(e.lines.reduce((a,l)=>a+l.dr-l.cr,0))>0.5);if(ub.length)bk.push({lbl:fa(ub.length)+' سند حسابداری نامتوازن',date:''});
+  try{const pb=Object.values(personBal()).reduce((a,m)=>a+(m['تومان']||0),0);if(Math.abs(pb-(nat('1201')+nat('2101')))>1)bk.push({lbl:'جمع ماندهٔ افراد با طلب و بدهی دفتر کل نمی‌خواند',date:''})}catch(_){}
+  try{const sv=S.lots.filter(live).reduce((a,l)=>{const q=lotStat(l).rem;return q>1e-4?a+q*lotCost(l):a},0);if(Math.abs(sv-nat('1301'))>1)bk.push({lbl:'ارزش موجودی انبار با حساب موجودی کالا نمی‌خواند',date:''})}catch(_){}
+  add('books','high','دفاتر حسابداری','این‌ها با هم نمی‌خوانند؛ گزارش‌های مالی ممکن است درست نباشند.',bk);
+  // 2 D1: an older version that is live while a newer live version replaces it (directly or further down the chain)
+  const docs=S.docs.filter(live),byIdD=new Map(S.docs.map(d=>[d.id,d])),d1=[],d1n=[],d1s=new Set(),cnt=id=>{const L=docLinked(id);return L.lots.filter(live).length+L.moves.filter(live).length+L.led.filter(live).length};
+  for(const n of docs){const seen=new Set();let o=byIdD.get(n.redoOf);while(o&&!seen.has(o.id)){seen.add(o.id);if(live(o)&&!d1s.has(o.id)){d1s.add(o.id);const it={...docL(o),note:'نسخهٔ قدیمی‌تر هنوز معتبر است کنار '+docL(n).lbl+' ('+jNice(n.date||'')+')'+(cnt(o)?' · '+fa(cnt(o))+' ثبت انبار/مالی آن هنوز حساب می‌شود':'')};((o.updated||o.created||'')<D1_FIX?d1:d1n).push(it)}o=byIdD.get(o.redoOf)}}
+  add('d1','high','دو نسخهٔ معتبر از یک سند (مشکل D1، پیش از ۴٫۲۱)','پیش از نسخهٔ ۴٫۲۱ «برگرداندن این نسخه» نسخهٔ قدیمی را هم معتبر می‌کرد؛ موجودی و طلب آن سند دو بار حساب می‌شود. خودکار اصلاح نمی‌شود: نسخهٔ اضافه را خودت باطل کن.',d1);
+  add('d1n','high','دو نسخهٔ معتبر از یک سند (پس از ۴٫۲۱)','نباید پیش بیاید؛ گزارشش را بفرست.',d1n);
+  const fk={};docs.filter(d=>d.redoOf).forEach(d=>(fk[d.redoOf]=fk[d.redoOf]||[]).push(d));
+  add('fork','high','دو جایگزین برای یک نسخهٔ سند','دو سند معتبر هر دو جای یک نسخهٔ قبلی را گرفته‌اند.',Object.values(fk).filter(v=>v.length>1).flat().map(docL));
+  // 3 postings that outlived their document: live stock/money rows of a voided or missing document
+  const orph=[];for(const col of ['lots','moves','ledger'])for(const x of S[col].filter(x=>live(x)&&x.docId)){const d=byIdD.get(x.docId);if(!d||d.void)orph.push({...rowL(col,x),note:d?'سندش باطل شده':'سندش پیدا نمی‌شود'})}
+  add('orph','high','ثبت‌های معتبرِ سندِ باطل یا ناموجود','کالا یا پولی که سندش دیگر معتبر نیست هنوز در حساب‌هاست.',orph);
+  // 4 stock: movements of a voided or missing lot, lots below zero
+  const lotM=new Map(S.lots.map(l=>[l.id,l]));
+  add('mvlot','mid','حرکت انبارِ محمولهٔ باطل یا ناموجود','',S.moves.filter(m=>live(m)&&m.lotId&&!live(lotM.get(m.lotId))).map(m=>({...rowL('moves',m),note:lotM.get(m.lotId)?'محموله باطل شده':'محموله پیدا نمی‌شود'})));
+  add('neg','mid','محمولهٔ با موجودی منفی','',S.lots.filter(l=>live(l)&&(()=>{try{return lotStat(l).rem<-1e-6}catch(_){return false}})()).map(l=>({col:'lots',id:l.id,lbl:lotName(l),date:l.date||''})));
+  // 5 links: rows of a missing or merged person, settlements of a missing row
+  const P=new Map(S.people.map(x=>[x.id,x])),L=new Map(S.ledger.map(x=>[x.id,x])),lk=[];
+  for(const col of ['ledger','moves','docs','cheques'])for(const x of (S[col]||[]).filter(x=>live(x)&&x.personId)){const pp=P.get(x.personId);if(!pp)lk.push({...(col==='docs'?docL(x):rowL(col,x)),note:'شخصش پیدا نمی‌شود'});else if(pp.mergedInto)lk.push({...(col==='docs'?docL(x):rowL(col,x)),note:'هنوز به شخصِ یکی‌شده وصل است'})}
+  S.ledger.filter(x=>live(x)&&x.refId&&!L.has(x.refId)).forEach(x=>lk.push({...rowL('ledger',x),note:'ردیفی که تسویه می‌کند پیدا نمی‌شود'}));
+  add('link','mid','پیوندهای ناقص','',lk);
+  // 6 duplicates: one bank message confirming two live rows
+  const rk={};S.ledger.filter(x=>live(x)&&x.rcpt).forEach(x=>(rk[x.rcpt]=rk[x.rcpt]||[]).push(x));
+  add('rcpt','mid','یک پیامک بانکی برای چند ردیف','یک رسید بانکی دو بار ثبت یا تأیید شده؛ احتمالاً یکی تکراری است.',Object.values(rk).filter(v=>v.length>1).flat().map(x=>rowL('ledger',x)));
+  // 7 storage: records that could not be read at start-up (shown on the recovery page)
+  if(typeof BAD!=='undefined'&&BAD&&BAD.length)add('bad','high','رکوردهای خراب در حافظهٔ گوشی','موقع باز شدن خوانده نشدند؛ «حالت بازیابی» را ببین.',[{lbl:fa(BAD.length)+' رکورد',date:''}]);
+  return {at:nowTs(),n:G.reduce((a,g)=>a+g.items.length,0),groups:G}}
+const INTEG_SEV={high:['مهم','amt-neg'],mid:['بررسی کن','']};
+function integSheet(){const R=integCheck();openSheet(`<h3>${badge('finance','check')} عیب‌یابی داده‌ها</h3>
+  <p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">فقط خواندنی: این صفحه چیزی را تغییر، اصلاح یا حذف نمی‌کند. نام اشخاص، مبلغ‌ها و اطلاعات درمانی در آن نمی‌آید.</p>
+  ${R.groups.length?'':'<div class="banner" style="background:var(--ok-soft);color:var(--ok)">مشکلی پیدا نشد ✓</div>'}
+  ${R.groups.map(g=>`<div class="blk-h" style="margin-top:14px"><h2>${esc(g.t)}</h2><span class="n">${fa(g.items.length)}</span></div><p class="hint" style="font-size:12px;color:var(--muted);margin:2px 0 6px"><span class="${INTEG_SEV[g.sev][1]}">${INTEG_SEV[g.sev][0]}</span>${g.d?' · '+esc(g.d):''}</p>
+    <div class="list">${g.items.slice(0,20).map(x=>{const body=`<div class="main"><div class="ttl">${esc(x.lbl)}</div><div class="sub">${x.date?`<span>${jNice(x.date)}</span>`:''}${x.note?`<span>${esc(x.note)}</span>`:''}</div></div>`;
+      return x.col==='docs'?`<button class="row" data-act="docView" data-id="${esc(x.id)}">${body}</button>`:`<div class="row" style="cursor:default">${body}</div>`}).join('')}</div>${g.items.length>20?`<div class="hint" style="font-size:12px">${fa(g.items.length-20)} مورد دیگر (در گزارش متنی هست)</div>`:''}`).join('')}
+  <div class="acts" style="margin-top:14px"><button class="btn" data-act="integCopy">رونوشت گزارش</button><button class="btn ghost" data-act="close">بستن</button></div>`)}
+// the copyable report: categories, counts, record keys and dates only (nothing that names a person or an amount)
+function integText(R){R=R||integCheck();return ['گزارش عیب‌یابی داده‌های میز کار — نسخهٔ '+APP_VER+' — '+R.at.slice(0,16).replace('T',' '),R.groups.length?'':'مشکلی پیدا نشد.',
+  ...R.groups.map(g=>`\n[${INTEG_SEV[g.sev][0]}] ${g.t}: ${g.items.length}\n`+g.items.map(x=>'- '+x.lbl+(x.date?' · '+x.date:'')+(x.col?' · '+x.col+'/'+x.id:'')).join('\n'))].filter(Boolean).join('\n')}
 function healthIssues(){const t=today(),I=[];const L=S.ledger.filter(l=>!l.void&&!l.pending);
   const unc=L.filter(l=>(l.kind==='received'||l.kind==='paid')&&!l.category&&!(l.refId||l.settles));if(unc.length)I.push({k:'unc',t:'دریافت و پرداخت بدون دسته',d:'در سود و زیان و گزارش‌ها جای درستی نمی‌نشینند.',rows:unc,row:ledgerRow});
   const noA=L.filter(l=>(l.kind==='received'||l.kind==='paid')&&!l.acct&&!l.netOff&&!/تهاتر|کم از/.test(l.instrument||'')&&!/مستقیم/.test(l.evidence||''));if(noA.length)I.push({k:'acct',t:'دریافت و پرداخت بدون حساب',d:'موجودی حساب‌ها با بانک نمی‌خواند؛ حساب (بلوبانک یا نقد) را مشخص کن.',rows:noA,row:ledgerRow});
@@ -3215,11 +3280,11 @@ async function fmRun(f){const {fr,to,n}=fmRange();const why=val('f_fmr');const c
 /* ---------- Voice: speak into any field; spoken notes become a task, a payment or a note ---------- */
 const SRec=window.SpeechRecognition||window.webkitSpeechRecognition;
 const micBtn=id=>`<button type="button" class="btn" data-act="mic" data-f="${id}" aria-label="با صدا بگو" title="با صدا بگو">${svg('mic')}</button>`;
-function micHelp(el,why){try{localStorage.setItem('miz.srbad','1')}catch(_){}openSheet(`<h3>${badge('affairs','mic')} گفتن با صدا</h3><p style="font-size:14px">${why}</p>
+function micHelp(el,why,mark,retry){if(mark)try{localStorage.setItem('miz.srbad','1')}catch(_){}openSheet(`<h3>${badge('affairs','mic')} گفتن با صدا</h3><p style="font-size:14px">${why}</p>${retry?`<button class="btn" style="margin-bottom:10px" data-act="micRetry">دوباره امتحان کن (میکروفون داخلی)</button>`:''}
   <div class="list"><button class="row" data-act="recStart">${badge('affairs','mic')}<div class="main"><div class="ttl">ضبط یادداشت صوتی</div><div class="sub"><span>صدایت ضبط و در «یادداشت‌های سریع» نگه داشته می‌شود؛ بعداً گوش می‌دهی و به کار یا پرداخت تبدیلش می‌کنی. بدون اینترنت کار می‌کند.</span></div></div></button>
   <div class="row" style="cursor:default">${badge('affairs','note')}<div class="main"><div class="ttl">تبدیل صدا به متن با کیبورد گوشی</div><div class="sub" style="display:block;line-height:1.8"><span>برنامه نمی‌تواند میکروفونِ کیبورد را خودش روشن کند. «باز کردن کیبورد» را بزن، بعد روی آیکون 🎙 خودِ کیبورد (بالای حروف یا کنار فاصله) بزن و فارسی بگو. اگر آیکون نیست: تنظیمات گوشی ← زبان و ورودی ← Gboard ← «تایپ صوتی» را روشن کن و زبان فارسی را اضافه کن.</span></div></div></div></div>
   <div class="acts" style="margin-top:12px"><button class="btn" data-act="micKb" data-f="${el?el.id:''}">باز کردن کیبورد</button><button class="btn ghost" data-act="close">بستن</button></div>`)}
-async function recStart(){if(!navigator.mediaDevices||!window.MediaRecorder)return toast('این مرورگر ضبط صدا ندارد');let st;try{st=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){return openSheet(`<h3>اجازهٔ میکروفون</h3><p style="font-size:14px">برنامه اجازهٔ میکروفون ندارد. در Chrome: سه‌نقطه ← تنظیمات ← تنظیمات سایت ← میکروفون ← اجازه برای این سایت. یا تنظیمات گوشی ← برنامه‌ها ← Chrome ← مجوزها ← میکروفون.</p><div class="acts"><button class="btn ghost" data-act="close">بستن</button></div>`)}
+async function recStart(){if(!navigator.mediaDevices||!window.MediaRecorder)return toast('این مرورگر ضبط صدا ندارد');let st;try{st=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){const n=e&&e.name;if(n==='AbortError')return toast('ضبط لغو شد');return openSheet(`<h3>${n==='NotFoundError'||n==='NotReadableError'?'میکروفون در دسترس نیست':'اجازهٔ میکروفون'}</h3><p style="font-size:14px">${n==='NotFoundError'?'میکروفونی پیدا نشد.':n==='NotReadableError'?'برنامهٔ دیگری الان از میکروفون استفاده می‌کند (مثلاً تماس یا ضبط صدا)؛ آن را ببند و دوباره بزن.':'برنامه اجازهٔ میکروفون ندارد. در Chrome: سه‌نقطه ← تنظیمات ← تنظیمات سایت ← میکروفون ← اجازه برای این سایت. یا تنظیمات گوشی ← برنامه‌ها ← Chrome ← مجوزها ← میکروفون.'}</p><div class="acts"><button class="btn ghost" data-act="close">بستن</button></div>`)}
   const mt=['audio/webm;codecs=opus','audio/ogg;codecs=opus','audio/mp4'].find(x=>MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(x))||'';const mr=new MediaRecorder(st,mt?{mimeType:mt,audioBitsPerSecond:24000}:{});const ch=[];mr.ondataavailable=e=>{if(e.data&&e.data.size)ch.push(e.data)};const t0=Date.now();const R=window._rec={mr,st,cancel:false};
   openSheet(`<h3>${badge('affairs','mic')} در حال ضبط… <span id="recT" style="color:var(--bad)">۰:۰۰</span></h3><p style="font-size:14px">حرفت را بزن (حداکثر ۲ دقیقه). بعد «تمام» را بزن.</p><div class="acts"><button class="btn pri" data-act="recStop">تمام و ذخیره</button><button class="btn ghost" data-act="recCancel">انصراف</button></div>`);
   const mmss=ms=>{const t=Math.round(ms/1000);return fa(Math.floor(t/60))+':'+fa(String(t%60).padStart(2,'0'))};
@@ -3228,11 +3293,24 @@ async function recStart(){if(!navigator.mediaDevices||!window.MediaRecorder)retu
     const url=await new Promise(ok=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.readAsDataURL(blob)});
     if(await save('inbox',null,{text:'🎙 یادداشت صوتی ('+mmss(dur)+')',audio:url,dur,processed:false})){closeSheet();toast('یادداشت صوتی ذخیره شد ✓ در «امروز» است');render()}};
   mr.start(1000)}
-function micStart(fid,b){const el=document.getElementById(fid);let bad='';try{bad=localStorage.getItem('miz.srbad')||''}catch(_){}if(!SRec)return micHelp(el,'این مرورگر تبدیل صدا به متن ندارد.');if(bad)return micHelp(el,'تبدیل صدا به متنِ داخل برنامه روی این گوشی کار نمی‌کند (به سرویس گوگل وصل نمی‌شود). یکی از این دو راه:');
-  let fin='',started=false;const r=new SRec();r.lang='fa-IR';r.interimResults=true;r.maxAlternatives=1;b.classList.add('pri');r.onstart=()=>{started=true};r.onresult0=null;setTimeout(()=>{if(!started){try{r.abort()}catch(_){}b.classList.remove('pri');micHelp(el,'میکروفون داخلی برنامه شروع نشد (احتمالاً سرویس صدای گوگل در دسترس نیست).')}},4000);
+/* O5: built-in speech-to-text. Pressing the mic again while it listens finishes it (what was heard is kept). Offline, unsupported, permission denied and cancel
+   each get their own message; only a speech service that fails while online is remembered (miz.srbad), and it can be retried. */
+function micStart(fid,b){const el=document.getElementById(fid);let bad='';try{bad=localStorage.getItem('miz.srbad')||''}catch(_){}
+  if(window._sr){try{window._sr.stop()}catch(_){}return toast('گوش دادن تمام شد')}/* second press: finish now and keep what was heard */
+  if(!SRec)return micHelp(el,'این مرورگر تبدیل صدا به متن ندارد. یکی از این دو راه:');
+  if(navigator.onLine===false)return micHelp(el,'الان به اینترنت وصل نیستی؛ تبدیل صدا به متنِ داخل برنامه اینترنت لازم دارد. ضبط یادداشت صوتی بدون اینترنت کار می‌کند:');
+  if(bad)return micHelp(el,'تبدیل صدا به متنِ داخل برنامه دفعهٔ قبل روی این گوشی کار نکرد (به سرویس گوگل وصل نشد). یکی از این راه‌ها:',false,true);
+  let fin='',started=false,done=false;const r=new SRec();window._sr=r;r.lang='fa-IR';r.interimResults=true;r.maxAlternatives=1;b.classList.add('pri');r.onstart=()=>{started=true};
+  const stop=()=>{done=true;if(window._sr===r)window._sr=null;b.classList.remove('pri')};
+  setTimeout(()=>{if(!started&&!done){try{r.abort()}catch(_){}stop();const off=navigator.onLine===false;micHelp(el,off?'اینترنت قطع شد؛ تبدیل صدا به متن اینترنت لازم دارد.':'میکروفون داخلی برنامه شروع نشد (احتمالاً سرویس صدای گوگل در دسترس نیست).',!off,!off)}},4000);
   r.onresult=e=>{try{localStorage.removeItem('miz.srbad')}catch(_){}let t='';for(const x of e.results)t+=x[0].transcript;fin=t;if(el){el.value=t;el.dispatchEvent(new Event('input',{bubbles:true}))}};
-  r.onerror=e=>{started=true;b.classList.remove('pri');if(e.error==='no-speech')return toast('صدایی نشنیدم؛ دوباره بزن و بگو');micHelp(el,e.error==='not-allowed'||e.error==='service-not-allowed'?'اجازهٔ میکروفون به برنامه داده نشده (تنظیمات گوشی ← برنامه‌ها ← Chrome ← مجوزها ← میکروفون).':e.error==='network'?'تشخیص صدای داخلی به سرویس گوگل نیاز دارد که الان در دسترس نیست.':'میکروفون داخلی کار نکرد ('+esc(e.error||'')+').')};
-  r.onend=()=>{b.classList.remove('pri');if(fid==='capIn'&&fin.trim())voiceSheet(fin.trim())};try{r.start();toast('بگو… 🎙')}catch(_){b.classList.remove('pri')}}
+  r.onerror=e=>{started=true;const er=e&&e.error;const was=done;stop();if(was||er==='aborted')return;if(er==='no-speech')return toast('صدایی نشنیدم؛ دوباره بزن و بگو');
+    const off=navigator.onLine===false;
+    if(er==='not-allowed')return micHelp(el,'اجازهٔ میکروفون به برنامه داده نشده (تنظیمات گوشی ← برنامه‌ها ← Chrome ← مجوزها ← میکروفون، یا در Chrome: تنظیمات سایت ← میکروفون).');
+    if(er==='audio-capture')return micHelp(el,'میکروفون در دسترس نیست (پیدا نشد یا برنامهٔ دیگری از آن استفاده می‌کند).');
+    if(er==='network'&&off)return micHelp(el,'اینترنت قطع شد؛ تبدیل صدا به متن اینترنت لازم دارد. ضبط یادداشت صوتی بدون اینترنت کار می‌کند:');
+    micHelp(el,er==='network'?'تشخیص صدای داخلی به سرویس گوگل نیاز دارد که الان در دسترس نیست.':er==='service-not-allowed'?'سرویس تبدیل صدای گوگل روی این گوشی اجازه ندارد یا خاموش است.':'میکروفون داخلی کار نکرد ('+esc(er||'')+').',true,true)};
+  r.onend=()=>{const was=done;stop();if(!was&&fid==='capIn'&&fin.trim())voiceSheet(fin.trim())};try{r.start();toast('بگو… 🎙 (برای توقف دوباره بزن)')}catch(_){stop();toast('میکروفون داخلی شروع نشد؛ دوباره بزن')}}
 const WD_FA=[['یکشنبه',0],['دوشنبه',1],['سه ?شنبه',2],['چهارشنبه',3],['پنج ?شنبه',4],['جمعه',5],['شنبه',6]];
 function vParse(t0){const t=t0.replace(/‌/g,' ');const r={};const td=today();
   if(/پس ?فردا/.test(t))r.due=addDays(td,2);else if(/فردا/.test(t))r.due=addDays(td,1);else if(/امروز|امشب/.test(t))r.due=td;
@@ -4161,7 +4239,16 @@ function backupSheet(){const lb=lastBackup();openSheet(`<h3>${badge('affairs','l
   <p class="hint" style="font-size:12px;color:var(--muted);margin-top:12px">بازیابی چیزی را پاک نمی‌کند: پیش از اجرا جدول مقایسه می‌بینی، ردیف‌های جدیدتر جایگزین و بقیه نگه داشته می‌شوند، و پیش از آن یک نسخهٔ خودکار ساخته می‌شود. با همین فایل می‌توانی داده‌ها را بین نسخهٔ داخل Claude و نسخهٔ گوشی منتقل کنی.</p>`);bkAutoFill()}
 // automatic local copies: when the newest was made, whether it checks out, and whether the browser keeps this storage
 async function bkAutoFill(){const el=document.getElementById('bkAuto');if(!el)return;const st=await snapStatus().catch(()=>null);if(!st||!document.contains(el))return;
-  el.innerHTML=mode!=='local'?'نسخهٔ خودکار فقط برای داده‌های همین گوشی ساخته می‌شود.':st.last?`نسخهٔ خودکار: آخرین ${jNice(st.last.at.slice(0,10))} ${fa(new Date(st.last.at).toTimeString().slice(0,5))} · ${fa(st.last.n)} ردیف · ${st.lastOk?'سالم ✓':'<span class="amt-neg">خراب</span>'} · ${fa(st.n)} نسخه${st.kept===false?' · <span class="amt-neg">مرورگر ممکن است در کمبود جا این نسخه‌ها را پاک کند؛ پشتیبان فایل هم بگیر</span>':''}`:'هنوز نسخهٔ خودکاری ساخته نشده.'}
+  el.innerHTML=mode!=='local'?'نسخهٔ خودکار فقط برای داده‌های همین گوشی ساخته می‌شود.':st.last?`نسخهٔ خودکار: آخرین ${jNice(st.last.at.slice(0,10))} ${fa(new Date(st.last.at).toTimeString().slice(0,5))} · ${fa(st.last.n)} ردیف · ${st.lastOk?'سالم ✓':'<span class="amt-neg">خراب</span>'} · ${fa(st.n)} نسخه`:'هنوز نسخهٔ خودکاری ساخته نشده.';if(mode==='local'){const u=await storeUse();if(document.contains(el))el.insertAdjacentHTML('beforeend',persistHtml(st.kept,u))}}
+// O6: whether the browser promised to keep this app's storage (no automatic request; the button asks once, on the user's tap)
+async function storeUse(){try{const e=navigator.storage&&navigator.storage.estimate?await navigator.storage.estimate():null;return e&&e.quota?{u:e.usage||0,q:e.quota}:null}catch(_){return null}}
+function persistHtml(kept,use){const mb=x=>fa((Math.round(x/1048576*10)/10).toString().replace('.','٫'));const u=use?`<div class="hint" style="font-size:12px;color:var(--muted)">فضای استفاده‌شدهٔ این برنامه در مرورگر: ${mb(use.u)} مگابایت</div>`:'';
+  return `<div id="bkPersist" style="margin-top:6px">${kept===true?'<span class="amt-pos">نگه‌داری ماندگار: فعال ✓</span> مرورگر در کمبود جا داده‌های این برنامه را پاک نمی‌کند (پاک کردن دستیِ داده‌های سایت یا حذف برنامه هنوز پاکشان می‌کند).'
+    :kept===false?'<span class="amt-neg">نگه‌داری ماندگار: فعال نیست.</span> مرورگر ممکن است در کمبود جا داده‌ها و نسخه‌های خودکار را پاک کند؛ پشتیبان فایل هم بگیر.<div style="margin-top:6px"><button class="pill acc" data-act="persistAsk">درخواست نگه‌داری ماندگار</button></div>'
+    :'این مرورگر وضعیت نگه‌داری ماندگار را اعلام نمی‌کند؛ پشتیبان فایل را جدی بگیر.'}${u}</div>`}
+async function persistAsk(){if(!navigator.storage||!navigator.storage.persist)return toast('این مرورگر این امکان را ندارد');let ok=false;try{ok=await navigator.storage.persist()}catch(_){ok=false}
+  const el=document.getElementById('bkPersist');if(el)el.outerHTML=persistHtml(ok,await storeUse());
+  toast(ok?'نگه‌داری ماندگار فعال شد ✓':'مرورگر اجازه نداد؛ برنامه را روی صفحهٔ اصلی نصب کن یا بیشتر استفاده کن و بعداً دوباره بزن. تا آن موقع پشتیبان فایل بگیر.')}
 
 /* ---------- Visual identity: one colour + one icon per area ---------- */
 const IC={
@@ -5166,7 +5253,15 @@ async function actLotMineH(b,id){{const l=byId('lots',id);if(!l)return;const i=N
 async function actLotFixMine(b,id){{const l=byId('lots',id);if(!l)return;const r=lotStat(l).rem;if(r>=-1e-9)return;await save('moves',null,{kind:'mine',lotId:id,personId:'',date:today(),qty:-r,price:0,currency:'تومان',note:'کسری با کالای خودم صاف شد',void:false});toast('ثبت شد: '+fmtQ(-r,l.unit)+' از کالای خودت ✓');viewLot(id);return}}
 // ledger rows: cheques, pending automatic payments, settling, restore from the activity log
 async function actChqUndo(b,id){{const c=byId('cheques',id);if(c.ledgerId){await save('ledger',c.ledgerId,{void:true,voidReason:'برگشت وضعیت چک',voidAt:nowTs()})}await chqSet(c,'wait',{ledgerId:''});toast('به «در جریان» برگشت');chequeView(id);return}}
-async function actPendOk(b,id){{const l=byId('ledger',id);for(const x of S.ledger.filter(y=>y.id===id||(l&&l.pairId&&y.pairId===l.pairId)))await save('ledger',x.id,{pending:false});toast('تأیید شد ✓');return}}
+/* confirm a pending (recurring) payment and its pair rows; extra (bank reference, evidence, receipt key) goes into the same write of the
+   row itself. Local: one operation (all rows or none; a second tap while it runs → BUSY). Cloud: one write per row, as before. */
+async function pendConfirm(id,extra){const l=byId('ledger',id);if(!l||!l.pending)return false;const rows=S.ledger.filter(y=>y.id===id||(l.pairId&&y.pairId===l.pairId&&y.pending));
+  const data=x=>x.id===id?{pending:false,...(extra||{})}:{pending:false};
+  if(mode!=='local'){for(const x of rows)if(!await save('ledger',x.id,data(x)))return false;return true}
+  let r;try{r=await Store.batch('pend:'+id,async B=>{for(const x of rows)if(!await save('ledger',x.id,data(x),B))throw new Error('ثبت نشد');return true})}
+  catch(e){toast('تأیید انجام نشد و چیزی تغییر نکرد: '+((e&&e.message)||'خطا'));return false}
+  if(r===Store.BUSY){toast('در حال انجام است');return false}return r}
+async function actPendOk(b,id){if(await pendConfirm(id))toast('تأیید شد ✓')}
 async function actPendNo(b,id){{const l=byId('ledger',id);if(l&&l.pairId)for(const x of S.ledger.filter(y=>y.pairId===l.pairId&&y.id!==id))await save('ledger',x.id,{void:true,pending:false,voidReason:'انجام نشد',voidAt:nowTs()})}if(await save('ledger',id,{void:true,pending:false,voidReason:'پرداخت خودکار انجام نشد',voidAt:nowTs()})){toast('ثبت شد که انجام نشد')}return;}
 async function actLgSettle(b,id){{if(b.dataset.arm!=='1'){b.dataset.arm='1';b.textContent='مطمئنی؟ این پول دیگر درآمد نیست و از مانده کم می‌شود — دوباره بزن';return}if(await save('ledger',id,{settles:true})){toast('از مانده کم شد ✓');viewLedger(id)}return}}
 async function actLogRestore(b,id){{const T=LOGT2[b.dataset.c];const x=byId(b.dataset.c,id);if(b.dataset.c==='docs'){if(await docVoid(id,false)){toast('برگردانده شد ✓');document.getElementById('logRes').innerHTML=logList()}return}if(b.dataset.c==='lots'&&x)for(const z of S.ledger.filter(z=>z.void&&z.lotId===id&&(z.voidReason||'').startsWith('حذف محموله')))await save('ledger',z.id,{void:false});if(x&&T.restore&&await save(b.dataset.c,id,T.restore(x))){toast('برگردانده شد ✓');document.getElementById('logRes').innerHTML=logList()}return}}
@@ -5349,7 +5444,7 @@ document.addEventListener('click',e=>recvBatch(async()=>{
   switch(a){
     case'setAcct':{const f=document.getElementById(b.dataset.f);f.value=b.dataset.v;b.parentNode.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',String(c===b)));break}
     case'fmHow':{const r=b.closest('.fmrow');r.dataset.how=b.dataset.v;r.dataset.touched='1';r.querySelectorAll('[data-act=fmHow]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));const d=r.querySelector('.fmd');d.hidden=b.dataset.v!=='date';if(!d.hidden)d.focus();break}
-    case'micKb':{closeSheet();let el=document.getElementById(b.dataset.f||'capIn');if(!el){tab='today';render();el=document.getElementById('capIn')}if(el){el.focus();el.scrollIntoView({block:'center'})}break}
+    case'integ':integSheet();break;case'integCopy':{const t=integText();try{await navigator.clipboard.writeText(t);toast('گزارش رونوشت شد')}catch(_){openSheet(`<h3>گزارش عیب‌یابی</h3><textarea style="width:100%;min-height:240px" readonly>${esc(t)}</textarea><div class="acts"><button class="btn ghost" data-act="close">بستن</button></div>`)}break}case'persistAsk':await persistAsk();break;case'micRetry':{try{localStorage.removeItem('miz.srbad')}catch(_){}closeSheet();toast('دوباره دکمهٔ میکروفون را بزن');break}case'micKb':{closeSheet();let el=document.getElementById(b.dataset.f||'capIn');if(!el){tab='today';render();el=document.getElementById('capIn')}if(el){el.focus();el.scrollIntoView({block:'center'})}break}
     case'help':helpPop(b.dataset.v);break;
     case'helpAll':helpSheet();break;
     case'profile':profileSheet(false);break;
@@ -5514,7 +5609,7 @@ document.addEventListener('click',e=>recvBatch(async()=>{
     case'snapView':snapView(id);break;
     case'snapNow':{const r=await snapTake('manual');toast(r?'نسخه ساخته شد ✓':'ساخته نشد');snapsSheet();break}
     case'snapDl':{const x=await snapGet(id);if(x)shareFile('miz-kar-snapshot-'+x.at.slice(0,16).replace(/[:T]/g,'-')+'.json',x.txt,'application/json','نسخهٔ خودکار میز کار');break}
-    case'snapApply':{const j=window._snapJ;if(!j)break;const all=b.dataset.v==='all';const N=COLS.filter(k=>k!=='contacts').reduce((a2,k)=>a2+((j.data[k]||[]).length),0);if(all&&!await typedConfirm(`جایگزینی کامل با این نسخه؟\nاین نسخه ${N} ردیف دارد و الان ${rowCount()} ردیف هست${N<rowCount()?' (کوچک‌تر)':''}. پیش از آن از وضع فعلی یک نسخه ساخته می‌شود.`))break;if(all&&N<rowCount())GH.cfg={...GH.cfg,allowShrink:true};const n=await applyData(j.data,all,'snap');closeSheet();toast(fa(n)+' ردیف برگشت ✓');if(GH.cfg.sync)ghSync();break}
+    case'snapApply':{const j=window._snapJ;if(!j)break;const all=b.dataset.v==='all';const N=COLS.filter(k=>k!=='contacts').reduce((a2,k)=>a2+((j.data[k]||[]).length),0);if(all&&!await typedConfirm(`جایگزینی کامل با این نسخه؟\nاین نسخه ${N} ردیف دارد و الان ${rowCount()} ردیف هست${N<rowCount()?' (کوچک‌تر)':''}. پیش از آن از وضع فعلی یک نسخه ساخته می‌شود.`))break;const shrink=all&&N<rowCount();let n;try{n=await applyData(j.data,all,'snap')}catch(e){toast((e&&e.cloud)?e.message:'برنگشت و چیزی تغییر نکرد: '+((e&&e.message)||'خطا'));break}if(shrink)GH.cfg={...GH.cfg,allowShrink:true};/* only after the restore succeeded: a smaller copy may then replace the cloud one */closeSheet();toast(fa(n)+' ردیف برگشت ✓');if(GH.cfg.sync)ghSync();break}
     case'rsGo':{const c=document.getElementById('f_rsDel');await restoreApply(!!(c&&c.checked));break}
     case'recRetry':location.reload();break;
     case'recBadDl':shareFile('miz-kar-bad-rows.json',JSON.stringify(BAD,null,1),'application/json','ردیف‌های خراب میز کار');break;
@@ -5668,7 +5763,10 @@ document.addEventListener('click',e=>recvBatch(async()=>{
     case'editRecur':formRecur(byId('recurs',id));break;
     case'recurToggle':{const r=byId('recurs',id);if(await save('recurs',id,{active:r.active===false}))recurSheet();break}
     case'recurLater':try{localStorage.setItem('miz.recurAsk',addDays(today(),7))}catch(_){}render();toast('هفتهٔ بعد دوباره می‌پرسم');break;
-    case'rcptPend':{const r=window._rcpt||{},l=byId('ledger',id);if(!l||!l.pending)break;await actPendOk(b,id);await save('ledger',id,{ref:l.ref||r.ref||'',evidence:[l.evidence,r.bank,'رسید بانک',r.ref?'پیگیری '+r.ref:''].filter(Boolean).join(' · '),rcpt:rcptKey(r)});closeSheet();break}case'pendOk':await actPendOk(b,id);break
+    case'rcptPend':{const r=window._rcpt||{},l=byId('ledger',id);if(!l||!l.pending)break;const key=rcptKey(r);
+      // M4: the same bank message must not confirm a second row: a live row with this receipt key means it was already processed
+      if(S.ledger.some(x=>!x.void&&x.id!==id&&x.rcpt===key)){toast('این پیامک قبلاً ثبت شده است');break}
+      if(await pendConfirm(id,{ref:l.ref||r.ref||'',evidence:[l.evidence,r.bank,'رسید بانک',r.ref?'پیگیری '+r.ref:''].filter(Boolean).join(' · '),rcpt:key})){toast('تأیید شد ✓');closeSheet()}break}case'pendOk':await actPendOk(b,id);break
     case'pendEdit':{const l=byId('ledger',id);if(!l)break;const inn=l.kind==='received'&&!l.pairId;openSheet(`<h3>${badge('finance','bell')} ${esc(l.about||'')}</h3><p class="hint" style="font-size:12.5px;color:var(--muted);margin-top:0">مبلغ مورد انتظار ${moneyFull(l.amount,'تومان')}. اگر این بار کمتر بود، بقیه منتظر می‌ماند تا بعداً (یا در چند قسمت) برسد.</p><form data-form="pendEdit" data-id="${id}">
       <div class="fld"><label for="f_pam">این بار چقدر ${inn?'آمد':'پرداخت شد'}؟ (میلیون تومان)</label><input id="f_pam" inputmode="decimal" value="${fa(fromBase(l.amount,'تومان'))}" data-autofocus></div>
       ${l.pairId?'':acctField('f_pac',l.acct||'',inn?'in':'out')}${dateField('f_pdt','تاریخ',l.date)}
@@ -6002,7 +6100,7 @@ document.addEventListener('click',()=>{window._subAt=0},true);
 document.addEventListener('click',e=>{const th=e.target.closest&&e.target.closest('.tbl thead th');if(!th)return;const tb=th.closest('table').tBodies[0];if(!tb||tb.querySelector('td[colspan]'))return;const i=[...th.parentNode.children].indexOf(th);const dir=th.dataset.sd==='a'?'d':'a';th.parentNode.querySelectorAll('th').forEach(x=>{delete x.dataset.sd;x.classList.remove('sa','sd')});th.dataset.sd=dir;th.classList.add(dir==='a'?'sa':'sd');
   const key=td=>{if(!td)return'';if(td.dataset.v!=null)return isNaN(+td.dataset.v)?td.dataset.v:+td.dataset.v;const t=en(td.textContent.trim()).replace(/٬|,/g,'').replace('٫','.').replace('−','-');const m=t.match(/^-?\d+(\.\d+)?/);return m&&!/^\d{4}\/\d/.test(t)?parseFloat(m[0]):t};
   const R=[...tb.rows];R.sort((a,b)=>{const x=key(a.cells[i]),y=key(b.cells[i]);const c=typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),'fa');return dir==='a'?c:-c});R.forEach(r=>tb.appendChild(r))});
-document.addEventListener('submit',e=>recvBatch(async()=>{window._subAt=Date.now();try{await (async()=>{{const F=e.target&&e.target.dataset&&e.target.dataset.form;
+document.addEventListener('submit',e=>recvBatch(async()=>{window._subAt=Date.now();const dv0=window._dv||0;try{await (async()=>{{const F=e.target&&e.target.dataset&&e.target.dataset.form;
   if(F==='pause'){e.preventDefault();const f=e.target,c=f.dataset.c,id=f.dataset.id;const u=readDate('f_pzu',true);if(u===null)return;if(u<=today())return toast('تاریخ باید بعد از امروز باشد');const why=val('f_pzr');
     if(c==='habits'){await save('habits',id,{pausedUntil:u,pauseWhy:why,offReason:why||'مکث موقت',pauseAck:''})}else{const x=byId('tasks',id);let d=u;if(x&&x.repeat==='weekly'&&x.due){d=x.due;while(d<u)d=addDays(d,7)}await save('tasks',id,{due:d,pauseTo:d,pauseWhy:why,pauseAck:'',note:[(x&&x.note)||'',why?'مکث تا '+jShort(d)+': '+why:''].filter(Boolean).join('\n')})}
     document.getElementById('sheetRoot').dataset.dirty='';toast('تا '+jNice(u)+' نمی‌پرسم؛ بعد خودم یادآوری می‌کنم');if(ciOpen)nextCheckin();else{closeSheet();render()}return}
@@ -6186,7 +6284,7 @@ document.addEventListener('submit',e=>recvBatch(async()=>{window._subAt=Date.now
       if(mode==='local')render();if(dir==='gave'&&!id){quoteSend(nid);toast('ثبت شد؛ حالا متن پیام را بفرست')}else{closeSheet();toast('قیمت ثبت شد'+(pid?'؛ پیگیری‌اش در کارها آمد':''))}}return}
   if(k==='voidMove'){await formVoidMove(f,id);return}
   if(k==='void'){await formVoidLedger(f,id);return}
-})()}finally{try{asAfter(e.target)}catch(_){}}}));
+})()}finally{try{asAfter(e.target,dv0)}catch(_){}}}));
 document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(!b)return;goTab(b.dataset.tab)});
 function goTab(t,noPush){if(t===tab){render();scrollTo(0,0);return}tab=t;try{localStorage.setItem('miz.tab',tab)}catch(_){}if(!noPush){try{history.pushState({tab:t},'')}catch(_){}}render();scrollTo(0,0)}
 try{history.replaceState({tab:'home',root:1},'');if(tab&&tab!=='home')history.pushState({tab},'')}catch(_){}

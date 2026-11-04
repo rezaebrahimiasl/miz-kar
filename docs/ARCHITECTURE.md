@@ -1,6 +1,6 @@
 # Reza Desk (میز کار رضا): Architecture
 
-This document describes app v4.29.
+This document describes app v4.41 (branch `eng-4.41`, based on `main` at `d8711a7`, v4.40).
 Line numbers drift with every change, so code is referred to by **function name**.
 `tests/05-docs.test.js` checks that every name written as `name()` here still exists.
 Statements marked **[unverified]** were not confirmed against the code.
@@ -23,6 +23,8 @@ Statements marked **[unverified]** were not confirmed against the code.
 | `js/engine.js` | information engine (`QE`, `qNorm`, `qExec`, `qHtml`, `aiRun`; read-only); classic script loaded after `js/core.js` and before the main script, version marker `ENGINE_VER` = `APP_VER` |
 | `js/store.js` | storage transactions: `Store.tx(plan)` commits queued writes in one IndexedDB transaction and applies memory changes (`w.after`) only after it completed; serialised; used by `save0`/`putRaw` in local mode; version marker `STORE_VER` = `APP_VER` |
 | `js/backup.js` | automatic local backups (snapshots in IndexedDB `miz-kar-snap`: take, verify, de-duplicate, retain, start-up/update copies, status); classic script loaded after `js/engine.js`, version marker `BACKUP_VER` = `APP_VER` |
+| `fonts/Vazirmatn-wght.woff2`, `fonts/OFL.txt` | the Vazirmatn font v33.003 (one variable file, weights 100–900, 111 KB) and its licence (SIL Open Font License 1.1, which allows bundling with the licence kept alongside); declared by an `@font-face` in `index.html`; printed pages get it through `fontFace()` with an absolute address |
+| `tools/` | developer tools, never loaded by the app: `q.js` (find code), `version.js` (version check and bump, see `docs/RELEASE.md`), `parse.js`, reference generators |
 | `logo.webp`, `icon2-*.png` | brand images (`icon-192.png` and `icon-512.png` are not referenced by the app) |
 | `tests/` | developer test suite (see `tests/README.md`); never loaded by the app |
 | `docs/` | these documents |
@@ -39,7 +41,8 @@ Statements marked **[unverified]** were not confirmed against the code.
    - Gemini AI
    - the shop-website catalogue
    - the update check
-   - the Google web font
+
+   The font is bundled (`fonts/Vazirmatn-wght.woff2`, v4.41); no font service is contacted.
 
    If any of them fails, core work is unaffected.
 4. Cloud backup and sync are sent **only encrypted**. Without a passphrase nothing is uploaded (v4.21; `tests/70-backup-security.test.js`).
@@ -92,14 +95,33 @@ Statements marked **[unverified]** were not confirmed against the code.
 | Aspect | Behaviour |
 |---|---|
 | Cache names | `miz-kar-v<version>` (the versioned app shell), `miz-shell` (last-resort copy of `index.html`), `miz-share` (incoming shares) |
-| Pre-cached files (`SHELL`) | `./`, `index.html`, `manifest.webmanifest`, `icon2-192.png`, `icon2-512.png`, `icon2-maskable-512.png`, `logo.webp`, `qr.js`, `js/core.js`, `js/engine.js`, `js/backup.js`, `js/store.js` |
+| Pre-cached files (`SHELL`) | `./`, `index.html`, `manifest.webmanifest`, `icon2-192.png`, `icon2-512.png`, `icon2-maskable-512.png`, `logo.webp`, `qr.js`, `js/core.js`, `js/engine.js`, `js/backup.js`, `js/store.js`, `fonts/Vazirmatn-wght.woff2` |
 | Install | `fetchAll()` downloads every `SHELL` file with `cache:'reload'`; `./` and `index.html` must pass `appOnly()`. Only if every file succeeds is the new cache written and the browser's `self.skipWaiting` called; otherwise the install fails and the current version and its cache stay in use |
 | Shell rule (v4.22) | the offline shell is only ever the real app: `isApp()` requires the version declaration, `isShellUrl()` is the scope's own `/` or `index.html`; `shellFromCache()` reads this version's cache first and `miz-shell` only if it passes `isApp()` |
 | Activate | deletes every cache not in `KEEP`, then claims clients |
 | Navigation | answers from the cached shell first and refreshes it from the network in the background through `saveShell()` (validated) |
-| Other requests | cache first; same-origin and Google-font responses are added to the versioned cache, except shell URLs, which are never cached on this path |
+| Other requests | cache first; only same-origin responses are added to the versioned cache (v4.41: the Google-font exception is gone), except shell URLs, which are never cached on this path; other origins are not handled |
 | Share target | `POST ./share-target` is stored in `miz-share` and redirected to `./?share=1` |
 
+
+### 3.6 Data-integrity diagnostics (WP-3, v4.41)
+
+- `integCheck()` reads memory only (`S`, `BAD`) and returns findings grouped by kind: the books (trial balance, unbalanced entries, person balances against receivables − payables, stock value against account 1301; toman only), two live versions of one document (the D1 case, dated against `D1_FIX`, the publication of 4.21; and the same after 4.21, which should not happen), two live replacements of one version, live lots/moves/ledger rows of a voided or missing document, moves of a voided or missing lot, lots below zero, rows of a missing or merged person and settlements of a missing row, one bank receipt key (`rcpt`) on several live rows, and records unreadable at start-up.
+- `integSheet()` shows them (menu «تنظیمات» → «عیب‌یابی داده‌ها», action `integ`); documents open with `docView`. `integText()` is the copyable report (action `integCopy`).
+- Read-only and private by construction: nothing is written, repaired or deleted (test 68 counts IndexedDB and storage writes); findings name records by type, date, document number, lot code and record key only — never a person's name, an amount, a description or clinical content. Repairs stay with the owner (DEC-1 and similar decisions are untouched).
+
+### 3.7 Who writes document postings (WP-7 review, v4.41)
+
+A posting is a lot, stock move or ledger row with `docId`. Writers found in the code (`node tools/q.js writers ledger|moves|lots`):
+
+| Writer | What | Atomic |
+|---|---|---|
+| `postDoc()` → `postDoc0` (factory `mkPostDoc0`) | invoices, purchases, returns and their lots, moves and ledger rows | yes (`Store.batch`) |
+| `docVoid()` → `docVoid0` | voids or restores a document with everything `docLinked()` finds | yes (`Store.batch`) |
+| `formProdSave()` | production: output lots and input moves with the production document's `docId` | no (one write after another) |
+| the `count` form | stock count sheet: `loss`/`adj` moves with the count document's `docId` | no (one write after another) |
+
+So there is not yet one writer for document postings. Moving production and count into `Store.batch` is the next step (backlog WP-7b); it was not done in 4.41 because it needs the factory conversion with failure-injection tests for both forms. `Store` owns persistence and atomicity only; business rules stay in the operation bodies; cloud mode keeps refusing multi-record operations.
 
 ## 4. Code regions inside `index.html`
 
@@ -114,7 +136,7 @@ The script is divided by banner comments of the form `/* ---------- Title ------
 | Money features | trips, recurring payments, net-profit entries, cheques, marketers |
 | Documents | letterhead documents, item picker, row editor, posting (`postDoc()`), stock count, production |
 | Registry and vault | assets, vault (encrypted fields), SandooghYar read-only view |
-| Sync and safety | multi-device sync, safety card, data health (`healthIssues()`) |
+| Sync and safety | multi-device sync, safety card, data health (`healthIssues()`: problems with a way to fix them), data-integrity diagnostics (`integCheck()`, `integSheet()`, `integText()`: read-only, see §3.6) |
 | Main render | `render()`, planets home, domain pages |
 | Forms and stock | sheets, drafts (`drSave()`), apiary, inventory, kardex |
 | Accounting | double-entry accounting, year-end close, vouchers |
@@ -122,7 +144,7 @@ The script is divided by banner comments of the form `/* ---------- Title ------
 
 ## 5. Tests
 
-See `tests/README.md`. The full suite runs in about 4 minutes and must pass before every push.
+See `tests/README.md`. The full suite runs in about 6 minutes and must pass before every push.
 
 ## Adding a separate file (part)
 A part is a classic script in `js/` that declares `const <NAME>_VER='<APP_VER>';`. Add it in four places: `PARTS` in `sw.js`, `APP_PARTS` and a `<script src>` tag (same order, before the main script) in `index.html`, and the start-up guard (`PV` and the `<NAME>_VER===APP_VER` check). `tests/00-static.test.js` fails if any place is missed; `tests/47-core-shell.test.js` then covers install, refresh and offline for every part.

@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
 
 const ROOT = process.env.MIZ_ROOT || path.resolve(__dirname, '..');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json',
-  '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.webp': 'image/webp' };
+  '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.webp': 'image/webp', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
 
 // Tiny static server for the repository root (what GitHub Pages serves). Missing files → 404 (like Pages).
 function serve(root = ROOT) {

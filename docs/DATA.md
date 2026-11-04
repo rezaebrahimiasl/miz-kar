@@ -1,6 +1,6 @@
 # Reza Desk: Data Dictionary
 
-- **Source:** repository state `af7854d` (v4.21).
+- **Source:** repository state `af7854d` (v4.21), reviewed again for v4.41 (branch `eng-4.41`). v4.41 adds no collection, no field and no migration; the fields listed below that 4.41 relies on were checked in the code.
 - **Where data lives:** on the phone only, in IndexedDB `miz-kar`, store `docs`. Each record is `{k:'<collection>/<id>', col, doc}` (see `docs/ARCHITECTURE.md`).
 - **Common fields on every record:** `id` (string), `created`, `updated` (ISO timestamps). Most records also have `void` (soft delete, which keeps the history) and often `hist` (edit history).
 - **Field lists:** "main fields" were extracted from the object literals the code writes (`save()` and `putRaw()` calls). They are **observed, not exhaustive**, because some forms build their records dynamically.
@@ -13,7 +13,7 @@
 | people | persons and organisations | name, phone, org, email, roles, status, note, hon, refBy, mergedInto, lastTouch | — (central) |
 | deals | sales opportunities | title, personId, stage, value, nextDate, nextStep, status, closedAt | people |
 | tasks | tasks, appointments, follow-ups | title, due, start, time, status, priority, area, personId, dealId, caseId, appt (appointment status: pending/confirmed/cancelled/noshow/moved/done; open without it = pending), dur (minutes; default clinic length), svc, refBy/refName (referrer), endAt (actual end), from (rescheduled from), repeat, recurId, doneAt, pauseTo | people, deals, cases, recurs |
-| ledger | single-entry money rows | kind (paid/received/receivable/payable), amount, currency, date, due, personId, category, acct, settled, refId, settles, docId, lotId, moveId, visitOf, netOf, pending | people, docs, lots, moves, cases/visits, ledger (refId) |
+| ledger | single-entry money rows | kind (paid/received/receivable/payable), amount, currency, date, due, personId, category, acct, settled, refId, settles, docId, lotId, moveId, visitOf, netOf, pending, pairId (the two rows of a transfer), ref (bank reference), evidence, rcpt (receipt key of the bank message that recorded or confirmed it; one message → one live row) | people, docs, lots, moves, cases/visits, ledger (refId) |
 | inbox | quick captures | text, audio, processed | — |
 | notes | notes and rules | (built dynamically) **[unverified field list]** | — |
 | apiary | apiary log (move, harvest, census, treatment…) | type and the fields of `APT` (loc, hives, qty, from, to, what…), date | — |
@@ -89,7 +89,8 @@ Accounts the user adds inside a voucher are stored in `meta` record `coaX` and m
 | Store | Content |
 |---|---|
 | IndexedDB `miz-kar-snap` | the last 10 full local snapshots (`snapTake()`, `snapList()`) |
-| `localStorage` `miz.*` | settings, filter memory (`miz.uiF`), drafts (`miz.drafts`), recently deleted records (`miz.trash`), usage statistics, integration settings and credentials, licence |
+| Persistent-storage permission | not data: the browser's promise not to evict this origin's storage. Shown on the backup page; requested only when the user taps the button (`persistAsk()`, v4.41), never automatically |
+| `localStorage` `miz.*` | settings (including `miz.srbad`: the built-in speech service failed while online; cleared by the retry button or a successful result), filter memory (`miz.uiF`), drafts (`miz.drafts`), recently deleted records (`miz.trash`), usage statistics, integration settings and credentials, licence |
 | `sessionStorage` | per-session flags and short-lived sign-in state |
 
 `lsBackup()` includes the `miz.*` keys in backups, except credentials and device-specific keys (the exclusion list `LS_SKIP`).
