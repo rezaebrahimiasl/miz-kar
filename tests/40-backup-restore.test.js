@@ -61,9 +61,11 @@ test('(e)(f) older backup on a newer device: newer local edits kept, deletions n
   const p = A.page;
   await p.evaluate(async () => { await save('people', 'p_c', { note: 'local-newer' }); await delDoc('people', 'p_d'); await save('people', null, { name: 'فقط محلی' }); });
   const nBefore = await p.evaluate(() => COLS.reduce((a, c) => a + S[c].length, 0));
+  await p.evaluate(() => { window._nBefore = rowCount(); });
   await restoreFromJson(p, plain);
   const r = await p.evaluate(async () => ({ note: (byId('people', 'p_c') || {}).note, p_d: !!byId('people', 'p_d'), local: S.people.some(x => x.name === 'فقط محلی'),
-    snap: (await snapList()).some(s => s.reason === 'restore'), n: COLS.reduce((a, c) => a + S[c].length, 0) }));
+    // a «before restore» copy, or — when the automatic daily copy (6 s after start) already holds exactly this state — that copy (identical copies are not stored twice since 4.33)
+    snap: await (async () => { const L = await snapList(); return L.some(s => s.reason === 'restore') || L.some(s => s.n === window._nBefore); })(), n: COLS.reduce((a, c) => a + S[c].length, 0) }));
   assert(r.note === 'local-newer', 'newer local edit overwritten');
   assert(!r.p_d, 'deleted record resurrected');
   assert(r.local, 'local-only record removed');

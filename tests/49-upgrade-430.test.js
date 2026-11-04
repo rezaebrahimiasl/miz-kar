@@ -6,7 +6,7 @@
 const http = require('http'), fs = require('fs'), path = require('path'), os = require('os'), { execSync } = require('child_process');
 const { ROOT, launch, openApp, ready, tempProfile, test, run, assert } = require('./lib');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.webp': 'image/webp' };
-const FROM = [['25163ab', '4.30'], ['2b6039c', '4.32'], ['59ed7ae', '4.33'], ['43d2f08', '4.34'], ['f7104bc', '4.35'], ['d79655b', '4.36'], ['ad233f8', '4.37'], ['dcfd7ca', '4.38']];
+const FROM = [['25163ab', '4.30'], ['2b6039c', '4.32'], ['59ed7ae', '4.33'], ['43d2f08', '4.34'], ['f7104bc', '4.35'], ['d79655b', '4.36'], ['ad233f8', '4.37'], ['dcfd7ca', '4.38'], ['cf62003', '4.39']];
 const DIRS = Object.fromEntries(FROM.map(([c]) => { let d = ''; try { d = fs.mkdtempSync(path.join(os.tmpdir(), 'miz-old-')); execSync(`git -C "${ROOT}" archive ${c} | tar -x -C "${d}"`, { stdio: 'ignore' }); } catch (_) { d = ''; } return [c, d]; }));
 // st.root: files served (OLD or ROOT); st.sw: where sw.js comes from (lets the old worker stay while the new files are out)
 function server(OLD) { const st = { root: OLD, sw: OLD };

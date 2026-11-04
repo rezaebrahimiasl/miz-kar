@@ -114,7 +114,8 @@ test('G: «برگردان» says so when part of the undo could not be saved (it
     const fail = msg(), kept = byId('tasks', 'tu1').title;
     window._undo = [{ col: 'tasks', id: 'tu1', prev }]; await undoDo();
     return { fail, kept, ok: msg(), after: byId('tasks', 'tu1').title }; });
-  assert(/کامل نشد/.test(r.fail) && !/✓/.test(r.fail) && r.kept === 'بعد', 'failed undo: ' + JSON.stringify(r));
+  // since 4.40 the undo is atomic: a failure changes nothing and says so («انجام نشد و چیزی تغییر نکرد»)
+  assert(/انجام نشد|کامل نشد/.test(r.fail) && !/✓/.test(r.fail) && r.kept === 'بعد', 'failed undo: ' + JSON.stringify(r));
   assert(/✓/.test(r.ok) && r.after === 'قبل', 'normal undo: ' + JSON.stringify(r));
   assert(!o.errors.length, o.errors.join(' | '));
 });

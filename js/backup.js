@@ -7,7 +7,7 @@
  * Reads the app's state (LOAD_OK, mode, S, COLS, backupData, rowCount, newId, nowTs, APP_VER) only when called.
  * Loaded by index.html after js/engine.js and before the main script; the service worker pre-caches it with the same version as
  * index.html. Tests: tests/52-auto-backup.test.js (and 40-backup-restore). */
-const BACKUP_VER='4.39';
+const BACKUP_VER='4.40';
 const SNAP_KEEP=10,SNAP_KEEP_LOW=5;  // copies kept; fewer when the browser says storage is over 80% used
 let snapDb=null;
 function snapOpen(){if(snapDb)return Promise.resolve(snapDb);return new Promise((res,rej)=>{const r=indexedDB.open('miz-kar-snap',1);r.onupgradeneeded=()=>r.result.createObjectStore('snaps',{keyPath:'id'});r.onsuccess=()=>{snapDb=r.result;res(snapDb)};r.onerror=()=>rej(r.error)})}
@@ -26,8 +26,8 @@ async function snapMax(){try{const e=await navigator.storage.estimate();if(e&&e.
 function snapData(){const b=backupData();b.data={...b.data,contacts:[]};const counts=Object.fromEntries(COLS.filter(c=>c!=='contacts').map(c=>[c,(b.data[c]||[]).length]));
   return {h:snapHash(JSON.stringify(b.data)),counts,n:Object.values(counts).reduce((a,x)=>a+x,0),txt:JSON.stringify(b)}}
 // take a copy (of the data now, or of D captured earlier by snapData); returns its id (or the id of an identical newest copy), or null when no verified copy could be made
-async function snapTake(reason,minGapMin,D){if(!LOAD_OK||mode!=='local')return null;try{const L=await snapList();if(minGapMin&&L[0]&&L[0].reason===reason&&Date.now()-new Date(L[0].at)<minGapMin*60000)return null;
-  D=D||snapData();const h=D.h;if(L[0]&&L[0].h===h&&snapCheck(L[0]))return L[0].id;
+async function snapTake(reason,minGapMin,D){if(!D&&typeof Store!=='undefined')await Store.idle();/* a copy holds only committed state */if(!LOAD_OK||mode!=='local')return null;try{const L=await snapList();if(minGapMin&&L[0]&&L[0].reason===reason&&Date.now()-new Date(L[0].at)<minGapMin*60000)return null;
+  D=D||(typeof Store!=='undefined'?await Store.read(()=>snapData()):snapData());const h=D.h;if(L[0]&&L[0].h===h&&snapCheck(L[0]))return L[0].id;
   const s={id:newId(),at:nowTs(),reason,n:D.n,counts:D.counts,h,ver:APP_VER,txt:D.txt};if(!snapCheck(s))return null;
   const keep=snapKeep([s,...L],await snapMax());
   const d=await snapOpen();await new Promise((res,rej)=>{const t=d.transaction('snaps','readwrite');const st=t.objectStore('snaps');st.put(s);L.filter(x=>!keep.has(x.id)).forEach(x=>st.delete(x.id));t.oncomplete=res;t.onerror=()=>rej(t.error)});
