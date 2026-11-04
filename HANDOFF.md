@@ -685,10 +685,13 @@
 
 - Released: PR #1 (`stage2-final` → `main`), merge commit `d8711a7` = v4.40.
 
-## v4.44 — LOT-1, SITE-1 (branch `eng-4.44`, stacked on `fix-4.43`; not released)
+## v4.45 — audit round (branch `audit-4.45`, committed and pushed; PR #6 open, not merged)
+- TINY-1: integrity group `tiny` (net balance 0.5–1,000 toman per person; person-level item opens `viewPerson` via `integGo`). A rounding or bank-fee difference between a row and its payment is one possible cause of a small balance such as the reported 400-toman debt — not proven for every case; the person's statement shows the actual rows. Closing them is an owner decision (DEC-3). Bounds: listed when 0.5 < |net| < 1,000 toman (toman only); zero and exactly 1,000 are not listed. Test 68 (+1).
+
+## v4.44 — LOT-1, SITE-1 (released: PR #5, merge `9ade5e7`, Pages deployment 7541271958 success)
 - LOT-1: `formLotSave()` runs `formLotSave0()` inside `Store.batch('lot:…')` (local); a shadowed `save` passes B and turns a refused write into a rollback; `ledSync` gets B. Cloud: sequential, as before. SITE-1: CSP `connect-src` + the two shop origins (no wildcard). CORS of the live site unverified. Independent review (no blocker): closing the quote follow-up, the sheet and the success message now run only after the commit (`fin`); cloud `ledSync` failures no longer abort the save. Left: inner toasts («بدهی پولی … ثبت شد») show before the commit; a date-lock dialog inside the operation holds the records until answered. Test 76 (7 checks).
 
-## v4.43 — ARAP-3, INT-2, ARAP-2 (branch `fix-4.43`, from `main` `812e66a`; not released)
+## v4.43 — ARAP-3, INT-2, ARAP-2 (released: PR #4, merge `1a9ed85`)
 - ARAP-3: `remMap()` dropped the excess of a linked overpayment, so a balancing entry (voucher refund) stayed open and the prepayment section showed a gap with a zero balance; the excess is now pooled. INT-2: `integGo()` routes every finding; new action `recovOpen`. ARAP-2: `recvReopen()` (from `ledReopen`) also runs when `ledSync()` reopens a receivable, inside the same operation. Tests 68 (+1) and 74 (+2) fail on `812e66a`.
 
 ## v4.42 — receivables and payables agree (released: PR #3, merge `812e66a`, Pages deployment 7538525124 success)
