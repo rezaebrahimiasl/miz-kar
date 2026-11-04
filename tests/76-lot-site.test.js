@@ -25,7 +25,18 @@ test('LOT-1 new bought lot on credit: a failure at the payable leaves no lot', a
   await failAt('ledger'); await same('new lot failure', tapSave); await failAt(null);
   await tapSave(); await p.waitForTimeout(400); await settle(p);
   const r = await p.evaluate(() => { const l = S.lots.find(x => !x.void && x.variety === 'تازه'); return l && S.ledger.filter(x => !x.void && x.lotId === l.id).length; });
-  assert(r === 1, 'success: lot with one payable, got ' + r); const v = await invariants(p); assert(!v.length, v.join('; '));
+  assert(r === 1, 'success: lot with one payable, got ' + r); assert(await p.evaluate(() => document.getElementById('sheetRoot').hidden), 'sheet not closed after the commit'); const v = await invariants(p); assert(!v.length, v.join('; '));
+});
+
+test('LOT-1 the supplier\'s quote follow-up is closed only when the lot really saved', async () => {
+  await p.evaluate(async () => { const n = nowTs(); await putRaw('tasks', { id: 'tq', title: 'تصمیم خرید', personId: 's1', status: 'open', flow: { kind: 'quote_got', personId: 's1', product: 'عسل' }, created: n, updated: n }); });
+  const go = async () => { await p.evaluate(() => { closeSheet(); formLot({}); }); await p.waitForSelector('#sheetRoot form[data-form=lot]');
+    await fill(p, { f_prod: 'عسل', f_var: 'پیشنهاد', f_lqty: '۲' }); await p.evaluate(() => { const s = document.getElementById('f_src'); s.value = 'buy'; s.dispatchEvent(new Event('change', { bubbles: true })); });
+    await fill(p, { f_lcost: '۱', f_lpay: 'credit', f_sup: 's1' }); };
+  await go(); await failAt('ledger'); await tapSave(); await p.waitForTimeout(400); await settle(p); await failAt(null);
+  assert(await p.evaluate(() => byId('tasks', 'tq').status === 'open'), 'follow-up closed by a failed save');
+  await go(); await tapSave(); await p.waitForTimeout(400); await settle(p);
+  assert(await p.evaluate(() => byId('tasks', 'tq').status !== 'open'), 'follow-up not closed after the save');
 });
 
 test('LOT-1 edit open → buy with a cost: a failure at the lot leaves no payable; success writes both', async () => {
