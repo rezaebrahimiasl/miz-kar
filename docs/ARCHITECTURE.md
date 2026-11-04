@@ -1,6 +1,6 @@
 # Reza Desk (میز کار رضا): Architecture
 
-This document describes app v4.43 (branch `fix-4.43`, based on `main` at `812e66a`, v4.42).
+This document describes app v4.44 (branch `eng-4.44`, on top of `fix-4.43`; `main` is `812e66a`, v4.42).
 Line numbers drift with every change, so code is referred to by **function name**.
 `tests/05-docs.test.js` checks that every name written as `name()` here still exists.
 Statements marked **[unverified]** were not confirmed against the code.
@@ -39,7 +39,7 @@ Statements marked **[unverified]** were not confirmed against the code.
    - the legacy calendar feed (an `.ics` file in a secret gist)
    - Google Calendar
    - Gemini AI
-   - the shop-website catalogue
+   - the shop-website catalogue (`syncCatalog()`; the CSP `connect-src` allows exactly `https://asalereza.com` and `https://www.asalereza.com`, 4.44)
    - the update check
 
    The font is bundled (`fonts/Vazirmatn-wght.woff2`, v4.41); no font service is contacted.
@@ -134,7 +134,7 @@ A posting is a lot, stock move or ledger row with `docId`. Writers found in the 
 | `formProdSave()` | production: output lot, input moves, cost rows and the production sheet | yes since 4.41 (`opRun('prod:…')`) |
 | the `count` form | stock count: `loss`/`adj` moves, opening lots and the count sheet | yes since 4.41 (`opRun('count:…')`) |
 
-`opRun(key,fn)` is the small wrapper for form-level postings: `fn(pr)` writes only through `pr(col,doc)` (= `putRaw` inside the operation), and a failure, cloud mode or a second run shows a message and writes nothing. Edits of a lot from the stock-in form (`formLotSave()`, with documents off) still write one record after another; they are single-purpose and listed in the backlog. `Store` owns persistence and atomicity only; business rules stay in the operation bodies; cloud mode keeps refusing multi-record operations.
+`opRun(key,fn)` is the small wrapper for form-level postings: `fn(pr)` writes only through `pr(col,doc)` (= `putRaw` inside the operation), and a failure, cloud mode or a second run shows a message and writes nothing. The stock-in form (`formLotSave()`) saves a lot with its money rows as one operation in local mode (`Store.batch('lot:…')`, 4.44); cloud mode writes them one after another. `Store` owns persistence and atomicity only; business rules stay in the operation bodies; cloud mode keeps refusing multi-record operations.
 
 Submitting forms: one delegated submit handler; while a form's submit is running, a second submit of the same form is ignored (`data-busy` on the form, the start time), so a double tap never writes twice. The lock lasts until the first submit has really ended (no expiry: an expiry let a second run start while the first was still posting and wrote a second document); after 20 s a further tap only shows how to recover (close and reopen the form; the draft stays). Operation level for documents: `formDocSave()` gives the form one id for its new document (`data-nid`); a repeated submit of the same form reaches that document — posted or being posted (`Store._busy` `post:<id>`) → refused, saved but not posted → completed — so one form never creates two documents. Cloud mode: production and stock count are multi-record operations, so they are refused there like posting and voiding.
 
