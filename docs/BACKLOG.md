@@ -3,7 +3,7 @@
 This list is public. Security and privacy details are tracked privately by the owner.
 Priorities follow the project policy: reliability first, then maintenance cost, data integrity, architecture, and lastly new features.
 
-State: v4.41 released (`main` `b0abeb9`); v4.42 on branch `fix-arap-4.42` (from `b0abeb9`), not released. «released by 4.40» means the change is in `main` at `d8711a7`; the exact earlier release was not re-derived. Status was checked against the code for v4.41, not copied from older notes.
+State: v4.42 released (`main` `812e66a`, PR #3; GitHub Pages deployment 7538525124 succeeded; live phone check pending). «released by 4.40» means the change is in `main` at `d8711a7`; the exact earlier release was not re-derived. Status was checked against the code for v4.41, not copied from older notes.
 
 ## Done
 
@@ -67,6 +67,9 @@ State: v4.41 released (`main` `b0abeb9`); v4.42 on branch `fix-arap-4.42` (from 
 |---|---|---|---|
 | T3 | Intermittent backup/restore test failure, part 2: not reproduced in 36 runs of `40` (8 in parallel, then 6 in parallel with 6 CPU-burning processes on 2 cores). Instrumented run: restore is fully awaited, fingerprint and backup are taken atomically, and nothing writes app data after start-up except the daily snapshot (separate database). Classified as test timing, not an app defect; `sigDiff` will name the difference if it recurs | 3 | the diagnostic message from the next occurrence |
 | P-x | Further privacy hardening (tracked privately) | 1 | owner decision |
+| ARAP-3 | Prepayment/overpayment section still shows a gap after the excess is balanced (e.g. a manual voucher refund): `remMap()` clamps a row at 0 and drops the excess of payments linked by `refId` instead of pooling it, so the balancing entry stays «open». Reproduced (synthetic: net 0, gap −2). Fix: pool the excess (linked − amount > 0) like unlinked payments; test with voucher and refund | 1 | — |
+| INT-2 | «عیب‌یابی داده‌ها»: only documents are tappable (`integSheet()` renders other records as plain rows). Fix: open ledger rows with `viewLedger`, lots with `viewLot`, moves with `viewMove`, person-level items with `viewPerson`; the books group → accounting / health page | 1 | — |
+| SITE-1 | «همگام‌سازی» with the shop site (profile) always fails: the page CSP `connect-src` does not list the site, so `syncCatalog()`'s `fetch` is blocked (since the CSP was added). Fix: add the site's origin(s) to `connect-src`; the site must also allow cross-origin reads of the WooCommerce Store API **[unverified]** | 2 | site address confirmed by the owner |
 | ARAP-R | Owner review on the real phone: «عیب‌یابی داده‌ها» → «وضعیت تسویه با پرداخت‌ها نمی‌خواند» and «مالی ← طلب و بدهی» → «پیش‌دریافت، اضافه‌پرداخت و اختلاف» (incl. the reported person). Rows settled with less paid may be real discounts; any change is a separate, approved, per-row action (no repair tool built yet) | 1 | 4.42 released |
 | ARAP-2 | Reopening a row through `ledSync` does not reopen a closed receivable follow-up task (as `ledReopen` does after a voided payment); the next follow-up run picks it up | 3 | — |
 | PH-1 | Real-phone check of 4.40 and 4.41 (checklist: backup first, separate test address, synthetic data); no phone result for 4.40 has been recorded in the repository | 1 | owner (physical device) |
