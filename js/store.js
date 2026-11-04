@@ -7,7 +7,7 @@
  * always sees the result of the previous write. Local mode only (uses the global idb); cloud mode keeps its own path.
  * Loaded by index.html after js/backup.js and before the main script; version-locked with index.html like the other parts.
  * Tests: tests/59-store.test.js. */
-const STORE_VER='4.41';
+const STORE_VER='4.42';
 const Store={_q:Promise.resolve(),_RETRY:Symbol('retry'),_inflight:new Map(),
   /* tx(plan, commit): the ownership check runs in the transaction's own turn, right after plan built the writes and before the
      IndexedDB transaction opens: if any record is staged by the active operation (and this is not that operation's commit), nothing

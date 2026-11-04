@@ -1,6 +1,6 @@
 # Reza Desk (میز کار رضا): Architecture
 
-This document describes app v4.41 (branch `eng-4.41`, based on `main` at `d8711a7`, v4.40).
+This document describes app v4.42 (branch `fix-arap-4.42`, based on `main` at `b0abeb9`, v4.41).
 Line numbers drift with every change, so code is referred to by **function name**.
 `tests/05-docs.test.js` checks that every name written as `name()` here still exists.
 Statements marked **[unverified]** were not confirmed against the code.
@@ -109,6 +109,19 @@ Statements marked **[unverified]** were not confirmed against the code.
 - `integCheck()` reads memory only (`S`, `BAD`) and returns findings grouped by kind: the books (trial balance, unbalanced entries, person balances against receivables − payables, stock value against account 1301; toman only), two live versions of one document (the D1 case; `d1When()` dates it: «before» when the older version has not changed since `D1_FIX` (4.21 published), «after» when the newer version was itself created after the fix, «maybe» when the newer version predates the fix but the older one changed after it — any later save moves `updated` — listed with D1 and marked uncertain), two live replacements of one version, live lots/moves/ledger rows of a voided or missing document, moves of a voided or missing lot, lots below zero, rows of a missing or merged person and settlements of a missing row, one bank receipt key (`rcpt`) on several live rows, and records unreadable at start-up.
 - `integSheet()` shows them (menu «تنظیمات» → «عیب‌یابی داده‌ها», action `integ`); documents open with `docView`. `integText()` is the copyable report (action `integCopy`).
 - Read-only and private by construction: nothing is written, repaired or deleted (test 68 counts IndexedDB and storage writes); findings name records by type, date, document number, lot code and record key only — never a person's name, an amount, a description or clinical content. Repairs stay with the owner (DEC-1 and similar decisions are untouched).
+
+### 3.6b Receivables and payables: net balance and open rows (v4.42)
+
+Two calculations exist on purpose and must agree:
+
+| What | Function | Used by |
+|---|---|---|
+| net balance of a person | `balances()`, `personBal()`, `stmtRows()` — signed sum of rows that `affects()`; ignores «تسویه‌شده» | person page, people tab, money tab «مانده هر طرف حساب», statement |
+| what is still open per row | `remMap()` / `remOf()` — amount minus linked payments (`refId`), pooled payments (`settles` without a live target), netting of the person's receivables and payables; a row with `settled` is 0 | aging lists, `dueLedger()`, person page «طلب سررسیده», settle form, follow-ups, health, engine |
+
+They agree as long as `settled` matches the linked payments. `settled` is stored, so every edit that changes an amount, a person or a linked payment recomputes it: `ledSnap(ids)` before, `ledSync(snap,why,B)` after (`formLedgerEditSave()`, `formMoveEditSave()`, the purchase amount sync in `formLotSave()`; `ledReopen()` after voiding a payment). Only rows whose state agreed with their payments before the edit are recomputed, so a row settled by hand without full payment (discount, forgiveness, agreement) is never reopened; each change is written to the row's `hist`. In `formLedgerEditSave()` the row, the payments that follow it to another person and the flag are one operation (`Store.batch('ledEdit:<id>')`, local mode). A payment that settles a row of another person cannot be moved alone. The books (`autoEntries()`) do not read `settled`.
+
+Money paid beyond the open rows (prepayment, overpayment) is part of the net balance but of no row: `arapGaps()` lists it read-only in «پیش‌دریافت، اضافه‌پرداخت و اختلاف» (money tab, «طلب و بدهی»), with a mark when the person has rows from `ledSuspect()` (settled with less paid, paid more than the amount, fully paid but open), which «عیب‌یابی داده‌ها» also lists (group `setl`).
 
 ### 3.7 Who writes document postings (WP-7 review, WP-7b, v4.41)
 

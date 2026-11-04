@@ -3,7 +3,7 @@
 This list is public. Security and privacy details are tracked privately by the owner.
 Priorities follow the project policy: reliability first, then maintenance cost, data integrity, architecture, and lastly new features.
 
-State: v4.41 on branch `eng-4.41` (from `main` `d8711a7`, v4.40). «released by 4.40» means the change is in `main` at `d8711a7`; the exact earlier release was not re-derived. Status was checked against the code for v4.41, not copied from older notes.
+State: v4.41 released (`main` `b0abeb9`); v4.42 on branch `fix-arap-4.42` (from `b0abeb9`), not released. «released by 4.40» means the change is in `main` at `d8711a7`; the exact earlier release was not re-derived. Status was checked against the code for v4.41, not copied from older notes.
 
 ## Done
 
@@ -52,6 +52,7 @@ State: v4.41 on branch `eng-4.41` (from `main` `d8711a7`, v4.40). «released by 
 | HON-1 | Invoice title gender: unknown names get no title instead of «آقای»; a title contradicting a known first name is corrected in print for either gender (also «حاج …»); changing the customer recomputes it; a title chosen for another printed name is not saved on the person; «سید» names recognised | 4.41 | `tests/72-invoice-title.test.js` |
 | SH-1 | «ارسال» in the document viewer: the page goes to the phone's share menu as a file without the app's font address (download where file sharing is missing); document number in Persian digits in print | 4.41 | `tests/72-invoice-title.test.js` |
 | WP-7 | Review of who writes document postings (`docs/ARCHITECTURE.md` §3.7): `postDoc` and `docVoid` were atomic; production and stock count became atomic in WP-7b; editing a lot in the stock-in form is not (LOT-1) | 4.41 | `docs/ARCHITECTURE.md` |
+| ARAP-1 | «طلب و بدهی»: the person page (net) and the money tab's row lists disagreed after an amount, person or payment was edited post-settlement (stale `settled`), and prepayments/overpayments appeared in no list. `ledSnap`/`ledSync` recompute the flag with history (never reopening a hand-settled row); payments follow their row to another person; read-only section «پیش‌دریافت، اضافه‌پرداخت و اختلاف» (`arapGaps`); integrity group `setl` (`ledSuspect`) | 4.42 | `tests/74-arap-settled.test.js` |
 | WP-9 | Money and stock click actions moved out of `switch(a)` into named functions («Stock & money actions») | 4.25 line, released by 4.40 | `tests/25-money-stock-actions.test.js`, `tests/50-workflows.test.js` |
 
 ## Decisions needed (owner)
@@ -66,6 +67,8 @@ State: v4.41 on branch `eng-4.41` (from `main` `d8711a7`, v4.40). «released by 
 |---|---|---|---|
 | T3 | Intermittent backup/restore test failure, part 2: not reproduced in 36 runs of `40` (8 in parallel, then 6 in parallel with 6 CPU-burning processes on 2 cores). Instrumented run: restore is fully awaited, fingerprint and backup are taken atomically, and nothing writes app data after start-up except the daily snapshot (separate database). Classified as test timing, not an app defect; `sigDiff` will name the difference if it recurs | 3 | the diagnostic message from the next occurrence |
 | P-x | Further privacy hardening (tracked privately) | 1 | owner decision |
+| ARAP-R | Owner review on the real phone: «عیب‌یابی داده‌ها» → «وضعیت تسویه با پرداخت‌ها نمی‌خواند» and «مالی ← طلب و بدهی» → «پیش‌دریافت، اضافه‌پرداخت و اختلاف» (incl. the reported person). Rows settled with less paid may be real discounts; any change is a separate, approved, per-row action (no repair tool built yet) | 1 | 4.42 released |
+| ARAP-2 | Reopening a row through `ledSync` does not reopen a closed receivable follow-up task (as `ledReopen` does after a voided payment); the next follow-up run picks it up | 3 | — |
 | PH-1 | Real-phone check of 4.40 and 4.41 (checklist: backup first, separate test address, synthetic data); no phone result for 4.40 has been recorded in the repository | 1 | owner (physical device) |
 | D1-R | Owner review of what «عیب‌یابی داده‌ها» lists on the real phone (D1 pairs incl. «uncertain», orphan rows); each repair is a separate, approved action | 2 | PH-1 |
 | DEC-2 | Stock-in with «در حساب‌ها ثبت نشود»: the lot counts in stock value but not in the inventory account, so the two differ (the integrity page reports it). Options: (a) keep; (b) post such lots against capital (3101) like opening stock; (c) remove the option. Behaviour kept until the owner decides | 2 | owner decision |
