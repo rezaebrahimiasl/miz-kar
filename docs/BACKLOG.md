@@ -3,7 +3,7 @@
 This list is public. Security and privacy details are tracked privately by the owner.
 Priorities follow the project policy: reliability first, then maintenance cost, data integrity, architecture, and lastly new features.
 
-State: v4.42 released (`main` `812e66a`, PR #3, Pages deployment 7538525124 success); v4.43 on branch `fix-4.43`, not released. «released by 4.40» means the change is in `main` at `d8711a7`; the exact earlier release was not re-derived. Status was checked against the code for v4.41, not copied from older notes.
+State: v4.42 released (`main` `812e66a`); v4.43 = PR #4 (`fix-4.43`), v4.44 = PR #5 (`eng-4.44`, stacked on `fix-4.43`); neither released. «released by 4.40» means the change is in `main` at `d8711a7`; the exact earlier release was not re-derived. Status was checked against the code for v4.41, not copied from older notes.
 
 ## Done
 
@@ -56,6 +56,8 @@ State: v4.42 released (`main` `812e66a`, PR #3, Pages deployment 7538525124 succ
 | ARAP-3 | The excess of a payment linked to a row was dropped (`remMap()` clamp), so an entry balancing an overpayment (voucher refund) stayed open and the prepayment section showed a gap with a zero balance; the excess is now pooled | 4.43 | `tests/74-…` |
 | INT-2 | Every «عیب‌یابی داده‌ها» finding opens its record (`integGo()`; books → journal, unreadable records → recovery page) | 4.43 | `tests/68-…` |
 | ARAP-2 | A receivable reopened by `ledSync()` reopens the person's closed follow-up (`recvReopen()`), no duplicate task | 4.43 | `tests/74-…` |
+| LOT-1 | Saving a lot from the stock-in form (new or edited) with its money rows is one operation in local mode (`formLotSave()` → `Store.batch('lot:…')` → `formLotSave0()`); cloud mode writes one after another (no multi-record transaction there) | 4.44 | `tests/76-lot-site.test.js` |
+| SITE-1 | Shop-site sync was blocked by the CSP: `connect-src` now lists exactly `https://asalereza.com` and `https://www.asalereza.com` (address taken from the app's own placeholder; owner to confirm). Whether the live site allows cross-origin reads of the Store API (CORS) is **not verified** (no access from the development environment) | 4.44 | `tests/76-…` (answered locally) |
 | WP-9 | Money and stock click actions moved out of `switch(a)` into named functions («Stock & money actions») | 4.25 line, released by 4.40 | `tests/25-money-stock-actions.test.js`, `tests/50-workflows.test.js` |
 
 ## Decisions needed (owner)
@@ -70,13 +72,11 @@ State: v4.42 released (`main` `812e66a`, PR #3, Pages deployment 7538525124 succ
 |---|---|---|---|
 | T3 | Intermittent backup/restore test failure, part 2: not reproduced in 36 runs of `40` (8 in parallel, then 6 in parallel with 6 CPU-burning processes on 2 cores). Instrumented run: restore is fully awaited, fingerprint and backup are taken atomically, and nothing writes app data after start-up except the daily snapshot (separate database). Classified as test timing, not an app defect; `sigDiff` will name the difference if it recurs | 3 | the diagnostic message from the next occurrence |
 | P-x | Further privacy hardening (tracked privately) | 1 | owner decision |
-| SITE-1 | «همگام‌سازی» with the shop site (profile) always fails: the CSP `connect-src` does not list the site, so `syncCatalog()`'s fetch is blocked. Fix: add the site's origin(s); the site must allow cross-origin reads of the WooCommerce Store API **[unverified]** | 2 | site address confirmed by the owner |
 | ARAP-R | Owner review on the real phone: «عیب‌یابی داده‌ها» → «وضعیت تسویه با پرداخت‌ها نمی‌خواند» and «مالی ← طلب و بدهی» → «پیش‌دریافت، اضافه‌پرداخت و اختلاف» (incl. the reported person). Rows settled with less paid may be real discounts; any change is a separate, approved, per-row action (no repair tool built yet) | 1 | 4.42 released |
 | PH-1 | Real-phone check of 4.40 and 4.41 (checklist: backup first, separate test address, synthetic data); no phone result for 4.40 has been recorded in the repository | 1 | owner (physical device) |
 | D1-R | Owner review of what «عیب‌یابی داده‌ها» lists on the real phone (D1 pairs incl. «uncertain», orphan rows); each repair is a separate, approved action | 2 | PH-1 |
 | DEC-2 | Stock-in with «در حساب‌ها ثبت نشود»: the lot counts in stock value but not in the inventory account, so the two differ (the integrity page reports it). Options: (a) keep; (b) post such lots against capital (3101) like opening stock; (c) remove the option. Behaviour kept until the owner decides | 2 | owner decision |
 | OR-1 | Separate origin for the app's data (shared `github.io` origin) — separate path with its own approval and migration plan | 2 | owner approval |
-| LOT-1 | Editing a lot in the stock-in form (`formLotSave()`) updates the lot and its money rows one after another (not one operation) | 3 | — |
 | UX-2 | «·» is still a separator elsewhere in the app (also inside stored text). Four literal `${…}` image addresses are requested by the browser at load and return 404 (no visible effect; the requests come from the HTML parser while reading the inline script, cause not isolated) | 4 | — |
 | WP-5b | Optional: run the tests from the version tool | 4 | WP-5 |
 

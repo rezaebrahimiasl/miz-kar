@@ -685,6 +685,9 @@
 
 - Released: PR #1 (`stage2-final` → `main`), merge commit `d8711a7` = v4.40.
 
+## v4.44 — LOT-1, SITE-1 (branch `eng-4.44`, stacked on `fix-4.43`; not released)
+- LOT-1: `formLotSave()` runs `formLotSave0()` inside `Store.batch('lot:…')` (local); a shadowed `save` passes B and turns a refused write into a rollback; `ledSync` gets B. Cloud: sequential, as before. SITE-1: CSP `connect-src` + the two shop origins (no wildcard). CORS of the live site unverified. Test 76 (4 of 6 fail on `90eebff`).
+
 ## v4.43 — ARAP-3, INT-2, ARAP-2 (branch `fix-4.43`, from `main` `812e66a`; not released)
 - ARAP-3: `remMap()` dropped the excess of a linked overpayment, so a balancing entry (voucher refund) stayed open and the prepayment section showed a gap with a zero balance; the excess is now pooled. INT-2: `integGo()` routes every finding; new action `recovOpen`. ARAP-2: `recvReopen()` (from `ledReopen`) also runs when `ledSync()` reopens a receivable, inside the same operation. Tests 68 (+1) and 74 (+2) fail on `812e66a`.
 
