@@ -68,15 +68,42 @@ test('a purchase saved through the form (the path all three entries share), doub
   await p.evaluate(() => { const f = document.querySelector('#sheetRoot form[data-form=doc]'); const b = f.querySelector('button[type=submit]') || [...f.querySelectorAll('button.pri:not([type=button])')].pop(); b.click(); b.click(); });
   await p.waitForTimeout(800); await settle(p);
   const d = delta(c0, await counts()); assert(d.docs === 1 && d.lots === 1 && d.led === 1, 'double tap: ' + JSON.stringify(d));
-  await inv('double tap');
-  // a submit that never finished (e.g. a hung network call) does not lock the form for good: after 20 s a new submit goes through
-  const c1 = await counts();
-  await p.evaluate(() => { closeSheet(); formDoc({ type: 'purchase', inv: false, personId: 's1', led: 'payable', items: [{ desc: 'عسل گیر', qty: 1, unit: 'کیلو', price: 1e6 }] }); });
+  await inv('double tap'); assert(!o.errors.length, o.errors.join(' | '));
+});
+
+// The scenario of the final review: the first save is still running (posting held open), more than 20 s pass, the user taps «ثبت»
+// again, then the first save completes. Expected: exactly one document, one lot, one payable — at the form level (the lock does not
+// expire) and at the operation level (the same form never creates a second document, even when the form lock is bypassed).
+const slowPurchase = async () => { await p.evaluate(() => { closeSheet(); formDoc({ type: 'purchase', inv: false, personId: 's1', led: 'payable', items: [{ desc: 'عسل کند', qty: 2, unit: 'کیلو', price: 1e6 }] }); });
   await p.waitForSelector('#sheetRoot form[data-form=doc]');
-  await p.evaluate(() => { const f = document.querySelector('#sheetRoot form[data-form=doc]'); f.dataset.busy = String(Date.now() - 21000); });
-  await submitForm(p); await settle(p);
-  const d2 = delta(c1, await counts()); assert(d2.docs === 1 && d2.lots === 1, 'stale busy flag blocked the form: ' + JSON.stringify(d2));
-  await inv('after the stale flag'); assert(!o.errors.length, o.errors.join(' | '));
+  // hold the first posting open until released (as a very slow phone or a long dialog would)
+  await p.evaluate(() => { window._pdReal = window.postDoc; window._gate = new Promise(r => { window._open = r; }); window._calls = 0;
+    window.postDoc = async (...a) => { window._calls++; if (window._calls === 1) await window._gate; return window._pdReal(...a); }; }); };
+const tapSave = () => p.evaluate(() => { const f = document.querySelector('#sheetRoot form[data-form=doc]'); (f.querySelector('button[type=submit]') || [...f.querySelectorAll('button.pri:not([type=button])')].pop()).click(); });
+
+test('first save still running, more than 20 s pass, «ثبت» again, then the first completes: one document (form lock)', async () => {
+  const c0 = await counts(); await slowPurchase();
+  await tapSave(); await p.waitForFunction(() => window._calls === 1);
+  await p.evaluate(() => { const f = document.querySelector('#sheetRoot form[data-form=doc]'); f.dataset.busy = String(Date.now() - 21000); });   // 21 s later
+  await tapSave(); await p.waitForTimeout(200);
+  const msg = await p.evaluate(() => document.getElementById('toast').textContent);
+  await p.evaluate(() => window._open()); await p.waitForTimeout(400); await settle(p); await p.evaluate(() => { window.postDoc = window._pdReal; });
+  const d = delta(c0, await counts()); assert(d.docs === 1 && d.lots === 1 && d.led === 1, 'after the long wait: ' + JSON.stringify(d));
+  assert(/هنوز تمام نشده/.test(msg), 'no explanation on the late tap: ' + msg);
+  await inv('long wait, form lock');
+});
+
+test('the same with the form lock bypassed: the operation itself refuses a second document from the same form', async () => {
+  const c0 = await counts(); await slowPurchase();
+  await tapSave(); await p.waitForFunction(() => window._calls === 1);
+  await p.evaluate(() => { delete document.querySelector('#sheetRoot form[data-form=doc]').dataset.busy; });   // no form lock at all
+  await tapSave(); await p.waitForTimeout(300);
+  await p.evaluate(() => window._open()); await p.waitForTimeout(400); await settle(p);
+  // and once more after the first finished
+  if (await p.evaluate(() => !!document.querySelector('#sheetRoot form[data-form=doc]'))) { await tapSave(); await p.waitForTimeout(300); await settle(p); }
+  await p.evaluate(() => { window.postDoc = window._pdReal; });
+  const d = delta(c0, await counts()); assert(d.docs === 1 && d.lots === 1 && d.led === 1, 'operation level: ' + JSON.stringify(d));
+  await inv('operation level'); assert(!o.errors.length, o.errors.join(' | '));
 });
 test('cleanup', async () => { await o.ctx.close(); await srv.close(); });
 run(__filename);
