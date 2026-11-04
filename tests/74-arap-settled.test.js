@@ -98,5 +98,26 @@ test('the books do not change because of a recomputed flag; the money tab shows 
   assert(/پیش‌دریافت، اضافه‌پرداخت و اختلاف/.test(t) && /ناجور/.test(t), 'section missing');
   await inv('end'); assert(!o.errors.length, o.errors.join(' | '));
 });
+test('ARAP-3: an overpayment balanced by a voucher refund → person page, lists and the section agree (no gap); an unbalanced one still shows', async () => {
+  await mk('pP', 'شخص پ'); await row('rP', 'pP', 'receivable', 10e6); await settleForm('rP', 12);
+  let v = await views('pP'); assert(v.gap === -2, 'unbalanced overpayment must show: ' + JSON.stringify(v));
+  await p.evaluate(async () => { const n = nowTs(); await putRaw('vouchers', { id: 'vP', date: '2026-10-03', desc: 'برگشت اضافه', lines: [{ acc: '1201', dr: 2e6, personId: 'pP' }, { acc: '1101', cr: 2e6, bank: 'بانک الف' }], created: n, updated: n }); });
+  v = await views('pP'); assert(v.page === 0 && v.agingRecv === 0 && v.gap === 0 && agree(v), 'balanced: ' + JSON.stringify(v)); await inv('ARAP-3');
+  // a refund linked to the row (paid, refId) must not grow the excess and wrongly cover another open receivable
+  await row('rP2', 'pP', 'receivable', 3e6); await row('fP', 'pP', 'paid', 2e6, { refId: 'rP', instrument: 'نقد/کارت', acct: 'بانک الف', due: '' });
+  v = await views('pP'); assert(Math.abs(v.page - (v.agingRecv - v.agingPay) - v.gap) < 1e-6 && v.agingRecv >= 3 - 1e-6, 'linked refund grew the excess: ' + JSON.stringify(v));
+});
+test('ARAP-2: a receivable reopened by an edit reopens the person\'s closed follow-up; a second reopen creates no second task', async () => {
+  await mk('pQ', 'شخص ق'); await row('rQ', 'pQ', 'receivable', 10e6, { due: '2026-09-01' }); await settleForm('rQ', 10);
+  await p.evaluate(async () => { const n = nowTs(); await putRaw('tasks', { id: recvTid('pQ'), title: 'پیگیری طلب آزمون', personId: 'pQ', status: 'done', doneAt: n, flow: { kind: 'recv', personId: 'pQ', closed: 'paid' }, created: n, updated: n }); });
+  const t0 = await p.evaluate(() => S.tasks.length);
+  await editAmount('rQ', 15);
+  let r = await p.evaluate(() => { const t = byId('tasks', recvTid('pQ')); return { st: t.status, closed: t.flow.closed, log: (t.log || []).length }; });
+  assert(r.st === 'open' && r.closed === '' && r.log === 1, 'follow-up not reopened: ' + JSON.stringify(r));
+  await settleForm('rQ', 5); await p.evaluate(async () => { const t = byId('tasks', recvTid('pQ')); await save('tasks', t.id, { status: 'done', flow: { ...t.flow, closed: 'paid' } }); });
+  await editAmount('rQ', 16);
+  r = await p.evaluate(t0 => ({ n: S.tasks.length - t0, st: byId('tasks', recvTid('pQ')).status }), t0);
+  assert(r.n === 0 && r.st === 'open', 'duplicate follow-up or not reopened: ' + JSON.stringify(r)); await inv('ARAP-2');
+});
 test('cleanup', async () => { await o.ctx.close(); await srv.close(); });
 run(__filename);

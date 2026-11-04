@@ -685,7 +685,10 @@
 
 - Released: PR #1 (`stage2-final` → `main`), merge commit `d8711a7` = v4.40.
 
-## v4.42 — receivables and payables agree (branch `fix-arap-4.42`, from `main` `b0abeb9`; not released)
+## v4.43 — ARAP-3, INT-2, ARAP-2 (branch `fix-4.43`, from `main` `812e66a`; not released)
+- ARAP-3: `remMap()` dropped the excess of a linked overpayment, so a balancing entry (voucher refund) stayed open and the prepayment section showed a gap with a zero balance; the excess is now pooled. INT-2: `integGo()` routes every finding; new action `recovOpen`. ARAP-2: `recvReopen()` (from `ledReopen`) also runs when `ledSync()` reopens a receivable, inside the same operation. Tests 68 (+1) and 74 (+2) fail on `812e66a`.
+
+## v4.42 — receivables and payables agree (released: PR #3, merge `812e66a`, Pages deployment 7538525124 success)
 - Report: a person's balance on the person page and the money tab's debt lists disagreed. Root cause: two calculations — net (`personBal`/`balances`, ignores `settled`) and per row (`remMap`/`remOf`, trusts the stored `settled` and clamps each row at 0). `settled` was written only at settlement and never recomputed after an amount, person or linked payment was edited; prepayments and overpayments belong to no row. Reproduced in 7 scenarios through the real forms (all wrong on `b0abeb9`).
 - Fix (owner-approved scope): `ledPaid`, `ledAgrees`, `ledSnap`, `ledSync` recompute `settled` with a `hist` entry only for rows whose state agreed before the edit (hand-settled rows are never reopened); `formLedgerEditSave` = one `Store.batch` (row + payments that follow it to a new person + flags; cloud: sequential); a payment settling another person's row cannot be moved alone; `formMoveEditSave` and the purchase amount sync in `formLotSave` call `ledSync`. Read-only: `arapGaps()` section in the money tab, `ledSuspect()` group `setl` in the integrity page. The books do not read `settled`. No stored data is changed except by the user's own edit.
 - Test 74 (13 checks; 11 fail on `b0abeb9`).

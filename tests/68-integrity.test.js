@@ -87,6 +87,22 @@ test('privacy: no person name, amount or clinical text on the page or in the cop
   assert(/ردیف مالی ویزیت/.test(r.page) && /docs\/dv1/.test(r.text), 'labels / record keys missing: ' + r.text.slice(0, 300));
 });
 
+test('INT-2: every finding with a record opens that record; the books group opens the accounting pages', async () => {
+  const r = await p.evaluate(async () => { integSheet(); const root = document.getElementById('sheetRoot');
+    const rows = [...root.querySelectorAll('.list > .row')], btn = rows.filter(x => x.tagName === 'BUTTON');
+    const R = integCheck(), shown = R.groups.reduce((a, g) => a + Math.min(20, g.items.length), 0), routable = R.groups.reduce((a, g) => a + g.items.slice(0, 20).filter(x => integGo(x, g.k)).length, 0);
+    const opened = []; for (const k of ['docs', 'ledger', 'lots', 'moves']) { integSheet(); const b = [...document.querySelectorAll('#sheetRoot .list > button.row')].find(b => (integGo({ col: k, id: b.dataset.id }, '') || [])[0] === b.dataset.act); if (!b) continue;
+      const h0 = document.getElementById('sheetRoot').innerText; b.click(); await new Promise(r => setTimeout(r, 150)); opened.push([k, b.dataset.act, document.getElementById('sheetRoot').innerText !== h0 || !!document.getElementById('hv')]); }
+    integSheet(); const bk = document.querySelector('#sheetRoot button.row[data-act=accTab]');
+    return { shown, routable, buttons: btn.length, opened, books: R.groups.some(g => g.k === 'books') ? !!bk : true }; });
+  assert(r.routable === r.shown && r.buttons === r.shown, 'not every finding is tappable: ' + JSON.stringify(r));
+  assert(r.opened.length >= 2 && r.opened.every(x => x[2]), 'a finding did not open its record: ' + JSON.stringify(r.opened));
+  // lots and moves (not among this data's findings): the routes exist and open their pages
+  const lm = await p.evaluate(async () => { const out = []; for (const [c, id] of [['lots', 'L1'], ['moves', 'mv1']]) { closeSheet(); const g = integGo({ col: c, id }, 'x'); const b = document.createElement('button'); b.dataset.act = g[0]; b.dataset.id = g[1]; document.body.appendChild(b); b.click(); b.remove(); await new Promise(r => setTimeout(r, 150)); out.push([c, !document.getElementById('sheetRoot').hidden]); } closeSheet(); return out; });
+  assert(lm.every(x => x[1]), 'lot/move route: ' + JSON.stringify(lm));
+  assert(r.books && !o.errors.length, 'books / errors: ' + JSON.stringify(r) + o.errors.join(' | ')); await p.evaluate(() => closeSheet());
+});
+
 test('a clean data set reports nothing; the page opens from the menu; no page errors, nothing sent', async () => {
   const o2 = await launch(); await openApp(o2, srv.url);
   const r = await o2.page.evaluate(() => { integSheet(); return { n: integCheck().n, t: document.getElementById('sheetRoot').innerText }; });
