@@ -112,5 +112,13 @@ test('a clean data set reports nothing; the page opens from the menu; no page er
   assert(!o2.errors.length && !o.errors.length, [...o.errors, ...o2.errors].join(' | ')); assert(!o.net.external.length, o.net.external.join(' | '));
   await o2.ctx.close();
 });
+test('tiny balances (under 1,000 toman) are listed per person without a name and open the person', async () => {
+  const r = await p.evaluate(async () => { const n = nowTs(); await putRaw('people', { id: 'pt', name: 'نام جزئی', created: n, updated: n });
+    await putRaw('ledger', { id: 'tr1', kind: 'receivable', personId: 'pt', amount: 350000, currency: 'تومان', date: '2026-10-01', created: n, updated: n });
+    await putRaw('ledger', { id: 'tr2', kind: 'received', personId: 'pt', amount: 350400, currency: 'تومان', date: '2026-10-02', refId: 'tr1', acct: 'بانک الف', created: n, updated: n });
+    const g = integCheck().groups.find(x => x.k === 'tiny'); integSheet(); const t = document.getElementById('sheetRoot').innerText;
+    return { ids: g ? g.items.map(x => x.id) : [], name: t.includes('نام جزئی'), go: integGo({ col: 'people', id: 'pt' }, 'tiny') }; });
+  assert(r.ids.includes('pt') && !r.name && r.go[0] === 'viewPerson', JSON.stringify(r)); await p.evaluate(() => closeSheet());
+});
 test('cleanup', async () => { await o.ctx.close(); await srv.close(); });
 run(__filename);

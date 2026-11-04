@@ -292,7 +292,7 @@ html body .row2{grid-template-columns:1fr 1fr}
 /* Google sign-in returns here with #access_token=…; take it before anything else reads the address, keep it only in this tab's memory */
 (()=>{const h=location.hash;if(!/[#&](access_token|error)=/.test(h)||!/state=/.test(h))return;const q=new URLSearchParams(h.slice(1));let s=null;try{s=JSON.parse(sessionStorage.getItem('miz.gc.st')||'null');sessionStorage.removeItem('miz.gc.st')}catch(_){}history.replaceState(null,'',location.pathname+location.search);if(!s||s.st!==q.get('state'))return;
  if(q.get('access_token')){try{sessionStorage.setItem('miz.gc.tok',JSON.stringify({t:q.get('access_token'),exp:Date.now()+(Number(q.get('expires_in'))||3600)*1000-120000}));sessionStorage.removeItem('miz.gc.tried')}catch(_){}window._gcBack={ok:1,ret:s.ret}}else window._gcBack={err:q.get('error')||'خطا',silent:s.silent,ret:s.ret}})();
-const APP_VER='4.44';
+const APP_VER='4.45';
 // the app's separate files and their version markers; all must carry APP_VER (start-up guard, stashLatest; sw.js PARTS is the same list, checked by tests/00)
 // the bundled font as @font-face with an absolute address: printed pages are srcdoc frames or blob windows without this page's base
 const fontFace=()=>{let u='fonts/Vazirmatn-wght.woff2';try{u=new URL(u,location.href).href}catch(_){}return `@font-face{font-family:"Vazirmatn";src:url("${u}") format("woff2");font-weight:100 900;font-display:swap}`};
@@ -2456,7 +2456,8 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
- ['4.44',[['finance','box','ذخیرهٔ محموله «همه یا هیچ»','ثبت یا اصلاح محموله در فرم ورود کالا با بدهی خرید، اصلاح مبلغ و هزینهٔ بسته‌بندی‌اش یک‌جا ثبت می‌شود؛ اگر ثبت ممکن نشود چیزی نصفه نمی‌ماند.',''],
+ ['4.45',[['finance','check','ماندهٔ جزئی در عیب‌یابی','«عیب‌یابی داده‌ها» اشخاصی را که ماندهٔ طلب یا بدهی‌شان کمتر از هزار تومان است (معمولاً اختلاف گرد کردن یا کارمزد بانک) فهرست می‌کند؛ با زدن، صفحهٔ همان شخص باز می‌شود. چیزی خودکار عوض نمی‌شود.','integ']]],
+['4.44',[['finance','box','ذخیرهٔ محموله «همه یا هیچ»','ثبت یا اصلاح محموله در فرم ورود کالا با بدهی خرید، اصلاح مبلغ و هزینهٔ بسته‌بندی‌اش یک‌جا ثبت می‌شود؛ اگر ثبت ممکن نشود چیزی نصفه نمی‌ماند.',''],
   ['finance','chart','همگام‌سازی با سایت فروشگاه','دکمهٔ «همگام‌سازی» در «نمایه و تنظیمات» حالا می‌تواند به سایت asalereza.com وصل شود (قبلاً قانون امنیتی صفحه جلویش را می‌گرفت). اگر سایت پاسخ ندهد، اطلاعات قبلی می‌ماند.','profile']]],
 ['4.43',[['finance','finance','اضافه‌پرداختِ جبران‌شده','اگر اضافه‌پرداخت کسی بعداً با سند یا برگشت وجه جبران شود، دیگر در «پیش‌دریافت، اضافه‌پرداخت و اختلاف» و فهرست‌های طلب و بدهی نمی‌ماند؛ اضافه‌پرداختِ جبران‌نشده همچنان دیده می‌شود.','tab|money|ms:ppl'],
   ['finance','check','از عیب‌یابی به خود رکورد','در «عیب‌یابی داده‌ها» زدن هر مورد، خود ردیف مالی، سند، محموله، حرکت انبار یا چک را باز می‌کند؛ گروه دفاتر به صفحهٔ حسابداری می‌رود. صفحه همچنان چیزی را تغییر نمی‌دهد.','integ'],
@@ -3196,6 +3197,10 @@ function integCheck(){const G=[],live=x=>x&&!x.void,add=(k,sev,t,d,items)=>{if(i
   // 5b settled state against linked payments (the «طلب و بدهی» mismatch): reported, never repaired automatically
   add('setl','mid','وضعیت تسویه با پرداخت‌ها نمی‌خواند','ردیف طلب یا بدهی که «تسویه‌شده» است ولی پرداخت‌های وصلش کمتر است (شاید تخفیف، بخشش یا توافق — یا مبلغی که بعداً اصلاح شده)، یا بیشتر از مبلغ پرداخت شده، یا کامل پرداخت شده ولی باز مانده. فهرست‌های طلب و بدهی آن را درست نشان نمی‌دهند؛ خودکار عوض نمی‌شود.',
     ledSuspect().map(x=>({...rowL('ledger',x.l),note:{less:'تسویه‌شده با پرداخت کمتر',more:'پرداخت بیشتر از مبلغ',open:'کامل پرداخت شده ولی باز'}[x.why]})));
+  // 5c tiny balances (|net| under 1,000 toman): usually a rounding or bank-fee difference between a row and its payment; listed so
+  // the owner can decide (write off, refund, correct) — nothing is changed here. Person-level: no name shown, the row opens the person.
+  try{const pb=personBal();add('tiny','mid','ماندهٔ جزئی (کمتر از هزار تومان)','معمولاً اختلاف گرد کردن یا کارمزد بانک بین یک ردیف و پرداختش؛ با زدن، صفحهٔ آن شخص و حساب معینش باز می‌شود.',
+    Object.entries(pb).filter(([,m])=>{const v=Math.abs(m['تومان']||0);return v>0.5&&v<1000}).map(([pid,m])=>({col:'people',id:pid,lbl:(m['تومان']>0?'طلب':'بدهی')+' جزئی یک طرف حساب',date:''})))}catch(_){}
   // 6 duplicates: one bank message confirming two live rows
   const rk={};S.ledger.filter(x=>live(x)&&x.rcpt).forEach(x=>(rk[x.rcpt]=rk[x.rcpt]||[]).push(x));
   add('rcpt','mid','یک پیامک بانکی برای چند ردیف','یک رسید بانکی دو بار ثبت یا تأیید شده؛ احتمالاً یکی تکراری است.',Object.values(rk).filter(v=>v.length>1).flat().map(x=>rowL('ledger',x)));
@@ -3215,7 +3220,7 @@ function integSheet(){const R=integCheck();openSheet(`<h3>${badge('finance','che
    to the recovery page. Lists the vouchers' person-lines (id 'vch:<id>:<i>') by their voucher. */
 function integGo(x,k){if(k==='books')return['accTab','','journal'];if(k==='bad')return['recovOpen','',''];if(!x.col||!x.id)return null;
   if(x.col==='ledger'&&/^vch:/.test(x.id))return['logOpen',x.id.split(':')[1],'','vouchers'];
-  return {docs:['docView',x.id,''],ledger:['viewLedger',x.id,''],lots:['viewLot',x.id,''],moves:['viewMove',x.id,''],cheques:['chqView',x.id,'']}[x.col]||null}
+  return {docs:['docView',x.id,''],ledger:['viewLedger',x.id,''],lots:['viewLot',x.id,''],moves:['viewMove',x.id,''],cheques:['chqView',x.id,''],people:['viewPerson',x.id,'']}[x.col]||null}
 function integText(R){R=R||integCheck();return ['گزارش عیب‌یابی داده‌های میز کار — نسخهٔ '+APP_VER+' — '+R.at.slice(0,16).replace('T',' '),R.groups.length?'':'مشکلی پیدا نشد.',
   ...R.groups.map(g=>`\n[${INTEG_SEV[g.sev][0]}] ${g.t}: ${g.items.length}\n`+g.items.map(x=>'- '+x.lbl+(x.date?' · '+x.date:'')+(x.col?' · '+x.col+'/'+x.id:'')).join('\n'))].filter(Boolean).join('\n')}
 function healthIssues(){const t=today(),I=[];const L=S.ledger.filter(l=>!l.void&&!l.pending);

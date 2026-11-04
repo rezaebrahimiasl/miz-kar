@@ -1,6 +1,6 @@
 # Reza Desk (میز کار رضا): Architecture
 
-This document describes app v4.44 (branch `eng-4.44`, on top of `fix-4.43`; `main` is `812e66a`, v4.42).
+This document describes app v4.45 (local branch `audit-4.45`, not committed); `main` is `9ade5e7`, v4.44 released.
 Line numbers drift with every change, so code is referred to by **function name**.
 `tests/05-docs.test.js` checks that every name written as `name()` here still exists.
 Statements marked **[unverified]** were not confirmed against the code.
@@ -107,7 +107,7 @@ Statements marked **[unverified]** were not confirmed against the code.
 ### 3.6 Data-integrity diagnostics (WP-3, v4.41)
 
 - `integCheck()` reads memory only (`S`, `BAD`) and returns findings grouped by kind: the books (trial balance, unbalanced entries, person balances against receivables − payables, stock value against account 1301; toman only), two live versions of one document (the D1 case; `d1When()` dates it: «before» when the older version has not changed since `D1_FIX` (4.21 published), «after» when the newer version was itself created after the fix, «maybe» when the newer version predates the fix but the older one changed after it — any later save moves `updated` — listed with D1 and marked uncertain), two live replacements of one version, live lots/moves/ledger rows of a voided or missing document, moves of a voided or missing lot, lots below zero, rows of a missing or merged person and settlements of a missing row, one bank receipt key (`rcpt`) on several live rows, and records unreadable at start-up.
-- `integSheet()` shows them (menu «تنظیمات» → «عیب‌یابی داده‌ها», action `integ`); every finding opens its record through `integGo()` (4.43): documents `docView`, ledger rows `viewLedger`, voucher lines their voucher (`logOpen`), lots `viewLot`, moves `viewMove`, cheques `chqView`; the books group the journal (`accTab`), unreadable records the recovery page (`recovOpen`). `integText()` is the copyable report (action `integCopy`).
+- `integSheet()` shows them (menu «تنظیمات» → «عیب‌یابی داده‌ها», action `integ`); every finding opens its record through `integGo()` (4.43): documents `docView`, ledger rows `viewLedger`, voucher lines their voucher (`logOpen`), lots `viewLot`, moves `viewMove`, cheques `chqView`, people `viewPerson`; the books group the journal (`accTab`), unreadable records the recovery page (`recovOpen`). `integText()` is the copyable report (action `integCopy`).
 - Read-only and private by construction: nothing is written, repaired or deleted (test 68 counts IndexedDB and storage writes); findings name records by type, date, document number, lot code and record key only — never a person's name, an amount, a description or clinical content. Repairs stay with the owner (DEC-1 and similar decisions are untouched).
 
 ### 3.6b Receivables and payables: net balance and open rows (v4.42)
