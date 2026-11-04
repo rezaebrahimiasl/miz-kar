@@ -28,6 +28,10 @@ test('form: editing a document with a stored «خانم» and switching to a mal
   await p.evaluate(() => { const h = document.getElementById('f_dhon'); h.value = 'دکتر'; h.dispatchEvent(new Event('change', { bubbles: true })); const s = document.getElementById('f_person'); s.value = 'pu'; s.dispatchEvent(new Event('change', { bubbles: true })); });
   const v2 = await p.evaluate(() => document.getElementById('f_dhon').value);
   assert(v0 === 'خانم' && v1 === 'آقای' && v2 === 'دکتر', JSON.stringify({ v0, v1, v2 })); await p.evaluate(() => closeSheet());
+  // a stored non-gender title (دکتر) survives typing in the name field
+  await p.evaluate(() => { closeSheet(); formDoc({ type: 'invoice', inv: true, personId: 'pm', hon: 'دکتر', items: [] }); }); await p.waitForSelector('#f_dhon', { state: 'attached' });
+  const v3 = await p.evaluate(() => { const t = document.getElementById('f_dto'); t.value = 'محمود'; t.dispatchEvent(new Event('input', { bubbles: true })); return document.getElementById('f_dhon').value; });
+  assert(v3 === 'دکتر', 'stored title lost on typing: ' + v3); await p.evaluate(() => closeSheet());
 });
 
 test('saving: a title chosen for another printed name is not saved onto the person; for the person\'s own name it is', async () => {
@@ -42,7 +46,7 @@ test('the document viewer has «ارسال»: the page goes to the share menu as
   const r = await p.evaluate(async () => { let got = null; Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true }); Object.defineProperty(navigator, 'share', { configurable: true, value: async x => { got = { name: x.files[0].name, type: x.files[0].type, txt: await x.files[0].text(), title: x.title }; } });
     const d = S.docs.find(x => !x.void && x.no); docPrint(d.id); const hv = document.getElementById('hv'); const btns = [...hv.querySelectorAll('[data-hv]')].map(b => b.dataset.hv);
     hv.querySelector('[data-hv=share]').click(); await new Promise(r => setTimeout(r, 200)); hv.querySelector('[data-hv=close]').click(); return { btns, got, no: String(d.no) }; });
-  assert(r.btns.includes('print') && r.btns.includes('share') && r.got && /\.html$/.test(r.got.name) && r.got.type === 'text/html' && r.got.txt.includes('<html') && !/fonts\.googleapis/.test(r.got.txt), 'share: ' + JSON.stringify({ ...r, got: r.got && { ...r.got, txt: r.got.txt.length } }));
+  assert(r.btns.includes('print') && r.btns.includes('share') && r.got && /\.html$/.test(r.got.name) && r.got.type === 'text/html' && r.got.txt.includes('<html') && !/fonts\.googleapis/.test(r.got.txt) && !/@font-face|\.woff2/.test(r.got.txt), 'share: ' + JSON.stringify({ ...r, got: r.got && { ...r.got, txt: r.got.txt.length } }));
 });
 test('cleanup', async () => { await o.ctx.close(); await srv.close(); });
 run(__filename);

@@ -50,8 +50,8 @@ State: v4.41 on branch `eng-4.41` (from `main` `d8711a7`, v4.40). «released by 
 | DUP-1 | A double tap on any form's submit wrote twice (e.g. two purchase documents, lots and payables); the second submit is now ignored while the first runs | 4.41 | `tests/71-purchase-paths.test.js` |
 | PUR-1 | Purchase entry paths checked end to end: «خرید کالا», «خرید از این شخص», the stock-in form switching to the purchase form, the stock-in form with documents off (cash / credit / not in the books), double tap | 4.41 | `tests/71-…` |
 | HON-1 | Invoice title gender: unknown names get no title instead of «آقای»; a title contradicting a known first name is corrected in print for either gender (also «حاج …»); changing the customer recomputes it; a title chosen for another printed name is not saved on the person; «سید» names recognised | 4.41 | `tests/72-invoice-title.test.js` |
-| SH-1 | «ارسال» in the document viewer: the page goes to the phone's share menu as a file (download where file sharing is missing); document number in Persian digits in print | 4.41 | `tests/72-…` |
- `postDoc` and `docVoid` are atomic; production and stock count are not (see WP-7b). Documented in `docs/ARCHITECTURE.md` §3.7 | 4.41 (review only) | `docs/ARCHITECTURE.md` |
+| SH-1 | «ارسال» in the document viewer: the page goes to the phone's share menu as a file without the app's font address (download where file sharing is missing); document number in Persian digits in print | 4.41 | `tests/72-invoice-title.test.js` |
+| WP-7 | Review of who writes document postings (`docs/ARCHITECTURE.md` §3.7): `postDoc` and `docVoid` were atomic; production and stock count became atomic in WP-7b; editing a lot in the stock-in form is not (LOT-1) | 4.41 | `docs/ARCHITECTURE.md` |
 | WP-9 | Money and stock click actions moved out of `switch(a)` into named functions («Stock & money actions») | 4.25 line, released by 4.40 | `tests/25-money-stock-actions.test.js`, `tests/50-workflows.test.js` |
 
 ## Decisions needed (owner)

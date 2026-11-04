@@ -68,7 +68,15 @@ test('a purchase saved through the form (the path all three entries share), doub
   await p.evaluate(() => { const f = document.querySelector('#sheetRoot form[data-form=doc]'); const b = f.querySelector('button[type=submit]') || [...f.querySelectorAll('button.pri:not([type=button])')].pop(); b.click(); b.click(); });
   await p.waitForTimeout(800); await settle(p);
   const d = delta(c0, await counts()); assert(d.docs === 1 && d.lots === 1 && d.led === 1, 'double tap: ' + JSON.stringify(d));
-  await inv('double tap'); assert(!o.errors.length, o.errors.join(' | '));
+  await inv('double tap');
+  // a submit that never finished (e.g. a hung network call) does not lock the form for good: after 20 s a new submit goes through
+  const c1 = await counts();
+  await p.evaluate(() => { closeSheet(); formDoc({ type: 'purchase', inv: false, personId: 's1', led: 'payable', items: [{ desc: 'عسل گیر', qty: 1, unit: 'کیلو', price: 1e6 }] }); });
+  await p.waitForSelector('#sheetRoot form[data-form=doc]');
+  await p.evaluate(() => { const f = document.querySelector('#sheetRoot form[data-form=doc]'); f.dataset.busy = String(Date.now() - 21000); });
+  await submitForm(p); await settle(p);
+  const d2 = delta(c1, await counts()); assert(d2.docs === 1 && d2.lots === 1, 'stale busy flag blocked the form: ' + JSON.stringify(d2));
+  await inv('after the stale flag'); assert(!o.errors.length, o.errors.join(' | '));
 });
 test('cleanup', async () => { await o.ctx.close(); await srv.close(); });
 run(__filename);

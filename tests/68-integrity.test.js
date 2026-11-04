@@ -54,13 +54,17 @@ test('findings: D1 dated before 4.21, the post-4.21 case, orphan rows, links and
   assert(/هنوز معتبر/.test(d1) && /۱/.test(d1), 'D1 note names the live postings: ' + d1);
 });
 
-test('restoring a replaced version while a newer one is live is refused (no new D1); allowed once the newer one is voided', async () => {
+test('restoring a replaced version while a newer one is live is refused (no new D1); allowed once the newer one is voided; the reverse direction is refused too', async () => {
   await p.evaluate(async () => { const n = nowTs(); await putRaw('docs', { id: 'r_old', type: 'invoice', no: 71, date: '2026-11-01', items: [], void: true, voidReason: 'اصلاح شد', voidAt: n, created: n, updated: n });
     await putRaw('docs', { id: 'r_new', type: 'invoice', no: 71, date: '2026-11-02', items: [], redoOf: 'r_old', created: n, updated: n }); });
   const a = await p.evaluate(async () => ({ r: await docVoid('r_old', false), live: !byId('docs', 'r_old').void, toast: document.getElementById('toast').textContent }));
   assert(a.r === false && !a.live && /نسخهٔ جدیدتری/.test(a.toast), 'restore with a live newer version: ' + JSON.stringify(a));
   const b = await p.evaluate(async () => { await docVoid('r_new', true); return { r: await docVoid('r_old', false), live: !byId('docs', 'r_old').void }; });
   assert(b.r === true && b.live, 'restore after voiding the newer version: ' + JSON.stringify(b));
+  // the other direction: with the old version live again, restoring the newer one is refused too (both voided, then both restored)
+  const c = await p.evaluate(async () => ({ r: await docVoid('r_new', false), live: !byId('docs', 'r_new').void, toast: document.getElementById('toast').textContent }));
+  assert(c.r === false && !c.live && /نسخهٔ قدیمی‌تری/.test(c.toast), 'restore of the newer version while the older is live: ' + JSON.stringify(c));
+  assert(await p.evaluate(() => !integCheck().groups.some(g => /^d1/.test(g.k) && g.items.some(x => /^r_/.test(x.id)))), 'restore guard left a D1 pair');
 });
 
 test('read-only: checking, showing and copying the report write nothing (database, memory, local storage)', async () => {

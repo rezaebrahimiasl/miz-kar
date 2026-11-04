@@ -117,13 +117,13 @@ A posting is a lot, stock move or ledger row with `docId`. Writers found in the 
 | Writer | What | Atomic |
 |---|---|---|
 | `postDoc()` → `postDoc0` (factory `mkPostDoc0`) | invoices, purchases, returns and their lots, moves and ledger rows | yes (`Store.batch`) |
-| `docVoid()` → `docVoid0` | voids or restores a document with everything `docLinked()` finds; restoring a version while a newer version of it is live is refused (`docSuccessor()`) | yes (`Store.batch`) |
+| `docVoid()` → `docVoid0` | voids or restores a document with everything `docLinked()` finds; restoring a version is refused while a newer (`docSuccessor()`) or an older (`docLiveAncestor()`) version of it is live | yes (`Store.batch`) |
 | `formProdSave()` | production: output lot, input moves, cost rows and the production sheet | yes since 4.41 (`opRun('prod:…')`) |
 | the `count` form | stock count: `loss`/`adj` moves, opening lots and the count sheet | yes since 4.41 (`opRun('count:…')`) |
 
 `opRun(key,fn)` is the small wrapper for form-level postings: `fn(pr)` writes only through `pr(col,doc)` (= `putRaw` inside the operation), and a failure, cloud mode or a second run shows a message and writes nothing. Edits of a lot from the stock-in form (`formLotSave()`, with documents off) still write one record after another; they are single-purpose and listed in the backlog. `Store` owns persistence and atomicity only; business rules stay in the operation bodies; cloud mode keeps refusing multi-record operations.
 
-Submitting forms: one delegated submit handler; while a form's submit is running, a second submit of the same form is ignored (`data-busy` on the form), so a double tap never writes twice.
+Submitting forms: one delegated submit handler; while a form's submit is running, a second submit of the same form is ignored (`data-busy` on the form, the start time), so a double tap never writes twice; after 20 s a submit that never finished (for example a network call that hangs) no longer blocks the form. Cloud mode: production and stock count are multi-record operations, so they are refused there like posting and voiding.
 
 ## 4. Code regions inside `index.html`
 
