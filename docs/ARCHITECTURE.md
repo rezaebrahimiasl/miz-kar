@@ -1,6 +1,6 @@
 # Reza Desk (میز کار رضا): Architecture
 
-This document describes app v4.45 (local branch `audit-4.45`, not committed); `main` is `9ade5e7`, v4.44 released.
+This document describes app v4.45 (branch `audit-4.45`, committed and pushed; PR #6 open, not merged); `main` is `9ade5e7`, v4.44 released.
 Line numbers drift with every change, so code is referred to by **function name**.
 `tests/05-docs.test.js` checks that every name written as `name()` here still exists.
 Statements marked **[unverified]** were not confirmed against the code.

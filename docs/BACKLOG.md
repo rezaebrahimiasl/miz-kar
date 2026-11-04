@@ -3,7 +3,7 @@
 This list is public. Security and privacy details are tracked privately by the owner.
 Priorities follow the project policy: reliability first, then maintenance cost, data integrity, architecture, and lastly new features.
 
-State: v4.44 released (`main` `9ade5e7`: PR #4 merge `1a9ed85`, PR #5 merge `9ade5e7`; Pages deployment 7541271958 success; live phone check pending). v4.45 audit changes are local only (not committed). «released by 4.40» means the change is in `main` at `d8711a7`; the exact earlier release was not re-derived. Status was checked against the code for v4.41, not copied from older notes.
+State: v4.44 released (`main` `9ade5e7`: PR #4 merge `1a9ed85`, PR #5 merge `9ade5e7`; Pages deployment 7541271958 success; live phone check pending). v4.45: branch `audit-4.45` committed and pushed, PR #6 open, not merged. «released by 4.40» means the change is in `main` at `d8711a7`; the exact earlier release was not re-derived. Status was checked against the code for v4.41, not copied from older notes.
 
 ## Done
 
@@ -58,7 +58,7 @@ State: v4.44 released (`main` `9ade5e7`: PR #4 merge `1a9ed85`, PR #5 merge `9ad
 | ARAP-2 | A receivable reopened by `ledSync()` reopens the person's closed follow-up (`recvReopen()`), no duplicate task | 4.43 | `tests/74-…` |
 | LOT-1 | Saving a lot from the stock-in form (new or edited) with its money rows is one operation in local mode (`formLotSave()` → `Store.batch('lot:…')` → `formLotSave0()`); cloud mode writes one after another (no multi-record transaction there) | 4.44 | `tests/76-lot-site.test.js` |
 | SITE-1 | Shop-site sync was blocked by the CSP: `connect-src` now lists exactly `https://asalereza.com` and `https://www.asalereza.com` (address taken from the app's own placeholder; owner to confirm). Whether the live site allows cross-origin reads of the Store API (CORS) is **not verified** (no access from the development environment) | 4.44 | `tests/76-…` (answered locally) |
-| TINY-1 | Integrity group «ماندهٔ جزئی» lists people whose net balance is under 1,000 toman (rounding or bank-fee differences between a row and its payment), opening the person; nothing changed | 4.45 (local) | `tests/68-integrity.test.js` |
+| TINY-1 | Integrity group «ماندهٔ جزئی» lists people whose net toman balance is 0.5 < |net| < 1,000 (zero and exactly 1,000 are not listed), opening the person; nothing changed. A rounding or bank-fee difference between a row and its payment is one possible cause, not proven for every case | 4.45 (PR #6) | `tests/68-integrity.test.js` |
 | WP-9 | Money and stock click actions moved out of `switch(a)` into named functions («Stock & money actions») | 4.25 line, released by 4.40 | `tests/25-money-stock-actions.test.js`, `tests/50-workflows.test.js` |
 
 ## Decisions needed (owner)

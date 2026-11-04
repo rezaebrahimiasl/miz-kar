@@ -2456,7 +2456,7 @@ function docsSheet(){const f=ui.docF&&DOCG.some(x=>x[0]===ui.docF)?ui.docF:'all'
 
 /* ---------- What's new after each update, and features you haven't tried yet ---------- */
 const WHATS_NEW=[
- ['4.45',[['finance','check','ماندهٔ جزئی در عیب‌یابی','«عیب‌یابی داده‌ها» اشخاصی را که ماندهٔ طلب یا بدهی‌شان کمتر از هزار تومان است (معمولاً اختلاف گرد کردن یا کارمزد بانک) فهرست می‌کند؛ با زدن، صفحهٔ همان شخص باز می‌شود. چیزی خودکار عوض نمی‌شود.','integ']]],
+ ['4.45',[['finance','check','ماندهٔ جزئی در عیب‌یابی','«عیب‌یابی داده‌ها» اشخاصی را که ماندهٔ طلب یا بدهی‌شان کمتر از هزار تومان است (یکی از احتمال‌ها اختلاف گرد کردن یا کارمزد بانک است) فهرست می‌کند؛ با زدن، صفحهٔ همان شخص باز می‌شود. چیزی خودکار عوض نمی‌شود.','integ']]],
 ['4.44',[['finance','box','ذخیرهٔ محموله «همه یا هیچ»','ثبت یا اصلاح محموله در فرم ورود کالا با بدهی خرید، اصلاح مبلغ و هزینهٔ بسته‌بندی‌اش یک‌جا ثبت می‌شود؛ اگر ثبت ممکن نشود چیزی نصفه نمی‌ماند.',''],
   ['finance','chart','همگام‌سازی با سایت فروشگاه','دکمهٔ «همگام‌سازی» در «نمایه و تنظیمات» حالا می‌تواند به سایت asalereza.com وصل شود (قبلاً قانون امنیتی صفحه جلویش را می‌گرفت). اگر سایت پاسخ ندهد، اطلاعات قبلی می‌ماند.','profile']]],
 ['4.43',[['finance','finance','اضافه‌پرداختِ جبران‌شده','اگر اضافه‌پرداخت کسی بعداً با سند یا برگشت وجه جبران شود، دیگر در «پیش‌دریافت، اضافه‌پرداخت و اختلاف» و فهرست‌های طلب و بدهی نمی‌ماند؛ اضافه‌پرداختِ جبران‌نشده همچنان دیده می‌شود.','tab|money|ms:ppl'],
@@ -3197,9 +3197,9 @@ function integCheck(){const G=[],live=x=>x&&!x.void,add=(k,sev,t,d,items)=>{if(i
   // 5b settled state against linked payments (the «طلب و بدهی» mismatch): reported, never repaired automatically
   add('setl','mid','وضعیت تسویه با پرداخت‌ها نمی‌خواند','ردیف طلب یا بدهی که «تسویه‌شده» است ولی پرداخت‌های وصلش کمتر است (شاید تخفیف، بخشش یا توافق — یا مبلغی که بعداً اصلاح شده)، یا بیشتر از مبلغ پرداخت شده، یا کامل پرداخت شده ولی باز مانده. فهرست‌های طلب و بدهی آن را درست نشان نمی‌دهند؛ خودکار عوض نمی‌شود.',
     ledSuspect().map(x=>({...rowL('ledger',x.l),note:{less:'تسویه‌شده با پرداخت کمتر',more:'پرداخت بیشتر از مبلغ',open:'کامل پرداخت شده ولی باز'}[x.why]})));
-  // 5c tiny balances (|net| under 1,000 toman): usually a rounding or bank-fee difference between a row and its payment; listed so
+  // 5c tiny balances (0.5 < |net| < 1,000 toman, toman only): one possible cause is a rounding or bank-fee difference between a row and its payment (not proven for every case); listed so
   // the owner can decide (write off, refund, correct) — nothing is changed here. Person-level: no name shown, the row opens the person.
-  try{const pb=personBal();add('tiny','mid','ماندهٔ جزئی (کمتر از هزار تومان)','معمولاً اختلاف گرد کردن یا کارمزد بانک بین یک ردیف و پرداختش؛ با زدن، صفحهٔ آن شخص و حساب معینش باز می‌شود.',
+  try{const pb=personBal();add('tiny','mid','ماندهٔ جزئی (کمتر از هزار تومان)','یکی از علت‌های احتمالی، اختلاف گرد کردن یا کارمزد بانک بین یک ردیف و پرداختش است؛ علت هر مورد را در حساب معین آن شخص ببین. با زدن، صفحهٔ آن شخص و حساب معینش باز می‌شود.',
     Object.entries(pb).filter(([,m])=>{const v=Math.abs(m['تومان']||0);return v>0.5&&v<1000}).map(([pid,m])=>({col:'people',id:pid,lbl:(m['تومان']>0?'طلب':'بدهی')+' جزئی یک طرف حساب',date:''})))}catch(_){}
   // 6 duplicates: one bank message confirming two live rows
   const rk={};S.ledger.filter(x=>live(x)&&x.rcpt).forEach(x=>(rk[x.rcpt]=rk[x.rcpt]||[]).push(x));
