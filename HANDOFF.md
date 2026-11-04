@@ -696,4 +696,11 @@
 - R-1 (deferred limitation of 4.40): `snapApply` and «ghVerApply» catch a failed or refused `applyData` and set `allowShrink` only after success.
 - WP-5: `tools/version.js check | set X.Y [--dry]` (no git). WP-7: review only (`docs/ARCHITECTURE.md` §3.7); WP-7b opened.
 - Security review (no code change needed): Gemini key (`miz.ai`) and GitHub token (`miz.gh`) are excluded from backups (`LS_SKIP`); the Google sign-in token lives in `sessionStorage` only; vault: PBKDF2 200 000 / AES-GCM, PIN kept in memory only while open, locks after 5 minutes or when the app is hidden; the biometric unlock stores the PIN encrypted with a WebAuthn PRF key; AI requests pass through `aiShield`/`deid`; no log line carries data. The new integrity report and voice/storage messages send nothing.
-- Not done: real-phone check (PH-1); WP-7b; owner review of the integrity findings (D1-R).
+- Second package on the same branch (after `d159520`):
+  - D1-2: `d1When(o,n)` replaces the date test on the old version's `updated` alone (any later save moved it, so a real pre-4.21 D1 case could be shown as «after 4.21»): «before» / «after» (newer version created after the fix) / «maybe» (listed with D1, marked uncertain). `docSuccessor()` + `docVoid(id,false)` refuse restoring a version that a live newer version replaced (the «بازگردانی» path from the document and the activity log could still create D1 after 4.21). Test 68.
+  - DUP-1: the submit handler ignores a second submit of the same form while the first runs (`data-busy`). Found by test 71: a double tap on a purchase wrote two documents, lots and payables.
+  - PUR-1: test 71 drives every purchase entry path; the stock-in form with «در حساب‌ها ثبت نشود» leaves stock value ≠ inventory account (kept; DEC-2 for the owner).
+  - HON-1: `MALE` list, `nameSex()`, `honFix()`; `guessHon()` gives no title for an unknown first name; `docHtml` corrects a contradicting title of either gender; the form's title is recomputed when the customer changes (no `data-touched` from a stored value); the person's `hon` is saved only when the document prints the person's own name. Test 72.
+  - SH-1: `htmlView(html, {name,title})` → «ارسال» (`shareFile`); `docPrint` passes it. Document number with Persian digits in print.
+  - WP-7b: `opRun(key,fn)`; `formProdSave()` and the `count` form post as one operation. Test 73.
+- Not done: real-phone check (PH-1); owner review of the integrity findings (D1-R); DEC-1, DEC-2; LOT-1; UX-2.

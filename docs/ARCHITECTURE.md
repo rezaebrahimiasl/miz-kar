@@ -106,22 +106,24 @@ Statements marked **[unverified]** were not confirmed against the code.
 
 ### 3.6 Data-integrity diagnostics (WP-3, v4.41)
 
-- `integCheck()` reads memory only (`S`, `BAD`) and returns findings grouped by kind: the books (trial balance, unbalanced entries, person balances against receivables − payables, stock value against account 1301; toman only), two live versions of one document (the D1 case, dated against `D1_FIX`, the publication of 4.21; and the same after 4.21, which should not happen), two live replacements of one version, live lots/moves/ledger rows of a voided or missing document, moves of a voided or missing lot, lots below zero, rows of a missing or merged person and settlements of a missing row, one bank receipt key (`rcpt`) on several live rows, and records unreadable at start-up.
+- `integCheck()` reads memory only (`S`, `BAD`) and returns findings grouped by kind: the books (trial balance, unbalanced entries, person balances against receivables − payables, stock value against account 1301; toman only), two live versions of one document (the D1 case; `d1When()` dates it: «before» when the older version has not changed since `D1_FIX` (4.21 published), «after» when the newer version was itself created after the fix, «maybe» when the newer version predates the fix but the older one changed after it — any later save moves `updated` — listed with D1 and marked uncertain), two live replacements of one version, live lots/moves/ledger rows of a voided or missing document, moves of a voided or missing lot, lots below zero, rows of a missing or merged person and settlements of a missing row, one bank receipt key (`rcpt`) on several live rows, and records unreadable at start-up.
 - `integSheet()` shows them (menu «تنظیمات» → «عیب‌یابی داده‌ها», action `integ`); documents open with `docView`. `integText()` is the copyable report (action `integCopy`).
 - Read-only and private by construction: nothing is written, repaired or deleted (test 68 counts IndexedDB and storage writes); findings name records by type, date, document number, lot code and record key only — never a person's name, an amount, a description or clinical content. Repairs stay with the owner (DEC-1 and similar decisions are untouched).
 
-### 3.7 Who writes document postings (WP-7 review, v4.41)
+### 3.7 Who writes document postings (WP-7 review, WP-7b, v4.41)
 
 A posting is a lot, stock move or ledger row with `docId`. Writers found in the code (`node tools/q.js writers ledger|moves|lots`):
 
 | Writer | What | Atomic |
 |---|---|---|
 | `postDoc()` → `postDoc0` (factory `mkPostDoc0`) | invoices, purchases, returns and their lots, moves and ledger rows | yes (`Store.batch`) |
-| `docVoid()` → `docVoid0` | voids or restores a document with everything `docLinked()` finds | yes (`Store.batch`) |
-| `formProdSave()` | production: output lots and input moves with the production document's `docId` | no (one write after another) |
-| the `count` form | stock count sheet: `loss`/`adj` moves with the count document's `docId` | no (one write after another) |
+| `docVoid()` → `docVoid0` | voids or restores a document with everything `docLinked()` finds; restoring a version while a newer version of it is live is refused (`docSuccessor()`) | yes (`Store.batch`) |
+| `formProdSave()` | production: output lot, input moves, cost rows and the production sheet | yes since 4.41 (`opRun('prod:…')`) |
+| the `count` form | stock count: `loss`/`adj` moves, opening lots and the count sheet | yes since 4.41 (`opRun('count:…')`) |
 
-So there is not yet one writer for document postings. Moving production and count into `Store.batch` is the next step (backlog WP-7b); it was not done in 4.41 because it needs the factory conversion with failure-injection tests for both forms. `Store` owns persistence and atomicity only; business rules stay in the operation bodies; cloud mode keeps refusing multi-record operations.
+`opRun(key,fn)` is the small wrapper for form-level postings: `fn(pr)` writes only through `pr(col,doc)` (= `putRaw` inside the operation), and a failure, cloud mode or a second run shows a message and writes nothing. Edits of a lot from the stock-in form (`formLotSave()`, with documents off) still write one record after another; they are single-purpose and listed in the backlog. `Store` owns persistence and atomicity only; business rules stay in the operation bodies; cloud mode keeps refusing multi-record operations.
+
+Submitting forms: one delegated submit handler; while a form's submit is running, a second submit of the same form is ignored (`data-busy` on the form), so a double tap never writes twice.
 
 ## 4. Code regions inside `index.html`
 

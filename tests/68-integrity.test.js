@@ -20,6 +20,14 @@ test('setup: synthetic records with every kind of problem', async () => {
     await putRaw('docs', { id: 'w1', type: 'purchase', no: 7, date: '2026-11-01', items: [], created: n, updated: n });
     await putRaw('docs', { id: 'w2', type: 'purchase', no: 7, date: '2026-11-02', items: [], redoOf: 'w1', void: true, created: n, updated: n });
     await putRaw('docs', { id: 'w3', type: 'purchase', no: 7, date: '2026-11-03', items: [], redoOf: 'w2', created: n, updated: n });
+    // D1 whose old version changed after 4.21 (an edit or sync moved «updated»): still listed with D1, marked uncertain
+    await putRaw('docs', { id: 'm1', type: 'invoice', no: 51, date: '2026-10-12', items: [], created: old, updated: n });
+    await putRaw('docs', { id: 'm2', type: 'invoice', no: 51, date: '2026-10-13', items: [], redoOf: 'm1', created: old, updated: old });
+    // exact boundaries: newer version created exactly at the fix → after; old version changed exactly at the fix → uncertain
+    await putRaw('docs', { id: 'b1', type: 'invoice', no: 61, date: '2026-10-14', items: [], created: old, updated: old });
+    await putRaw('docs', { id: 'b2', type: 'invoice', no: 61, date: '2026-10-15', items: [], redoOf: 'b1', created: D1_FIX, updated: D1_FIX });
+    await putRaw('docs', { id: 'c1', type: 'invoice', no: 62, date: '2026-10-14', items: [], created: old, updated: D1_FIX });
+    await putRaw('docs', { id: 'c2', type: 'invoice', no: 62, date: '2026-10-15', items: [], redoOf: 'c1', created: old, updated: old });
     // a live row of a voided document; a row of a missing person; a row linked to a merged person; a missing settled row
     await putRaw('docs', { id: 'dvoid', type: 'invoice', no: 9, date: '2026-10-05', items: [], void: true, created: n, updated: n });
     await putRaw('ledger', { id: 'lo', kind: 'receivable', amount: AMT, currency: 'تومان', date: '2026-10-05', docId: 'dvoid', personId: 'p1', about: CLIN, created: n, updated: n });
@@ -34,13 +42,25 @@ test('setup: synthetic records with every kind of problem', async () => {
 
 test('findings: D1 dated before 4.21, the post-4.21 case, orphan rows, links and duplicate receipts', async () => {
   const R = await p.evaluate(() => { const R = integCheck(); return Object.fromEntries(R.groups.map(g => [g.k, g.items.map(x => x.id || x.lbl)])); });
-  assert(JSON.stringify(R.d1) === '["dv1"]', 'D1 before 4.21: ' + JSON.stringify(R.d1));
-  assert(JSON.stringify(R.d1n) === '["w1"]', 'two live versions after 4.21 (through a voided middle version): ' + JSON.stringify(R.d1n));
+  assert(JSON.stringify([...R.d1].sort()) === '["c1","dv1","m1"]', 'D1 before 4.21 (incl. uncertain): ' + JSON.stringify(R.d1));
+  assert(JSON.stringify([...R.d1n].sort()) === '["b1","w1"]', 'two live versions after 4.21 (through a voided middle version; created exactly at the fix): ' + JSON.stringify(R.d1n));
+  const when = await p.evaluate(() => Object.fromEntries(integCheck().groups.filter(g => /^d1/.test(g.k)).flatMap(g => g.items).map(x => [x.id, x.when])));
+  assert(when.dv1 === 'before' && when.m1 === 'maybe' && when.c1 === 'maybe' && when.b1 === 'after' && when.w1 === 'after', 'classification: ' + JSON.stringify(when));
+  assert(await p.evaluate(() => /قطعی نیست/.test(integCheck().groups.find(g => g.k === 'd1').items.find(x => x.id === 'm1').note)), 'uncertain case not marked');
   assert(R.orph && R.orph.includes('lo') && !R.orph.includes('mv1'), 'orphan rows: ' + JSON.stringify(R.orph));
   assert(R.link && ['lx', 'lm', 'lr'].every(x => R.link.includes(x)), 'links: ' + JSON.stringify(R.link));
   assert(R.rcpt && R.rcpt.length === 2, 'duplicate receipts: ' + JSON.stringify(R.rcpt));
   const d1 = await p.evaluate(() => integCheck().groups.find(g => g.k === 'd1').items[0].note);
   assert(/هنوز معتبر/.test(d1) && /۱/.test(d1), 'D1 note names the live postings: ' + d1);
+});
+
+test('restoring a replaced version while a newer one is live is refused (no new D1); allowed once the newer one is voided', async () => {
+  await p.evaluate(async () => { const n = nowTs(); await putRaw('docs', { id: 'r_old', type: 'invoice', no: 71, date: '2026-11-01', items: [], void: true, voidReason: 'اصلاح شد', voidAt: n, created: n, updated: n });
+    await putRaw('docs', { id: 'r_new', type: 'invoice', no: 71, date: '2026-11-02', items: [], redoOf: 'r_old', created: n, updated: n }); });
+  const a = await p.evaluate(async () => ({ r: await docVoid('r_old', false), live: !byId('docs', 'r_old').void, toast: document.getElementById('toast').textContent }));
+  assert(a.r === false && !a.live && /نسخهٔ جدیدتری/.test(a.toast), 'restore with a live newer version: ' + JSON.stringify(a));
+  const b = await p.evaluate(async () => { await docVoid('r_new', true); return { r: await docVoid('r_old', false), live: !byId('docs', 'r_old').void }; });
+  assert(b.r === true && b.live, 'restore after voiding the newer version: ' + JSON.stringify(b));
 });
 
 test('read-only: checking, showing and copying the report write nothing (database, memory, local storage)', async () => {

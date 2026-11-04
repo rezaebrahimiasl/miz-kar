@@ -45,7 +45,13 @@ State: v4.41 on branch `eng-4.41` (from `main` `d8711a7`, v4.40). «released by 
 | O5 | Voice input: offline, unsupported, permission denied, no microphone, no speech and cancel each have a message; only a service failure while online disables the built-in recogniser, with a retry; a second press finishes | 4.41 | `tests/69-…` |
 | O6 | Persistent storage: status and space used on the backup page; requested only on the user's tap (the automatic request at start-up was removed) | 4.41 | `tests/69-…` |
 | R-1 | Restore from a local copy or a cloud version: a failure (or cloud mode) shows a message, changes nothing, and allows a smaller cloud copy only after success | 4.41 | `tests/69-…` |
-| WP-7 | Review of who writes document postings: `postDoc` and `docVoid` are atomic; production and stock count are not (see WP-7b). Documented in `docs/ARCHITECTURE.md` §3.7 | 4.41 (review only) | `docs/ARCHITECTURE.md` |
+| WP-7b | Production (`formProdSave()`) and stock count (`count` form) post as one operation (`opRun`); failure injection, cloud refusal | 4.41 | `tests/73-prod-count-atomic.test.js` |
+| D1-2 | D1 diagnosis: the date check used only the old version's `updated`, which any later save moves; now `d1When()` (before / after / uncertain), boundaries tested. Restoring a replaced version («بازگردانی» in the document or the activity log) while a newer version is live is refused — that path could still create D1 after 4.21 | 4.41 | `tests/68-integrity.test.js` |
+| DUP-1 | A double tap on any form's submit wrote twice (e.g. two purchase documents, lots and payables); the second submit is now ignored while the first runs | 4.41 | `tests/71-purchase-paths.test.js` |
+| PUR-1 | Purchase entry paths checked end to end: «خرید کالا», «خرید از این شخص», the stock-in form switching to the purchase form, the stock-in form with documents off (cash / credit / not in the books), double tap | 4.41 | `tests/71-…` |
+| HON-1 | Invoice title gender: unknown names get no title instead of «آقای»; a title contradicting a known first name is corrected in print for either gender (also «حاج …»); changing the customer recomputes it; a title chosen for another printed name is not saved on the person; «سید» names recognised | 4.41 | `tests/72-invoice-title.test.js` |
+| SH-1 | «ارسال» in the document viewer: the page goes to the phone's share menu as a file (download where file sharing is missing); document number in Persian digits in print | 4.41 | `tests/72-…` |
+ `postDoc` and `docVoid` are atomic; production and stock count are not (see WP-7b). Documented in `docs/ARCHITECTURE.md` §3.7 | 4.41 (review only) | `docs/ARCHITECTURE.md` |
 | WP-9 | Money and stock click actions moved out of `switch(a)` into named functions («Stock & money actions») | 4.25 line, released by 4.40 | `tests/25-money-stock-actions.test.js`, `tests/50-workflows.test.js` |
 
 ## Decisions needed (owner)
@@ -60,12 +66,13 @@ State: v4.41 on branch `eng-4.41` (from `main` `d8711a7`, v4.40). «released by 
 |---|---|---|---|
 | T3 | Intermittent backup/restore test failure, part 2: not reproduced in 36 runs of `40` (8 in parallel, then 6 in parallel with 6 CPU-burning processes on 2 cores). Instrumented run: restore is fully awaited, fingerprint and backup are taken atomically, and nothing writes app data after start-up except the daily snapshot (separate database). Classified as test timing, not an app defect; `sigDiff` will name the difference if it recurs | 3 | the diagnostic message from the next occurrence |
 | P-x | Further privacy hardening (tracked privately) | 1 | owner decision |
-| PH-1 | Real-phone check of 4.40 and 4.41 (checklist: backup first, separate test address, synthetic data); no phone result for 4.40 has been recorded in the repository | 1 | owner |
-| WP-7b | Production (`formProdSave()`) and stock count (`count` form) write their postings one by one; a failure midway leaves half a production or count. Move both into `Store.batch` (factory + failure-injection tests) | 2 | WP-7 |
-| D1-R | Owner review of what «عیب‌یابی داده‌ها» lists on the real phone (D1 pairs, orphan rows); each repair is a separate, approved action | 2 | WP-3, PH-1 |
-| WP-5b | Optional: run the tests from the version tool | 4 | WP-5 |
-| UX-2 | «·» is still a separator elsewhere in the app (also inside stored text); literal `${…}` image addresses return 404 | 4 | — |
+| PH-1 | Real-phone check of 4.40 and 4.41 (checklist: backup first, separate test address, synthetic data); no phone result for 4.40 has been recorded in the repository | 1 | owner (physical device) |
+| D1-R | Owner review of what «عیب‌یابی داده‌ها» lists on the real phone (D1 pairs incl. «uncertain», orphan rows); each repair is a separate, approved action | 2 | PH-1 |
+| DEC-2 | Stock-in with «در حساب‌ها ثبت نشود»: the lot counts in stock value but not in the inventory account, so the two differ (the integrity page reports it). Options: (a) keep; (b) post such lots against capital (3101) like opening stock; (c) remove the option. Behaviour kept until the owner decides | 2 | owner decision |
 | OR-1 | Separate origin for the app's data (shared `github.io` origin) — separate path with its own approval and migration plan | 2 | owner approval |
+| LOT-1 | Editing a lot in the stock-in form (`formLotSave()`) updates the lot and its money rows one after another (not one operation) | 3 | — |
+| UX-2 | «·» is still a separator elsewhere in the app (also inside stored text). Four literal `${…}` image addresses are requested by the browser at load and return 404 (no visible effect; the requests come from the HTML parser while reading the inline script, cause not isolated) | 4 | — |
+| WP-5b | Optional: run the tests from the version tool | 4 | WP-5 |
 
 ## Known structural facts (not defects by themselves)
 
