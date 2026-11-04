@@ -13,7 +13,7 @@
 | people | persons and organisations | name, phone, org, email, roles, status, note, hon (printed title; saved from a document only when the document prints the person's own name), refBy, mergedInto, lastTouch | — (central) |
 | deals | sales opportunities | title, personId, stage, value, nextDate, nextStep, status, closedAt | people |
 | tasks | tasks, appointments, follow-ups | title, due, start, time, status, priority, area, personId, dealId, caseId, appt (appointment status: pending/confirmed/cancelled/noshow/moved/done; open without it = pending), dur (minutes; default clinic length), svc, refBy/refName (referrer), endAt (actual end), from (rescheduled from), repeat, recurId, doneAt, pauseTo | people, deals, cases, recurs |
-| ledger | single-entry money rows | kind (paid/received/receivable/payable), amount, currency, date, due, personId, category, acct, settled, refId, settles, docId, lotId, moveId, visitOf, netOf, pending, pairId (the two rows of a transfer), ref (bank reference), evidence, rcpt (receipt key of the bank message that recorded or confirmed it; one message → one live row) | people, docs, lots, moves, cases/visits, ledger (refId) |
+| ledger | single-entry money rows | kind (paid/received/receivable/payable), amount, currency, date, due, personId, category, acct, settled, refId, settles, docId, lotId, moveId, visitOf, netOf, pending, pairId (the two rows of a transfer), ref (bank reference), evidence, rcpt (receipt key of the bank message that recorded or confirmed it; one message → one live row), hist (edit history; since 4.42 also `{at, why, from:'settled'|'open', to}` when «تسویه‌شده» is recomputed, and `{why, from, to}` person moves of payments that follow their row) | people, docs, lots, moves, cases/visits, ledger (refId) |
 | inbox | quick captures | text, audio, processed | — |
 | notes | notes and rules | (built dynamically) **[unverified field list]** | — |
 | apiary | apiary log (move, harvest, census, treatment…) | type and the fields of `APT` (loc, hives, qty, from, to, what…), date | — |
@@ -49,6 +49,7 @@
 | What a person owes or is owed | live ledger rows plus voucher person-lines on 1201/2101, computed by `personBal()` | must equal receivables − payables (test 20 invariant) |
 | Account balances | `autoEntries()` → `balancesByAcc()` | derived at read time, never stored |
 | Current version of a document | the live doc that is not the `redoOf` target of another live doc | at most one live version (tests 20 and 30 invariant) |
+| Is a receivable/payable still open | `remOf()`; `settled` is a stored flag kept in step with linked payments by `ledSync()` (4.42); rows where it does not match are listed by `ledSuspect()` | net balance (`personBal()`) − open rows = prepayment/overpayment (`arapGaps()`) |
 | Effect of a posted document | the lots, moves and ledger rows with its `docId` (`docLinked()`) | voided and restored together by `docVoid()` |
 
 **Known duplicate or overlapping representations** (see `docs/BACKLOG.md`):
