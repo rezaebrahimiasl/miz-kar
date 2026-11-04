@@ -10,24 +10,31 @@ Every release is small, reviewed, tested and reversible. Nothing is pushed witho
 
 ## 2. Version bump (only when an app file changes)
 
-An app file is `index.html`, `sw.js`, `manifest.webmanifest`, an image, or `qr.js`.
+An app file is `index.html`, `sw.js`, `manifest.webmanifest`, `js/*.js`, `fonts/*`, an image, or `qr.js`.
 Changes to `tests/` or `docs/` alone need **no** bump: the app never loads them.
 
-Update all of these together:
+Use the version tool (v4.41, WP-5); it edits files only and never commits, pushes or deploys:
 
-| Place | Change |
+```
+node tools/version.js check          # every place and whether they agree
+node tools/version.js set X.Y --dry  # what would change
+node tools/version.js set X.Y        # write the numbers (refuses a version that is not higher)
+```
+
+| Place | Written by the tool |
 |---|---|
-| `index.html` | `const APP_VER='X.Y'` |
-| `index.html` | one new group at the top of `WHATS_NEW` (Persian, user-facing) |
-| `sw.js` | `const V='miz-kar-vX.Y'` |
-| `version.json` | `{"v": "X.Y"}` |
-| `HANDOFF.md` | one section for the version |
+| `index.html` `const APP_VER='X.Y'` | yes |
+| `js/*.js` `const <NAME>_VER='X.Y'` (every part in `APP_PARTS`) | yes |
+| `sw.js` `const V='miz-kar-vX.Y'` (the cache name) | yes |
+| `version.json` `{"v": "X.Y"}` | yes |
+| `index.html`: one new group `['X.Y',[…]]` at the top of `WHATS_NEW` (Persian, user-facing) | no — words; `check` fails until it exists |
+| `HANDOFF.md`: a `## vX.Y` section | no — words; `check` fails until it exists |
 
-`tests/00-static.test.js` fails if `APP_VER`, `sw.js` and `version.json` disagree.
+`tests/00-static.test.js` fails if the versions disagree; `tests/69-…` tests the tool itself.
 
 ## 3. Verification before push
 
-1. `sh tests/run.sh` must pass in full (about 4 minutes). Record the output for the exact commit.
+1. `sh tests/run.sh` must pass in full (about 6 minutes). Record the output for the exact commit.
 2. Review `git diff` for:
    - unrelated changes
    - real names, phone numbers, amounts, keys or tokens
