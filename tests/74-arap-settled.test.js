@@ -103,6 +103,9 @@ test('ARAP-3: an overpayment balanced by a voucher refund → person page, lists
   let v = await views('pP'); assert(v.gap === -2, 'unbalanced overpayment must show: ' + JSON.stringify(v));
   await p.evaluate(async () => { const n = nowTs(); await putRaw('vouchers', { id: 'vP', date: '2026-10-03', desc: 'برگشت اضافه', lines: [{ acc: '1201', dr: 2e6, personId: 'pP' }, { acc: '1101', cr: 2e6, bank: 'بانک الف' }], created: n, updated: n }); });
   v = await views('pP'); assert(v.page === 0 && v.agingRecv === 0 && v.gap === 0 && agree(v), 'balanced: ' + JSON.stringify(v)); await inv('ARAP-3');
+  // a refund linked to the row (paid, refId) must not grow the excess and wrongly cover another open receivable
+  await row('rP2', 'pP', 'receivable', 3e6); await row('fP', 'pP', 'paid', 2e6, { refId: 'rP', instrument: 'نقد/کارت', acct: 'بانک الف', due: '' });
+  v = await views('pP'); assert(Math.abs(v.page - (v.agingRecv - v.agingPay) - v.gap) < 1e-6 && v.agingRecv >= 3 - 1e-6, 'linked refund grew the excess: ' + JSON.stringify(v));
 });
 test('ARAP-2: a receivable reopened by an edit reopens the person\'s closed follow-up; a second reopen creates no second task', async () => {
   await mk('pQ', 'شخص ق'); await row('rQ', 'pQ', 'receivable', 10e6, { due: '2026-09-01' }); await settleForm('rQ', 10);
