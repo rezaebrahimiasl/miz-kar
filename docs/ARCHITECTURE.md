@@ -1,6 +1,6 @@
 # Reza Desk (میز کار رضا): Architecture
 
-This document describes app v4.45 (branch `audit-4.45`, committed and pushed; PR #6 open, not merged); `main` is `9ade5e7`, v4.44 released.
+This document describes app v4.45, released on `main` at `5dfabe5` (PR #6). Project knowledge system: [`kb/PROJECT_MASTER_CONTEXT.md`](kb/PROJECT_MASTER_CONTEXT.md).
 Line numbers drift with every change, so code is referred to by **function name**.
 `tests/05-docs.test.js` checks that every name written as `name()` here still exists.
 Statements marked **[unverified]** were not confirmed against the code.
