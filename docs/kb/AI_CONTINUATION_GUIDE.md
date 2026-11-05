@@ -1,6 +1,6 @@
 # Continuation guide for a new AI assistant or engineer
 
-You can continue Reza Desk without any earlier conversation. Read in this order: [PROJECT_MASTER_CONTEXT.md](PROJECT_MASTER_CONTEXT.md) → [CURRENT_PROJECT_STATE.md](CURRENT_PROJECT_STATE.md) → [PRODUCT_POLICIES.md](PRODUCT_POLICIES.md) → [DATA_ARCHITECTURE.md](DATA_ARCHITECTURE.md) → [`../ARCHITECTURE.md`](../ARCHITECTURE.md) and [`../DATA.md`](../DATA.md) → [ROADMAP.md](ROADMAP.md).
+You can continue Reza Desk without any earlier conversation. Read in this order: [PROJECT_MASTER_CONTEXT.md](PROJECT_MASTER_CONTEXT.md) → [CURRENT_PROJECT_STATE.md](CURRENT_PROJECT_STATE.md) → [PRODUCT_POLICIES.md](PRODUCT_POLICIES.md) → [DATA_ARCHITECTURE.md](DATA_ARCHITECTURE.md) → [CALCULATION_RULES.md](CALCULATION_RULES.md) (before touching any money or stock code) → [`../ARCHITECTURE.md`](../ARCHITECTURE.md) and [`../DATA.md`](../DATA.md) → [ROADMAP.md](ROADMAP.md).
 
 ## 1. Ground rules (summary of [PRODUCT_POLICIES.md](PRODUCT_POLICIES.md))
 
@@ -34,10 +34,13 @@ sh tests/run.sh                                          # full suite
 | Owner requirement or correction | [PRODUCT_POLICIES.md](PRODUCT_POLICIES.md) (if it is a standing rule) and [USER_INTERACTION_HISTORY.md](USER_INTERACTION_HISTORY.md) |
 | Architecture decision | [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md) (new ADR) and [DECISION_REGISTER.md](DECISION_REGISTER.md) |
 | Product / financial decision | [DECISION_REGISTER.md](DECISION_REGISTER.md) |
+| Any change to a calculation (functions listed in [CALCULATION_RULES.md](CALCULATION_RULES.md)) | [CALCULATION_RULES.md](CALCULATION_RULES.md) in the same commit (label [CODE]/[RULE]/[OPEN]), a test that fails on the previous commit, §10 test map; a change of financial meaning needs an approved [DECISION_REGISTER.md](DECISION_REGISTER.md) entry first |
+| Write path, data ownership, integration or outbound data | [DATA_ARCHITECTURE.md](DATA_ARCHITECTURE.md) (matrix, §7 privacy paths) and [PRODUCT_POLICIES.md](PRODUCT_POLICIES.md) if a rule's implemented status changes |
 | Code or test work | [DEVELOPMENT_JOURNAL.md](DEVELOPMENT_JOURNAL.md), [TESTING_AND_QUALITY.md](TESTING_AND_QUALITY.md) if test practice changed, `HANDOFF.md` version section, `tests/README.md` for new tests, `docs/ARCHITECTURE.md` / `docs/DATA.md` if structure or fields changed (test 05 checks them) |
 | Priorities | [ROADMAP.md](ROADMAP.md) and `docs/BACKLOG.md` |
 | Branch, commit, version, deployment | [CURRENT_PROJECT_STATE.md](CURRENT_PROJECT_STATE.md) |
 | Release | [CHANGELOG.md](CHANGELOG.md) |
+| Every merged change | dated line in [DEVELOPMENT_JOURNAL.md](DEVELOPMENT_JOURNAL.md) with commit and test result; history files are append-only |
 | Always | check [PROJECT_MASTER_CONTEXT.md](PROJECT_MASTER_CONTEXT.md) links and this guide still hold |
 
 Rules: dated, append-only history; never silently overwrite an approved decision (supersede it); no trivial conversation logs; no duplication — link instead; no real names, amounts, clinical text, keys or tokens in any document.

@@ -20,9 +20,10 @@ Prioritised. IDs as in [`../BACKLOG.md`](../BACKLOG.md); decisions in [DECISION_
 
 1. **Modular extraction**, one part at a time, same rules as ADR-006: first the pure read-only money calculations (`remMap`, `personBal`, `autoEntries`), then diagnostics (`integCheck`), then the money forms. No rewrite.
 2. **External observer** stages O1–O4 ([DATA_ARCHITECTURE.md](DATA_ARCHITECTURE.md) §8), read-only, starting with a shared rule list used by both the integrity page and the tests.
-3. **OR-1 separate origin** — migration plan with backup, verification and rollback; explicit approval.
+3. **OR-1 separate origin** — direction agreed in principle; migration plan, timing and execution each need separate owner approval. First deliverable: a written migration plan with backup, verification and rollback, for approval.
 4. **AI** — keep it outside the source of truth; extend the information engine's read-only capabilities; any write as a proposal into a normal form.
 
 ## Change notes
 
 - 2026-11-06: initial roadmap from BACKLOG and the 4.45 handover.
+- 2026-11-06: OR-1 wording aligned across documents; calculation coverage gaps (recurrence, ageing, `ledSuspect`) noted in [CALCULATION_RULES.md](CALCULATION_RULES.md) §10.

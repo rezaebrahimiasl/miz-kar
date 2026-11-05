@@ -21,4 +21,4 @@ Update this file whenever branch, commit, version or deployment changes (see [AI
 
 ## Open items needing the owner
 
-DEC-1, DEC-2, DEC-3, SITE-1 confirmation, OR-1 timing, PH-1 phone check — see [DECISION_REGISTER.md](DECISION_REGISTER.md) and [ROADMAP.md](ROADMAP.md).
+DEC-1, DEC-2, DEC-3, SITE-1 confirmation, OR-1 (plan, timing and execution approvals), PH-1 phone check — see [DECISION_REGISTER.md](DECISION_REGISTER.md) and [ROADMAP.md](ROADMAP.md).

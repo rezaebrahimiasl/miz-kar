@@ -13,6 +13,7 @@ Reza Desk («میز کار رضا») is a private, single-user, offline-first Pe
 | [CURRENT_PROJECT_STATE.md](CURRENT_PROJECT_STATE.md) | What is on `main` now: commit, version, deployment, open work |
 | [PRODUCT_POLICIES.md](PRODUCT_POLICIES.md) | The owner's standing rules (product, data, engineering, privacy) |
 | [FUNCTIONAL_SPECIFICATION.md](FUNCTIONAL_SPECIFICATION.md) | What the app does, domain by domain, and the key workflows end to end |
+| [CALCULATION_RULES.md](CALCULATION_RULES.md) | Every money, accounting, stock, due-date and report formula, extracted from the code, with tests and open questions |
 | [DATA_ARCHITECTURE.md](DATA_ARCHITECTURE.md) | Architecture diagram, module interaction matrix, storage, invariants, integrations, external observer, AI boundary |
 | [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md) | Architecture decision records (why things are the way they are) |
 | [DECISION_REGISTER.md](DECISION_REGISTER.md) | Every product/financial decision: approved, pending, superseded, rejected |

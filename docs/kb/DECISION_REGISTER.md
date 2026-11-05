@@ -10,7 +10,7 @@ Append-only. Status values: **approved** (owner), **pending** (owner must decide
 | DEC-2 | Stock-in with «در حساب‌ها ثبت نشود» | (a) keep — stock value ≠ inventory account (reported by the integrity page); (b) post against capital 3101 like opening stock — books balance, needs an approved treatment of existing lots; (c) remove the option | (b) | kept; reported |
 | DEC-3 | Small differences (e.g. a balance of a few hundred toman from a payment that differs from its row) | (a) leave; (b) a write-off row to an account the owner chooses; (c) refund. No automatic tolerance | (b) per case | reported as «ماندهٔ جزئی» |
 | SITE-1 | Is the shop site `https://asalereza.com` / `https://www.asalereza.com`, and does it allow cross-origin reads of the Store API? | confirm address; if CORS is missing, the site needs a header or a proxy | confirm | CSP allows both origins; CORS unverified |
-| OR-1 | When to move to a separate origin | plan, backup, verification, rollback | after PH-1 | not started |
+| OR-1 | Separate origin: approve the migration plan, then its timing, then its execution (three separate approvals) | plan with backup, verification and rollback | plan after PH-1 | direction agreed in principle; migration plan, timing and execution each need separate owner approval; nothing started |
 | ARAP-R / D1-R | Review integrity findings on the real phone; decide each repair | per row, through normal app actions | — | read-only reports |
 
 ## Approved decisions (selection; chronological)

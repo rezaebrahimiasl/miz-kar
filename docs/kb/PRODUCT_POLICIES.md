@@ -4,12 +4,12 @@ Source: the owner's stated rules as recorded in `HANDOFF.md` (sections «قوا�
 
 ## 1. Data and safety (non-negotiable)
 
-1. **Offline first.** Every core workflow works without internet; cloud backup, sync, calendars and AI are optional.
+1. **Offline first.** *Requirement:* every core workflow works without internet; cloud backup, sync, calendars and AI are optional. *Implemented:* after the first online visit the app starts and records, edits, searches and reports from the service-worker cache and IndexedDB (`tests/60-offline.test.js`); the parts that need the network are GitHub backup/sync, the calendar feed, Google Calendar, Gemini, the shop-site catalogue, the update check and, on many phones, the built-in voice recogniser (offline message, O5).
 2. **The phone's data is the truth.** No test data, Excel file or other copy replaces it.
-3. **No automatic change to real data.** No auto-merge, auto-delete, auto-repair, auto-reconcile or migration without the owner's explicit, per-case approval and a reviewed recovery plan. Diagnostics are read-only first.
-4. **No silent upload.** Sensitive data leaves the phone only encrypted (cloud backup) or de-identified (AI); never card or account numbers, keys or tokens in code, chat, memory or logs. The Gemini key stays only on the phone.
-5. **Clinical data** goes to AI only after de-identification (`aiShield`, `deid`).
-6. **Every record is editable and keeps its edit history** (`hist`).
+3. **No automatic change to real data.** No automatic merging of people or duplicates, automatic deletion, repair, reconciliation, write-off or migration without the owner's explicit, per-case approval and a reviewed recovery plan. Diagnostics are read-only first. This does not forbid the owner-enabled device sync: `syncMerge` applies another device's newer copies and deletions by fixed rules and sends every two-sided change to the owner as a conflict ([DATA_ARCHITECTURE.md](DATA_ARCHITECTURE.md) §7a).
+4. **No silent upload.** *Requirement:* data leaves the phone only through a feature the owner switched on, and sensitive data only encrypted or de-identified; never card or account numbers, keys or tokens in code, chat, memory or logs; the Gemini key stays only on the phone. *Implemented:* the full backup is always encrypted (no passphrase → no upload); the calendar feed, Google Calendar and Gemini send **readable** text as listed path by path, with its risk, in [DATA_ARCHITECTURE.md](DATA_ARCHITECTURE.md) §7.
+5. **Clinical data** goes to AI only after de-identification. *Implemented:* `aiCall` always applies `aiShield` (clinic clients' names → «مراجع»); clinical fields also pass `deid`. Photos sent for field extraction cannot be de-identified (§7 of DATA_ARCHITECTURE).
+6. **Every record is editable and keeps its edit history.** *Requirement:* as stated. *Implemented (partial):* records are editable; a `hist` list is written only on specific paths, for example (ledger amount/person edits and `ledSync`, `ledReopen`, payment moves, move edits, lot fixes, assets, year closing, undo of financial changes); documents keep versions through `redoOf` («سابقهٔ نسخه‌ها»); the activity log (`actLogRestore`) and snapshots cover the rest. There is no generic history on every save.
 7. **Financial meaning is the owner's decision.** No AI or engineer changes accounting meaning (what posts where, write-offs, tolerances) on its own — see DEC-1/2/3.
 
 ## 2. Engineering
@@ -44,4 +44,4 @@ Source: the owner's stated rules as recorded in `HANDOFF.md` (sections «قوا�
 ## 4. Scope boundaries
 
 - Single user; no multi-user roles or permissions are to be designed or claimed.
-- The app's data must move to a separate web origin (decided; plan and timing need approval — OR-1).
+- Separate web origin for the app's data (OR-1): the direction is agreed in principle; the migration plan, timing and execution each need a separate owner approval. Nothing has been started.

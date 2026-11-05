@@ -112,6 +112,8 @@ Only boundaries the code confirms. All files share one global scope (classic scr
 
 ## 5. Business invariants and rules
 
+Formulas behind these invariants (balances, open rows, postings, stock cost, reports) are in [CALCULATION_RULES.md](CALCULATION_RULES.md).
+
 Enforced by `tests/lib.js` `invariants()` in every money/stock test and reported by `integCheck()` on the phone:
 
 1. Trial balance: Σ debit = Σ credit (toman).
@@ -133,14 +135,30 @@ Persian RTL UI with Jalali calendar and Hijri dates for worship; offline PWA wit
 
 ## 7. External integration boundaries
 
-| Integration | Entry | Data that leaves | Failure behaviour | Privacy risk |
-|---|---|---|---|---|
-| GitHub backup / sync | `ghPush0`, `ghSync`, `syncMerge` | full data, AES-GCM encrypted with the owner's passphrase | error shown; unsent counter kept; shrink guard | token on the phone only (`miz.gh`, not in backups) |
-| Gist calendar feed | `calFeed`, `calPush` | task/appointment titles (clinic clients generic) | error shown | feed URL is secret but public if leaked |
-| Google Calendar | `gcSync` | event titles and times | error shown; token per session | Google account |
-| Gemini | `aiCall` via `aiShield` / `deid` | the owner's sentence or de-identified clinical text | app works without it | owner's key on the phone only |
-| Shop site (WooCommerce Store API) | `syncCatalog` | none (GET) | old catalogue kept, message | CSP allows exactly two origins; site CORS **not verified** |
-| Update check | `checkUpdate` → `version.json` | none | silent | — |
+Every path below starts only after the owner switched it on (token, key or setting on the phone). Verified in the code on 2026-11-06.
+
+| Path | Entry | Data that leaves | Destination | Protection | Main risk |
+|---|---|---|---|---|---|
+| GitHub backup | `ghPush0` → `ghPack` | the full data set (`backupData`), whole | a private repository the owner names (`api.github.com/repos/…/contents`) | AES-GCM with a key from the owner's passphrase (random salt and IV per upload); **no passphrase → nothing is sent** (`GH_NOPASS`); shrink guard (`cloudBlock`) | a weak or lost passphrase; the token and passphrase are stored with the GitHub settings in `localStorage` `miz.gh` on the phone (not in backups) |
+| Device sync | `ghSync` → `syncMerge` | same encrypted snapshot per device | same repository | as above; `vault/bio`, `meta/tomb`, `meta/conflicts` are never synced | wrong merges are prevented by conflicts (§7a), not by encryption |
+| Calendar feed (gist) | `calPush` → `calFeed` | **readable** .ics: open task titles and dates, the person's name for tasks and for receivable/payable due dates («سررسید طلب از …»), occasions; no amounts. Clinic items get generic titles (no name, phone, note or case code), and clinic tasks only when `calClinic` is on | a **secret** (unlisted) gist, `public:false`, read by Google Calendar through its raw URL | none beyond the secret URL; `scr()` scrubs text | anyone with the URL can read it; deleting the gist (`gistDelete`) stops it |
+| Google Calendar | `gcSync` → `gcItems` | **readable** events: task titles/descriptions, deal next steps, meeting place and member count, receivable/payable and cheque due items with the person's name; **amounts only when «noAmt» is switched off** (default: no amounts); names hidden when «noName» is on; clinic items only when `calClinic` is on | the owner's Google account (`googleapis.com/calendar/v3`) | OAuth token for the session; owner options above | Google holds names and dates in readable form |
+| Gemini | `aiCall` (always `aiShield`); clinical text also `deid` | the owner's sentence or question; de-identified clinical text and case summary (code, not name); **photos** for field extraction (receipts, documents) as images | `generativelanguage.googleapis.com` with the owner's key | `aiShield` replaces clinic clients' names with «مراجع»; `deid` removes names, relatives and identifiers; images are **not** de-identified | text outside clinic names is sent as written; an image may show names or numbers |
+| Shop site (WooCommerce Store API) | `syncCatalog` | none (GET) | the shop site | CSP allows exactly two origins | site CORS **not verified** (SITE-1) |
+| Update check | `checkUpdate` → `version.json` | none | GitHub Pages | — | — |
+
+[OPEN] Whether the owner wants names in the calendar feed by default is not recorded as a decision; the current behaviour is kept.
+
+### 7a. Device sync rules (`syncMerge0`, verified)
+
+- Duplicates in the incoming payload: the newest copy wins.
+- Tombstones: an older remote copy of a deleted record is skipped. Records already in an open conflict are skipped.
+- New records are added.
+- **First sync** (no `last`): every differing copy becomes a conflict.
+- A newer remote copy is applied, unless the local copy also changed since `last`; then it becomes a conflict.
+- Remote deletions are applied, unless the record changed locally since the last sync, or the device never synced; then it becomes a conflict.
+- The whole merge runs in one `Store.batch('sync', …)`.
+- People and duplicates are never merged automatically; merging people is a separate manual action (`mergePeople`).
 
 The CSP (`index.html` `<meta http-equiv="Content-Security-Policy">`) lists every allowed origin; the service worker handles same-origin requests only.
 

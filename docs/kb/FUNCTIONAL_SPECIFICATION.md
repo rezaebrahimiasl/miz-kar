@@ -28,11 +28,11 @@ Detailed per-version feature notes: [`../../HANDOFF.md`](../../HANDOFF.md).
 ## Cross-cutting behaviour
 
 - Amounts typed in million toman, stored in toman; display rules in [PRODUCT_POLICIES.md](PRODUCT_POLICIES.md) §3.
-- Undo bar after delete/void-like actions; every record keeps `hist`.
+- Undo bar after delete/void-like actions. Edit history: `hist` on specific money/stock paths, document versions (`redoOf`), activity log — not a generic history on every record ([PRODUCT_POLICIES.md](PRODUCT_POLICIES.md) §1.6).
 - Double-tapping «ثبت» never saves twice; a document form creates at most one document.
 - Cloud mode (the in-Claude view) refuses multi-record operations and deletes with a message.
-- Offline: the whole app works from the service-worker cache; updates only move to a higher version.
+- Offline: after the first online visit the app and its local data work from the service-worker cache; backup/sync, calendars, Gemini, the shop catalogue and the built-in voice recogniser need the network; updates only move to a higher version.
 
 ## Not implemented (do not assume)
 
-Multi-user roles; server-side storage; automatic repair of data; automatic write-off of small differences; a separate web origin (planned, OR-1); the external observer beyond the in-app integrity page (proposed, [DATA_ARCHITECTURE.md](DATA_ARCHITECTURE.md) §8).
+Multi-user roles; server-side storage; automatic repair of data; automatic write-off of small differences; a separate web origin (OR-1: agreed in principle, not approved for execution); the external observer beyond the in-app integrity page (proposed, [DATA_ARCHITECTURE.md](DATA_ARCHITECTURE.md) §8).
