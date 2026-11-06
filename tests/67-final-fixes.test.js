@@ -5,7 +5,8 @@ const { serve, launch, openApp, settle, invariants, test, run, assert } = requir
 let srv, o, p;
 const disk = k => p.evaluate(k => new Promise(r => { const q = idb.transaction('docs').objectStore('docs').get(k); q.onsuccess = () => r(q.result ? q.result.doc : null); }), k);
 const NUMDOT = /[·]\s*[۰-۹0-9]|[۰-۹0-9]\s*[·]/;
-test('setup', async () => { srv = await serve(); o = await launch(); await openApp(o, srv.url); p = o.page;
+// TEST-67: the clock starts on a fixed Wednesday mid-month (then runs normally), so «today + 1» and the week start stay in the same Persian week and month.
+test('setup', async () => { srv = await serve(); o = await launch(); await o.page.clock.install({ time: new Date('2026-11-11T09:00:00') }); await o.page.clock.resume(); await openApp(o, srv.url); p = o.page;
   await p.evaluate(async () => { const n = nowTs(), t = today(), wk = addDays(t, -((wdOf(t) + 1) % 7));
     await putRaw('people', { id: 'p_c', name: 'شخص تقویم', created: n, updated: n });
     // past but inside this week (if today is not the first day of the week), past and before this week, undated
