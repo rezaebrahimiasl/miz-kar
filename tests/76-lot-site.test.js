@@ -42,8 +42,12 @@ test('LOT-1 the supplier\'s quote follow-up is closed only when the lot really s
 test('LOT-1 edit open → buy with a cost: a failure at the lot leaves no payable; success writes both', async () => {
   const open = async () => { await p.evaluate(() => { closeSheet(); formLot(byId('lots', 'LO')); }); await p.waitForSelector('#sheetRoot form[data-form=lot]');
     await p.evaluate(() => { const s = document.getElementById('f_src'); s.value = 'buy'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await fill(p, { f_lcost: '۲', f_sup: 's1' }); };
+  // Messages are recorded so a side message («بدهی پولی … ثبت شد») can be checked: never before/without the commit.
+  await p.evaluate(() => { window._tl = []; if (!window._t0) { window._t0 = toast; window.toast = m => { window._tl.push(String(m)); return window._t0(m); }; } });
   await open(); await failAt('lots'); await same('edit failure', tapSave); await failAt(null);
+  const tf = await p.evaluate(() => window._tl.splice(0)); assert(!tf.some(m => /ثبت شد/.test(m)) && tf.some(m => /ذخیره نشد/.test(m)), 'failed save showed a success message: ' + JSON.stringify(tf));
   await open(); await tapSave(); await p.waitForTimeout(400); await settle(p);
+  const ts = await p.evaluate(() => window._tl.splice(0)); assert(ts.length === 1 && /ذخیره شد/.test(ts[0]) && /بدهی پولی/.test(ts[0]), 'success messages: ' + JSON.stringify(ts));
   const r = await p.evaluate(() => ({ src: byId('lots', 'LO').source, pay: S.ledger.filter(x => !x.void && x.lotId === 'LO').length }));
   assert(r.src === 'buy' && r.pay === 1, JSON.stringify(r)); const v = await invariants(p); assert(!v.length, v.join('; '));
 });

@@ -26,4 +26,5 @@ Prioritised. IDs as in [`../BACKLOG.md`](../BACKLOG.md); decisions in [DECISION_
 ## Change notes
 
 - 2026-11-06: initial roadmap from BACKLOG and the 4.45 handover.
+- 2026-11-06: 4.46 prepared (not released): TEST-57 (+ the same weekday problem in test 67) and lot-save messages done; phone Back from the integrity page verified (no change needed); follow-up reopen for receivables without a due date left for the owner (changes which receivables get a follow-up).
 - 2026-11-06: OR-1 wording aligned across documents; calculation coverage gaps (recurrence, ageing, `ledSuspect`) noted in [CALCULATION_RULES.md](CALCULATION_RULES.md) §10.

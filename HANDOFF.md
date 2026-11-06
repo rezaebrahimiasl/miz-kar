@@ -685,6 +685,12 @@
 
 - Released: PR #1 (`stage2-final` → `main`), merge commit `d8711a7` = v4.40.
 
+## v4.46 — stabilisation (not released; awaiting owner approval)
+- Lot save: the two side messages inside `formLotSave0()` («بدهی پولی به … ثبت شد», «مبلغ خرید در حساب‌ها هم اصلاح شد») were shown inside the `Store.batch` before the commit; they are now collected (`TM`) and shown once with the final message in `fin` (after the commit). A failed save shows only «ذخیره نشد…». Test 76 (records every toast; fails on `daf542c`).
+- TEST-57 (test only): `tests/57-mcal.test.js` starts the page clock on a fixed Saturday mid-month (`page.clock.install` + `resume`), so «today + 2» is always in the same Persian week and month (failed 2 of 4 on Fridays on `daf542c`).
+- Test 67 (test only) had the same weekday dependence (a receivable due «today + 1» outside the week on Fridays; also failed on `daf542c`); same fixed-clock fix.
+- Verified, no change: phone Back from a record opened in «عیب‌یابی داده‌ها» returns to the list (synthetic probe).
+
 ## v4.45 — audit round (released: PR #6, merge `5dfabe5`, Pages deployment 7544359496 success)
 - TINY-1: integrity group `tiny` (net balance 0.5–1,000 toman per person; person-level item opens `viewPerson` via `integGo`). A rounding or bank-fee difference between a row and its payment is one possible cause of a small balance such as the reported 400-toman debt — not proven for every case; the person's statement shows the actual rows. Closing them is an owner decision (DEC-3). Bounds: listed when 0.5 < |net| < 1,000 toman (toman only); zero and exactly 1,000 are not listed. Test 68 (+1).
 

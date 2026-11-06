@@ -59,6 +59,8 @@ State: v4.45 released (`main` `5dfabe5`, PR #6; Pages deployment 7544359496 succ
 | LOT-1 | Saving a lot from the stock-in form (new or edited) with its money rows is one operation in local mode (`formLotSave()` → `Store.batch('lot:…')` → `formLotSave0()`); cloud mode writes one after another (no multi-record transaction there) | 4.44 | `tests/76-lot-site.test.js` |
 | SITE-1 | Shop-site sync was blocked by the CSP: `connect-src` now lists exactly `https://asalereza.com` and `https://www.asalereza.com` (address taken from the app's own placeholder; owner to confirm). Whether the live site allows cross-origin reads of the Store API (CORS) is **not verified** (no access from the development environment) | 4.44 | `tests/76-…` (answered locally) |
 | TINY-1 | Integrity group «ماندهٔ جزئی» lists people whose net toman balance is 0.5 < |net| < 1,000 (zero and exactly 1,000 are not listed), opening the person; nothing changed. A rounding or bank-fee difference between a row and its payment is one possible cause, not proven for every case | 4.45 | `tests/68-integrity.test.js` |
+| TEST-57 | Calendar tests no longer depend on the weekday: `57-mcal` and `67-final-fixes` start the page clock on a fixed date (then it runs normally); both failed on Fridays on `daf542c` | 4.46 (not released) | `tests/57-…`, `tests/67-…` |
+| LOT-2 | Lot save: side messages («بدهی پولی … ثبت شد», «مبلغ خرید … اصلاح شد») only after the commit, together with the final message | 4.46 (not released) | `tests/76-…` (fails on `daf542c`) |
 | WP-9 | Money and stock click actions moved out of `switch(a)` into named functions («Stock & money actions») | 4.25 line, released by 4.40 | `tests/25-money-stock-actions.test.js`, `tests/50-workflows.test.js` |
 
 ## Decisions needed (owner)
@@ -80,7 +82,6 @@ State: v4.45 released (`main` `5dfabe5`, PR #6; Pages deployment 7544359496 succ
 | DEC-2 | Stock-in with «در حساب‌ها ثبت نشود»: the lot counts in stock value but not in the inventory account, so the two differ (the integrity page reports it). Options: (a) keep; (b) post such lots against capital (3101) like opening stock; (c) remove the option. Behaviour kept until the owner decides | 2 | owner decision |
 | OR-1 | Separate origin for the app's data (shared `github.io` origin) — separate path with its own approval and migration plan | 2 | owner approval |
 | UX-2 | «·» is still a separator elsewhere in the app (also inside stored text). Four literal `${…}` image addresses are requested by the browser at load and return 404 (no visible effect; the requests come from the HTML parser while reading the inline script, cause not isolated) | 4 | — |
-| TEST-57 | `tests/57-mcal.test.js` seeds a receivable due today+2, which falls in the next Persian week on Thursday/Friday, so the test fails on those days (app correct; found 2026-11-05 on `5dfabe5`). Fix: seed the due date inside the current week | 2 | — |
 | WP-5b | Optional: run the tests from the version tool | 4 | WP-5 |
 
 ## Known structural facts (not defects by themselves)

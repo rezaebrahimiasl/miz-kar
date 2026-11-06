@@ -4,7 +4,8 @@
 const { serve, launch, openApp, settle, invariants, test, run, assert } = require('./lib');
 let srv, o, p;
 const txt = () => p.evaluate(() => document.querySelector('#sheetRoot [data-mcal]').textContent);
-test('setup', async () => { srv = await serve(); o = await launch(); await openApp(o, srv.url); p = o.page;
+// TEST-57: the clock starts on a fixed Saturday mid-month (then runs normally), so «today + 2» is always in the same Persian week and month.
+test('setup', async () => { srv = await serve(); o = await launch(); await o.page.clock.install({ time: new Date('2026-11-07T09:00:00') }); await o.page.clock.resume(); await openApp(o, srv.url); p = o.page;
   await p.evaluate(async () => { const n = nowTs(), t = today();
     await putRaw('people', { id: 'p_m', name: 'شخص تقویم', created: n, updated: n }); await putRaw('cases', { id: 'c_m', code: 'SYN-M', personId: 'p_m', status: 'open', created: n, updated: n });
     await putRaw('tasks', { id: 't_a', title: 'نوبت تقویم', due: t, time: '10:00', dur: 45, caseId: 'c_m', status: 'open', created: n, updated: n });

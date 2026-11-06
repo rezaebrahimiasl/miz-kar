@@ -29,7 +29,7 @@ See [DEVELOPMENT_JOURNAL.md](DEVELOPMENT_JOURNAL.md). Latest: 2026-11-05 on `5df
 
 ## Known test issues
 
-- TEST-57 (above): fails on Thursdays and Fridays until the seed date is moved inside the current week.
+- TEST-57 (above): fixed in 4.46 (not released) by a fixed page clock; test 67 had the same weekday dependence and got the same fix. Other tests seeded with `today ± n` were not reviewed for this.
 - T3: an intermittent failure in test 40 (snapshot timing) seen once, not reproduced in 36 runs.
 - Under heavy load long tests can hit the 60 s per-test timeout; rerun the file alone before concluding.
 
