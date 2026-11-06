@@ -28,6 +28,8 @@ Detailed per-version feature notes: [`../../HANDOFF.md`](../../HANDOFF.md).
 ## Cross-cutting behaviour
 
 - Amounts typed in million toman, stored in toman; display rules in [PRODUCT_POLICIES.md](PRODUCT_POLICIES.md) §3.
+- «تصمیم‌های حسابداری» (settings): open owner decisions with explanation and options; answers stored only.
+- Returning amani/borrowed goods: «امانی و قرضی ← پس دادم» (amani lot and owner preselected) or «پس دادن به صاحبش» on the lot page.
 - Undo bar after delete/void-like actions. Edit history: `hist` on specific money/stock paths, document versions (`redoOf`), activity log — not a generic history on every record ([PRODUCT_POLICIES.md](PRODUCT_POLICIES.md) §1.6).
 - Double-tapping «ثبت» never saves twice; a document form creates at most one document.
 - Cloud mode (the in-Claude view) refuses multi-record operations and deletes with a message.

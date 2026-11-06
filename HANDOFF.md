@@ -685,7 +685,15 @@
 
 - Released: PR #1 (`stage2-final` → `main`), merge commit `d8711a7` = v4.40.
 
-## v4.46 — stabilisation (not released; awaiting owner approval)
+## v4.47 — decisions page, amani return, CI, calculation tests
+- «امنیت و تنظیمات ← تصمیم‌های حسابداری» (`decideSheet`, `DECS`, `decSet`, `decOf`): DEC-1/2/3 explained with the current behaviour and three options each (recommended marked); the answer is stored only in `meta/prefs.decisions` ({v, at}) — **no behaviour or record changes**; each answer is implemented later as a separate tested package. Test 78.
+- Returning amani/borrowed goods: «امانی و قرضی ← پس دادم» preselects the oldest amani lot with stock and its owner and lists only amani lots (`lotOptionsAll(cur, amani)`); the lot page shows «پس دادن به صاحبش» for amani lots with stock (`newMove` passes `data-kind`). Test 78.
+- Labels: «رفع مشکلات داده‌ها» (was «بررسی سلامت داده‌ها», fixes) vs «عیب‌یابی داده‌ها» (read-only, now a search icon); «شمارش انبار» everywhere.
+- CI: `.github/workflows/tests.yml` runs `sh tests/run.sh` on pull requests and pushes to main (Playwright 1.56.0, Node 22). Not part of the app or deployment.
+- Tests: `tests/lib.js` `MIZ_NOW` (fixed start time) — tests 29, 44, 45, 48, 54, 55, 56, 92 pass on a Thursday and a month-end Friday; new test 77 (recurNext, ageing, ledSuspect, dueLedger).
+- Independent accountant review (synthetic probes): findings AUD-1…AUD-8 in `docs/BACKLOG.md`; none fixed in this version (accounting changes need the owner's approval).
+
+## v4.46 — stabilisation (released: PR #8, merge 71d3fb6)
 - Lot save: the two side messages inside `formLotSave0()` («بدهی پولی به … ثبت شد», «مبلغ خرید در حساب‌ها هم اصلاح شد») were shown inside the `Store.batch` before the commit; they are now collected (`TM`) and shown once with the final message in `fin` (after the commit). A failed save shows only «ذخیره نشد…». Test 76 (records every toast; fails on `daf542c`).
 - Review fix (cloud mode, PR #8 review): in cloud mode the lot save is not one operation; writes are sequential and stay written. On `edaaad3`, a money row written before a failed lot write was no longer reported (message hidden), and a failed payable write was followed by the lot write and «ذخیره شد». Now the shadowed `save` in `formLotSave0()` throws on any refused write in both modes (local: rollback; cloud: stop before the next write), side messages are added only after their write succeeded, and the cloud path of `formLotSave()` shows «محموله ذخیره نشد (reason)» plus «ولی پیش از آن ثبت شد: …» for rows already written. Test 76: local amount-correction failure/success, cloud amount correction (ledger ok, lot fails), cloud new payable (ledger ok, lot fails), cloud payable fails (lot not written, nothing claimed). Fails on `edaaad3` (1) and `daf542c` (3).
 - Second review fix (`e08c8c0`): when the lot itself was written in cloud mode but a later money row failed (packing cost, purchase payable/payment), the message said «محموله ذخیره نشد». Now `TM.lot` marks the written lot and `TM.next` the step being written; the message is «محموله ثبت شد، ولی <step> ثبت نشد (reason)… آن را جداگانه بررسی و ثبت کن» and the sheet closes so the same lot is not saved twice. A failure before the lot keeps «محموله ذخیره نشد» with the sheet open. Test 76 (packing after lot, payable after lot, lot fails first); fails on `e08c8c0`.

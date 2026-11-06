@@ -44,6 +44,8 @@ async function launch({ sw = false, offline = false, profile } = {}) {
   if (!profile) OWNED.set(dir, { open: 0, single: true });
   const ctx = await chromium.launchPersistentContext(dir, { viewport: { width: 390, height: 844 }, locale: 'fa-IR', serviceWorkers: sw ? 'allow' : 'block' });
   const own = OWNED.get(dir); if (own) own.open++; CONTEXTS.add(ctx);
+  // MIZ_NOW=2026-11-20T09:00:00 runs the app as if it were that moment (the clock then runs normally) — to check date-dependent tests on Thursdays, Fridays or month ends.
+  if (process.env.MIZ_NOW) { const pg = ctx.pages()[0] || await ctx.newPage(); await pg.clock.install({ time: new Date(process.env.MIZ_NOW) }); await pg.clock.resume(); }
   // 'close' can fire before the browser process has finished writing its profile, so only the bookkeeping happens here;
   // the profile is removed after ctx.close() has resolved (the browser has exited) or, at the latest, when the file ends.
   let counted = true; const done = () => { if (!counted) return; counted = false; CONTEXTS.delete(ctx); const o = OWNED.get(dir); if (o) o.open--; };

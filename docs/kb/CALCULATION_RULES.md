@@ -87,7 +87,7 @@ Per person and currency group:
 
 - `less`: settled, but paid < amount − 0.5;
 - `more`: paid > amount + 0.5;
-- `open`: not settled, but paid ≥ amount − 0.5.
+- `open`: not settled, something paid, and paid ≥ amount − 0.5.
 
 These are reported only; nothing is changed automatically.
 
@@ -201,8 +201,8 @@ Invariants (tests): trial balance = 0; no unbalanced entry; stock value = 1301; 
 
 [CODE]
 
-- `dueLedger(days)`: live, unsettled receivable/payable rows (ledger + voucher lines) with `due ≤ today + days` and `remOf > 0.5`, sorted by due date.
-- `agingHtml()` buckets by days past due:
+- `dueLedger(days)`: live, unsettled receivable/payable rows (ledger + voucher lines) **that have a due date** with `due ≤ today + days` and `remOf > 0.5`, sorted by due date; rows without a due date are not listed.
+- `agingHtml()` buckets by days past due (a row without a due date is treated as due 30 days after its date):
   - not due (≤ 0);
   - 1–30;
   - 31–60;
@@ -268,7 +268,8 @@ Invariants (tests): trial balance = 0; no unbalanced entry; stock value = 1301; 
 | Stock, cost, stock = 1301 | 20, 28, 30, 61, 73, 76; `invariants()` |
 | Atomic writes for money operations | 59–67, 73, 74, 76 |
 | Profit, query engine | 42, 43, `engine-ref.json` |
-| Recurrence / instalments, ageing, `ledSuspect` | **no test names these functions directly** [OPEN: coverage gap] |
+| Recurrence / instalments, ageing, `ledSuspect`, `dueLedger` | 77 (from 4.47) |
+| Accountant review findings (not fixed) | AUD-1…AUD-8 in [`../BACKLOG.md`](../BACKLOG.md) — purchase return cost, loan rows in the old money form, refunds in `remMap`/ARAP-3/`autoEntries`, payback average, lot posting, `docTotal` validation, purchase tax [OPEN] |
 
 ## 11. Change rule
 
