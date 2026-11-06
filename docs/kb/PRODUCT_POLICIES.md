@@ -10,7 +10,8 @@ Source: the owner's stated rules as recorded in `HANDOFF.md` (sections «قوا�
 4. **No silent upload.** *Requirement:* data leaves the phone only through a feature the owner switched on, and sensitive data only encrypted or de-identified; never card or account numbers, keys or tokens in code, chat, memory or logs; the Gemini key stays only on the phone. *Implemented:* the full backup is always encrypted (no passphrase → no upload); the calendar feed, Google Calendar and Gemini send **readable** text as listed path by path, with its risk, in [DATA_ARCHITECTURE.md](DATA_ARCHITECTURE.md) §7.
 5. **Clinical data** goes to AI only after de-identification. *Implemented:* `aiCall` always applies `aiShield` (clinic clients' names → «مراجع»); clinical fields also pass `deid`. Photos sent for field extraction cannot be de-identified (§7 of DATA_ARCHITECTURE).
 6. **Every record is editable and keeps its edit history.** *Requirement:* as stated. *Implemented (partial):* records are editable; a `hist` list is written only on specific paths, for example (ledger amount/person edits and `ledSync`, `ledReopen`, payment moves, move edits, lot fixes, assets, year closing, undo of financial changes); documents keep versions through `redoOf` («سابقهٔ نسخه‌ها»); the activity log (`actLogRestore`) and snapshots cover the rest. There is no generic history on every save.
-7. **Financial meaning is the owner's decision.** No AI or engineer changes accounting meaning (what posts where, write-offs, tolerances) on its own — see DEC-1/2/3.
+7. **Owner decisions are asked in the app.** Open accounting questions are explained in «تصمیم‌های حسابداری» with the current behaviour and options; recording an answer never changes data or behaviour by itself.
+8. **Financial meaning is the owner's decision.** No AI or engineer changes accounting meaning (what posts where, write-offs, tolerances) on its own — see DEC-1/2/3.
 
 ## 2. Engineering
 

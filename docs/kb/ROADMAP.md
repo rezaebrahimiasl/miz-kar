@@ -6,7 +6,7 @@ Prioritised. IDs as in [`../BACKLOG.md`](../BACKLOG.md); decisions in [DECISION_
 
 1. **PH-1** — real-phone check of 4.45 (checklist in [AI_CONTINUATION_GUIDE.md](AI_CONTINUATION_GUIDE.md) §6).
 2. **ARAP-R / D1-R** — review the integrity page findings on the phone; decide each repair.
-3. **DEC-1, DEC-2, DEC-3, SITE-1** — decisions; each then becomes a small, tested package.
+3. **DEC-1, DEC-2, DEC-3** — answer in the app («تصمیم‌های حسابداری»); **AUD-1…AUD-8** — approve fixes; **SITE-1** — confirm on the phone. Each then becomes a small, tested package.
 
 ## Next (technical, low risk)
 
@@ -24,6 +24,8 @@ Prioritised. IDs as in [`../BACKLOG.md`](../BACKLOG.md); decisions in [DECISION_
 4. **AI** — keep it outside the source of truth; extend the information engine's read-only capabilities; any write as a proposal into a normal form.
 
 ## Change notes
+
+- 2026-11-06: 4.47 prepared: decisions asked in the app, amani return, CI, calculation tests; independent accountant review → AUD-1…AUD-8 (next package after the owner's approval: AUD-1/2/3 first).
 
 - 2026-11-06: initial roadmap from BACKLOG and the 4.45 handover.
 - 2026-11-06: 4.46 prepared (not released): TEST-57 (+ the same weekday problem in test 67) and lot-save messages done; phone Back from the integrity page verified (no change needed); follow-up reopen for receivables without a due date left for the owner (changes which receivables get a follow-up).

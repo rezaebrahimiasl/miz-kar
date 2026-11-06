@@ -10,6 +10,10 @@ How to run tests: [`../../tests/README.md`](../../tests/README.md) (also lists e
 - Regression rule: every fix has a test that fails on the previous commit — run it with `MIZ_ROOT=<old tree> node tests/<file>` after `git archive <commit> | tar -x -C <dir>`.
 - Static code rules (in tests): no direct IndexedDB write outside `js/store.js`; every `<select>` has a label; every action has a handler.
 
+- **CI (from 4.47):** `.github/workflows/tests.yml` runs the full suite on every pull request and push to `main`; a red run blocks merging until explained.
+- **Date independence:** `MIZ_NOW=<ISO time> node tests/<file>` runs a test as if it were that moment (see `tests/lib.js`); used before a release for date-seeded tests (Thursday, Friday, month end).
+- Calculation rules without other tests are covered by test 77; the decisions page and amani return by test 78.
+
 ## What is not verified
 
 - **No real-phone test** has been recorded for 4.40–4.45 (PH-1). Tests run in headless Chromium at phone size with synthetic data.

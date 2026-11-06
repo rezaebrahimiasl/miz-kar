@@ -4,6 +4,8 @@ Append-only. Status values: **approved** (owner), **pending** (owner must decide
 
 ## Pending owner decisions
 
+From 4.47 the owner answers DEC-1/2/3 in the app («امنیت و تنظیمات ← تصمیم‌های حسابداری»); the answer is stored in `meta/prefs.decisions` and changes nothing by itself. An answer becomes approved here only when it is reported back and implemented as a separate tested package. Accountant findings AUD-1…AUD-8 (`docs/BACKLOG.md`) also need approval before any change.
+
 | ID | Question | Options and effects | AI recommendation | Current behaviour (kept until decided) |
 |---|---|---|---|---|
 | DEC-1 | When a clinic visit is deleted, what happens to its fee row? | (a) keep it — money received or truly owed stays in the books; (b) void it — income/receivable drops, books may differ from reality if money was received; (c) ask each time | (a) | the fee row stays |

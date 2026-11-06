@@ -67,7 +67,7 @@ State: v4.45 released (`main` `5dfabe5`, PR #6; Pages deployment 7544359496 succ
 
 | ID | Question | Current behaviour | Options |
 |---|---|---|---|
-| DEC-1 | When a clinic visit is deleted, what should happen to its fee row (`ledger` row with `visitOf`)? | `voidVisit` voids only the visit; the fee row stays, so the receivable or receipt remains in the books (`tests/50-workflows.test.js` records this). | (a) keep as is: money owed or received is not erased with a clinical note; (b) void the fee row together with the visit; (c) ask on each deletion. Any change needs a regression test and a review of fees that were already received. |
+| DEC-1 | (answer in the app: «تصمیم‌های حسابداری», 4.47) When a clinic visit is deleted, what should happen to its fee row (`ledger` row with `visitOf`)? | `voidVisit` voids only the visit; the fee row stays, so the receivable or receipt remains in the books (`tests/50-workflows.test.js` records this). | (a) keep as is: money owed or received is not erased with a clinical note; (b) void the fee row together with the visit; (c) ask on each deletion. Any change needs a regression test and a review of fees that were already received. |
 
 ## Open, in priority order
 
@@ -75,6 +75,14 @@ State: v4.45 released (`main` `5dfabe5`, PR #6; Pages deployment 7544359496 succ
 |---|---|---|---|
 | T3 | Intermittent backup/restore test failure, part 2: not reproduced in 36 runs of `40` (8 in parallel, then 6 in parallel with 6 CPU-burning processes on 2 cores). Instrumented run: restore is fully awaited, fingerprint and backup are taken atomically, and nothing writes app data after start-up except the daily snapshot (separate database). Classified as test timing, not an app defect; `sigDiff` will name the difference if it recurs | 3 | the diagnostic message from the next occurrence |
 | P-x | Further privacy hardening (tracked privately) | 1 | owner decision |
+| AUD-1 | Purchase return: the `pret` move posts nothing; the money row credits 1301 at the return price, not the lot cost (incl. freight/tax/discount shares) → stock value ≠ 1301 after a return (accountant probe: 43,659 toman difference). Fix: credit 1301 at lot cost; where the difference goes is an owner decision | 1 | owner approval (variance account) |
+| AUD-2 | Old single-entry money form (`formLedger`, still reachable from quick capture «money», trip cost, `lgFix`): a paid/received row in the loan category without «تسویه» goes to 1201/2101 (`catAcc`) but not into person balances (`affects`) → invariant 1201+2101 ≠ person balances | 1 | approval (fix or route to the voucher form) |
+| AUD-3 | `remMap`: a refund linked to a receivable/payable (`refId`) counts as a payment → remaining understated (probe: 100 − 50 received − 10 refund → 40 instead of 60) | 1 | approval |
+| AUD-4 | ARAP-3 excess pool ignores linked refunds → an already refunded excess is applied again to another open row | 2 | approval |
+| AUD-5 | `autoEntries`: a settling received always credits 1201 and a settling paid always debits 2101, whatever the target row → refunds create a false customer advance / supplier prepayment (1201+2101 total still balances) | 2 | approval |
+| AUD-6 | Consignment payback: 2102 at the average of all the supplier's loan lots, including returned ones → early 5303 gain | 2 | owner decision (method) |
+| AUD-7 | Opening lots with cost 0 but packing/extra post nothing; loan lots post `cost × qty` instead of `lotCost`; purchase line shares rounded to whole toman (0.5 per line) | 3 | approval |
+| AUD-8 | `docTotal` accepts a negative discount or quantity (form validation); purchase tax goes into lot cost while sales tax goes to 2201 (input tax policy) | 3 | approval / owner decision |
 | CLOUD-LOT-1 | Cloud mode, new lot: memory is not refreshed immediately after the write, so the lot id may not be linked to the purchase payable row and the packing cost may not be recorded. Old limitation, not fixed yet. | 1 | review the order of writes and memory refresh; add a synthetic cloud test |
 | DEC-3 | Small differences (e.g. a 400-toman balance from a payment that differs from its row by a bank fee or rounding): how to close them — (a) leave as is; (b) a write-off entry to an income/expense account chosen by the owner; (c) refund. No automatic tolerance | 2 | owner decision |
 | ARAP-R | Owner review on the real phone: «عیب‌یابی داده‌ها» → «وضعیت تسویه با پرداخت‌ها نمی‌خواند» and «مالی ← طلب و بدهی» → «پیش‌دریافت، اضافه‌پرداخت و اختلاف» (incl. the reported person). Rows settled with less paid may be real discounts; any change is a separate, approved, per-row action (no repair tool built yet) | 1 | 4.42 released |

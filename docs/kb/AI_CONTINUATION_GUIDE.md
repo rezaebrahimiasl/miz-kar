@@ -49,7 +49,8 @@ Rules: dated, append-only history; never silently overwrite an approved decision
 
 1. `git diff` reviewed; only intended files.
 2. Secret scan (`git diff | grep -E "AIza|ghp_|github_pat_|sk-|BEGIN|[0-9]{16}"`) and personal-data check.
-3. Tests as in [TESTING_AND_QUALITY.md](TESTING_AND_QUALITY.md) quality gates.
+3. Tests as in [TESTING_AND_QUALITY.md](TESTING_AND_QUALITY.md) quality gates; after pushing, check the CI run (`gh api repos/rezaebrahimiasl/miz-kar/commits/<sha>/check-runs`).
+4. An owner answer in «تصمیم‌های حسابداری» (`meta/prefs.decisions`) is not an approval to change existing records; implement it only as a separate package the owner approves.
 
 ## 6. Real-phone checklist (owner)
 
